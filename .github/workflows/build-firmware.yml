@@ -23,12 +23,16 @@ env:
   STOCK_TAG: 3.2.0-fm
   STOCK_DIR: y2_v3.2.0_FM-20260813
 
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
 jobs:
   build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -38,7 +42,7 @@ jobs:
             /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY/CodeQL" || true
           df -h /
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
@@ -69,26 +73,30 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
-          mkdir -p build/stock
-          echo "Assets in $STOCK_REPO $STOCK_TAG:"
-          gh release view "$STOCK_TAG" -R "$STOCK_REPO" --json assets --jq '.assets[] | "  \(.name)  \(.size)"'
-          asset="$(gh release view "$STOCK_TAG" -R "$STOCK_REPO" --json assets \
-            --jq '[.assets[].name | select(test("y2"; "i")) | select(endswith(".zip"))][0]')"
-          [ -n "$asset" ] && [ "$asset" != "null" ] || { echo "no Y2 zip in $STOCK_TAG"; exit 1; }
-          echo "Using $asset"
-          gh release download "$STOCK_TAG" -R "$STOCK_REPO" -p "$asset" -D build/stock --clobber
+          mkdir -p ci-logs build/stock
+          {
+          echo "Releases matching $STOCK_TAG in $STOCK_REPO:"
+          gh api "repos/$STOCK_REPO/releases?per_page=100" \
+            --jq '.[] | "\(.tag_name)\t\([.assets[] | "\(.name) (\(.size))"] | join(", "))"' | grep -i "3.2" || true
+          assets="$(gh api "repos/$STOCK_REPO/releases/tags/$STOCK_TAG" --jq '.assets[] | "\(.name)\t\(.browser_download_url)"')"
+          echo "Assets in $STOCK_TAG:"; echo "$assets"
+          line="$(echo "$assets" | awk -F'\t' 'tolower($1) ~ /y2/ && tolower($1) ~ /\.zip$/ {print; exit}')"
+          [ -n "$line" ] || line="$(echo "$assets" | awk -F'\t' 'tolower($1) ~ /\.zip$/ {print; exit}')"
+          [ -n "$line" ] || { echo "no zip asset in $STOCK_TAG"; exit 1; }
+          name="$(printf '%s' "$line" | cut -f1)"; url="$(printf '%s' "$line" | cut -f2)"
+          echo "Using $name"
+          curl -fsSL --retry 3 -o "build/stock/$name" "$url"
+          ls -la build/stock
           mkdir -p "$STOCK_DIR" OriginalFirmware build/stock/unpacked
-          unzip -q -o "build/stock/$asset" -d build/stock/unpacked
-          # Some packages nest the files one folder down.
+          unzip -q -o "build/stock/$name" -d build/stock/unpacked
+          find build/stock/unpacked -maxdepth 3 | head -50
           scatter="$(find build/stock/unpacked -name MT6582_Android_scatter.txt | head -n 1)"
-          [ -n "$scatter" ] || { echo "scatter file not found in $asset"; exit 1; }
+          [ -n "$scatter" ] || { echo "scatter file not found in $name"; exit 1; }
           src="$(dirname "$scatter")"
-          ls -la "$src"
           cp -a "$src"/. OriginalFirmware/
           cp "$src/MT6582_Android_scatter.txt" "$STOCK_DIR/"
-          # The system-image tools take a sparse image; Updater packages ship raw.
           magic="$(head -c 4 "$src/system.img" | od -An -tx4 | tr -d ' ')"
+          echo "system.img magic: $magic"
           if [ "$magic" = "ed26ff3a" ]; then
             cp "$src/system.img" "$STOCK_DIR/system.img"
           else
@@ -97,6 +105,8 @@ jobs:
           fi
           rm -rf build/stock/unpacked
           ls -la "$STOCK_DIR" OriginalFirmware
+          df -h /
+          } 2>&1 | tee ci-logs/1-stock.log
 
       - name: Signing key
         env:
@@ -118,10 +128,10 @@ jobs:
           printf 'storeFile=y2player-release.jks\nstorePassword=%s\nkeyAlias=y2player\nkeyPassword=%s\n' "$pass" "$pass" > keystore.properties
 
       - name: Validate inputs
-        run: ./tools/build-linux.sh firmware-validate
+        run: ./tools/build-linux.sh firmware-validate 2>&1 | tee ci-logs/2-validate.log
 
       - name: Build native runtime, app and firmware
-        run: ./tools/build-linux.sh all
+        run: ./tools/build-linux.sh all 2>&1 | tee ci-logs/3-build.log
 
       - name: Upload build reports
         if: always()
@@ -133,6 +143,19 @@ jobs:
             app/build/reports/**
             out/firmware/*.txt
             out/updater/*.txt
+
+      - name: Save logs to the ci-logs branch
+        if: always()
+        run: |
+          mkdir -p ci-logs
+          cp -r app/build/reports ci-logs/reports 2>/dev/null || true
+          cp out/firmware/*.txt out/updater/*.txt ci-logs/ 2>/dev/null || true
+          echo "run ${{ github.run_id }} attempt ${{ github.run_attempt }} sha ${{ github.sha }} status ${{ job.status }}" > ci-logs/RUN.txt
+          cd ci-logs
+          git init -q -b ci-logs
+          git -c user.name=ci -c user.email=ci@localhost add -A
+          git -c user.name=ci -c user.email=ci@localhost commit -q -m "logs for run ${{ github.run_id }}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ci-logs
 
       - name: Publish release
         env:
