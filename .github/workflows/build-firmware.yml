@@ -128,10 +128,10 @@ jobs:
           printf 'storeFile=y2player-release.jks\nstorePassword=%s\nkeyAlias=y2player\nkeyPassword=%s\n' "$pass" "$pass" > keystore.properties
 
       - name: Validate inputs
-        run: ./tools/build-linux.sh firmware-validate 2>&1 | tee ci-logs/2-validate.log
+        run: bash tools/build-linux.sh firmware-validate 2>&1 | tee ci-logs/2-validate.log
 
       - name: Build native runtime, app and firmware
-        run: ./tools/build-linux.sh all 2>&1 | tee ci-logs/3-build.log
+        run: chmod +x gradlew && bash tools/build-linux.sh all 2>&1 | tee ci-logs/3-build.log
 
       - name: Upload build reports
         if: always()
