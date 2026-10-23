@@ -1,0 +1,152 @@
+# Builds the Innioasis Updater package (rom_y2.zip) for this fork and publishes
+# it as a GitHub Release, so installing needs nothing but the Updater.
+#
+# Runs on every push to the `videos` branch, or by hand from the Actions tab.
+name: Build Y2 firmware
+
+on:
+  push:
+    branches: [videos]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Stock firmware the image is built on. The pipeline checks the audio HAL and
+  # keypad files inside it against pinned SHA-256 values and stops on a mismatch.
+  STOCK_REPO: y1-community/y1-stock-rom
+  STOCK_TAG: 3.2.0-fm
+  STOCK_DIR: y2_v3.2.0_FM-20260813
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /usr/local/share/boost \
+            /usr/local/lib/node_modules "$AGENT_TOOLSDIRECTORY/CodeQL" || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Android SDK packages
+        run: |
+          set -euo pipefail
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Linux tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq e2fsprogs xz-utils unzip zip make patch
+
+      - name: Cache downloads and native build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/downloads
+            ~/.cache/y2player
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: y2-${{ runner.os }}-${{ hashFiles('tools/native/**', 'app/src/main/c/**', 'gradle/wrapper/gradle-wrapper.properties', '**/*.gradle.kts') }}
+          restore-keys: y2-${{ runner.os }}-
+
+      - name: Stock Y2 firmware
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/stock
+          echo "Assets in $STOCK_REPO $STOCK_TAG:"
+          gh release view "$STOCK_TAG" -R "$STOCK_REPO" --json assets --jq '.assets[] | "  \(.name)  \(.size)"'
+          asset="$(gh release view "$STOCK_TAG" -R "$STOCK_REPO" --json assets \
+            --jq '[.assets[].name | select(test("y2"; "i")) | select(endswith(".zip"))][0]')"
+          [ -n "$asset" ] && [ "$asset" != "null" ] || { echo "no Y2 zip in $STOCK_TAG"; exit 1; }
+          echo "Using $asset"
+          gh release download "$STOCK_TAG" -R "$STOCK_REPO" -p "$asset" -D build/stock --clobber
+          mkdir -p "$STOCK_DIR" OriginalFirmware build/stock/unpacked
+          unzip -q -o "build/stock/$asset" -d build/stock/unpacked
+          # Some packages nest the files one folder down.
+          scatter="$(find build/stock/unpacked -name MT6582_Android_scatter.txt | head -n 1)"
+          [ -n "$scatter" ] || { echo "scatter file not found in $asset"; exit 1; }
+          src="$(dirname "$scatter")"
+          ls -la "$src"
+          cp -a "$src"/. OriginalFirmware/
+          cp "$src/MT6582_Android_scatter.txt" "$STOCK_DIR/"
+          # The system-image tools take a sparse image; Updater packages ship raw.
+          magic="$(head -c 4 "$src/system.img" | od -An -tx4 | tr -d ' ')"
+          if [ "$magic" = "ed26ff3a" ]; then
+            cp "$src/system.img" "$STOCK_DIR/system.img"
+          else
+            echo "stock system.img is raw; converting to sparse"
+            python3 tools/firmware/sparse.py pack "$src/system.img" "$STOCK_DIR/system.img"
+          fi
+          rm -rf build/stock/unpacked
+          ls -la "$STOCK_DIR" OriginalFirmware
+
+      - name: Signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.Y2_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.Y2_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYSTORE_B64:-}" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > y2player-release.jks
+            pass="$KEYSTORE_PASSWORD"
+          else
+            # The full-ROM package erases the device, so a fresh key per build
+            # never blocks an install.
+            pass="$(openssl rand -hex 16)"
+            keytool -genkeypair -noprompt -keystore y2player-release.jks -alias y2player \
+              -keyalg RSA -keysize 2048 -validity 10000 -storepass "$pass" -keypass "$pass" \
+              -dname "CN=Y2Player Videos, O=Personal build"
+          fi
+          printf 'storeFile=y2player-release.jks\nstorePassword=%s\nkeyAlias=y2player\nkeyPassword=%s\n' "$pass" "$pass" > keystore.properties
+
+      - name: Validate inputs
+        run: ./tools/build-linux.sh firmware-validate
+
+      - name: Build native runtime, app and firmware
+        run: ./tools/build-linux.sh all
+
+      - name: Upload build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          if-no-files-found: ignore
+          path: |
+            app/build/reports/**
+            out/firmware/*.txt
+            out/updater/*.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="videos-$(date -u +%Y%m%d-%H%M)-$(git rev-parse --short HEAD)"
+          cat > notes.md <<NOTES
+          Y2Player with Videos, built from $(git rev-parse --short HEAD) on the \`videos\` branch.
+
+          **Install:** download \`rom_y2.zip\` below, drag it onto the Innioasis Updater window, then install as usual.
+          Installing erases the player's internal storage; keep music and videos on the SD card.
+
+          Stock base: $STOCK_REPO $STOCK_TAG
+          NOTES
+          gh release create "$tag" out/updater/rom_y2.zip out/updater/checksums.txt \
+            --title "Y2Player + Videos ($(date -u +%Y-%m-%d))" --notes-file notes.md --target "$GITHUB_SHA"
