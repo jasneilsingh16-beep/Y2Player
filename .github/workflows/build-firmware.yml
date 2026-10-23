@@ -108,6 +108,31 @@ jobs:
           df -h /
           } 2>&1 | tee ci-logs/1-stock.log
 
+      - name: Updater template (flashing tool files)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # build_full_package.py pins this archive by size and SHA-256 and
+          # verifies it after download, so any copy with the same bytes works.
+          dest=build/downloads/innioasis-updater/rockbox-y2-0.5-rom_y2.zip
+          mkdir -p "$(dirname "$dest")"
+          {
+          if [ -f "$dest" ] && [ "$(stat -c%s "$dest")" = 433341038 ]; then echo "template cached"; exit 0; fi
+          for repo in y1-community/rockbox-y2-rom spycemagic/y2-rockbox SPYCEMAGIC/Y2-Rockbox y1-community/y2-rockbox; do
+            echo "== $repo"
+            gh api "repos/$repo/releases?per_page=100" \
+              --jq '.[] | .tag_name as $t | .assets[] | "\($t)\t\(.name)\t\(.size)\t\(.browser_download_url)"' 2>/dev/null || true
+          done > template-candidates.txt
+          cat template-candidates.txt
+          url="$(awk -F'\t' '$3 == 433341038 {print $4; exit}' template-candidates.txt)"
+          if [ -n "$url" ]; then
+            echo "downloading $url"
+            curl -fsSL --retry 3 -o "$dest" "$url"
+          else
+            echo "no asset with the pinned template size was found"
+          fi
+          } 2>&1 | tee ci-logs/1b-template.log
+
       - name: Signing key
         env:
           KEYSTORE_B64: ${{ secrets.Y2_KEYSTORE_B64 }}
