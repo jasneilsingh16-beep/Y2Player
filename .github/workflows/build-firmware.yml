@@ -101,7 +101,7 @@ jobs:
             cp "$src/system.img" "$STOCK_DIR/system.img"
           else
             echo "stock system.img is raw; converting to sparse"
-            python3 tools/firmware/sparse.py pack "$src/system.img" "$STOCK_DIR/system.img"
+            python3 .github/scripts/stock_system_to_sparse.py "$src/system.img" "$STOCK_DIR/system.img"
           fi
           rm -rf build/stock/unpacked
           ls -la "$STOCK_DIR" OriginalFirmware
