@@ -1083,7 +1083,10 @@ class Y2PlayerView(
     private fun drawEmptyState(canvas: Canvas) {
         val search = state.currentScreen as? Screen.Search
         val storageAvailable = state.device.internalStorageAvailable || state.device.removableStorageAvailable
+        val videos = state.currentScreen as? Screen.Videos
         val kind = Y2UiLogic.emptyState(
+            videosScreen = videos != null,
+            videosLoading = videos != null && state.videos.listing(videos.path) == null,
             scanning = state.library.isScanning,
             storageAvailable = storageAvailable,
             queueScreen = state.currentScreen == Screen.Queue,
@@ -1118,6 +1121,16 @@ class Y2PlayerView(
                 title = "Nothing here"
                 detail = "These files are no longer on the card"
                 icon = Y2Icon.WARNING
+            }
+            EmptyStateKind.VIDEOS_LOADING -> {
+                title = "Looking for videos"
+                detail = "Reading the Videos folder"
+                icon = Y2Icon.PREPARING
+            }
+            EmptyStateKind.EMPTY_VIDEOS -> {
+                title = "No videos found"
+                detail = "Put MP4 files inside a Videos folder"
+                icon = Y2Icon.VIDEO
             }
             EmptyStateKind.EMPTY_AUDIOBOOKS -> {
                 title = "No audiobooks found"
@@ -2292,11 +2305,10 @@ class Y2PlayerView(
         val retained = HashMap<Int, VisibleRowArtworkSlot>(requests.size)
         val pending = ArrayList<VisibleRowArtworkLoad>(requests.size)
         requests.forEach { request ->
-            val track = request.track
             val key = VisibleRowArtworkKey(
-                trackId = track.id,
-                path = track.absolutePath,
-                modifiedAt = track.modifiedAt,
+                trackId = request.trackId,
+                path = request.path,
+                modifiedAt = request.modifiedAt,
                 libraryRevision = state.library.tracksRevision
             )
             val existing = visibleRowArtworks[request.rowIndex]
@@ -2431,6 +2443,7 @@ class Y2PlayerView(
         // selected value of a setting, so navigation wins over the active mark.
         if (key in NAVIGATION_KEYS || key.startsWith("storage:") || key.startsWith("playlist:") ||
             key.startsWith("audiobook:") || key.startsWith("audiobook_chapters:") ||
+            key.startsWith(ScreenContent.VIDEO_FOLDER_KEY) || key.startsWith(ScreenContent.VIDEO_VOLUME_KEY) ||
             key.startsWith("track_playlist") || key.startsWith("track_browse") || key.startsWith("track_details") ||
             key.startsWith("track_album") || key.startsWith("track_artist") || key.startsWith("np_playlist") ||
             key.startsWith("np_track_options")
@@ -2509,7 +2522,7 @@ class Y2PlayerView(
         private const val BATTERY_TEXT_REFERENCE = "100%"
         const val SHARED_ARTWORK_SIZE_PX = 256
         private val NAVIGATION_KEYS = setOf(
-            "music", "audiobooks", "search", "songs", "albums", "artists", "playlists",
+            "music", "audiobooks", "videos", "search", "songs", "albums", "artists", "playlists",
             "folders", "favorites", "recent", "audio", "settings", "output", "sort", "bluetooth",
             "sound_effects", "reset", "extra_track_info",
             "display", "controls", "storage", "system", "diagnostics", "android_settings", "about",

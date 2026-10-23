@@ -21,7 +21,7 @@ class VisibleRowArtworkPlannerTest {
         val requests = VisibleRowArtworkPlanner.requests(state, rows, visibleStart = 1, visibleCount = 2)
 
         assertEquals(listOf(1, 2), requests.map { it.rowIndex })
-        assertEquals(listOf(2L, 3L), requests.map { it.track.id })
+        assertEquals(listOf(2L, 3L), requests.map { it.trackId })
     }
 
     @Test fun albumTrackNumbersArePreservedInsteadOfSchedulingThumbnails() {

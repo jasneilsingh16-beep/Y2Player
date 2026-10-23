@@ -128,6 +128,7 @@ data class AppState(
     val diagnostics: DiagnosticsState = DiagnosticsState(),
     val backup: BackupUiState = BackupUiState(),
     val fm: FmState = FmState(),
+    val videos: VideoBrowseState = VideoBrowseState(),
     val skins: com.schulzcode.y2player.skin.SkinCatalogState = com.schulzcode.y2player.skin.SkinCatalogState(),
     val safeMode: Boolean = false,
     val transientMessage: String? = null,

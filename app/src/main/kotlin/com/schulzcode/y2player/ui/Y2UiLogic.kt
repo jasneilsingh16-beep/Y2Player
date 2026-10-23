@@ -7,7 +7,7 @@ import com.schulzcode.y2player.core.model.RepeatMode
 
 enum class RowVisualState { FOCUSED, FOCUSED_ACTIVE, ACTIVE, NORMAL, UNAVAILABLE }
 enum class ArtworkVisual { EMBEDDED, FALLBACK }
-enum class EmptyStateKind { SCANNING, STORAGE_MISSING, NO_MUSIC, EMPTY_QUEUE, EMPTY_FAVORITES, EMPTY_RECENT, EMPTY_PLAYLIST, EMPTY_AUDIOBOOKS, EMPTY_LIST }
+enum class EmptyStateKind { SCANNING, STORAGE_MISSING, NO_MUSIC, EMPTY_QUEUE, EMPTY_FAVORITES, EMPTY_RECENT, EMPTY_PLAYLIST, EMPTY_AUDIOBOOKS, EMPTY_LIST, VIDEOS_LOADING, EMPTY_VIDEOS }
 enum class EmptyStateAction { NONE, OPEN_STORAGE, GO_BACK }
 enum class RouteIcon { HEADPHONES, BLUETOOTH, SPEAKER, DISCONNECTED, UNKNOWN }
 enum class PlayerLayout { WIDE, TALL }
@@ -147,8 +147,13 @@ object Y2UiLogic {
         playlistScreen: Boolean,
         recentScreen: Boolean = false,
         audiobooksScreen: Boolean = false,
-        drilldownScreen: Boolean = false
+        drilldownScreen: Boolean = false,
+        videosScreen: Boolean = false,
+        videosLoading: Boolean = false
     ): EmptyStateKind = when {
+        // Videos are not part of the music scan, so a scan never hides them.
+        videosScreen && videosLoading -> EmptyStateKind.VIDEOS_LOADING
+        videosScreen && storageAvailable -> EmptyStateKind.EMPTY_VIDEOS
         scanning -> EmptyStateKind.SCANNING
         !storageAvailable -> EmptyStateKind.STORAGE_MISSING
         audiobooksScreen -> EmptyStateKind.EMPTY_AUDIOBOOKS
@@ -161,7 +166,8 @@ object Y2UiLogic {
     }
 
     fun emptyStateAction(kind: EmptyStateKind): EmptyStateAction = when (kind) {
-        EmptyStateKind.SCANNING -> EmptyStateAction.NONE
+        EmptyStateKind.SCANNING, EmptyStateKind.VIDEOS_LOADING -> EmptyStateAction.NONE
+        EmptyStateKind.EMPTY_VIDEOS -> EmptyStateAction.GO_BACK
         EmptyStateKind.STORAGE_MISSING, EmptyStateKind.NO_MUSIC,
         EmptyStateKind.EMPTY_AUDIOBOOKS -> EmptyStateAction.OPEN_STORAGE
         EmptyStateKind.EMPTY_QUEUE, EmptyStateKind.EMPTY_FAVORITES, EmptyStateKind.EMPTY_RECENT,

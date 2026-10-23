@@ -11,7 +11,7 @@ enum class Y2Icon {
     ACTION, REFRESH, HEADPHONES, SPEAKER, DISCONNECTED, UNKNOWN, CHEVRON, PLAY, PAUSE,
     PREVIOUS, NEXT, CHECK, PREPARING, WARNING, SHUFFLE, REPEAT, TIMER, DAC,
     MUSIC, BOOK, LIBRARY, SLIDERS, VOLUME, EQUALIZER, CROSSFADE, HISTORY, REMOVE, SYSTEM, WHEEL,
-    CHAPTERS, SEARCH
+    CHAPTERS, SEARCH, VIDEO
 }
 
 class Y2IconPainter(private val paint: Paint, density: Float) {
@@ -53,6 +53,7 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
             Y2Icon.SYSTEM -> drawSystem(canvas, left, top, size)
             Y2Icon.WHEEL -> drawWheel(canvas, centerX, centerY, size)
             Y2Icon.CHAPTERS -> drawChapters(canvas, left, top, size)
+            Y2Icon.VIDEO -> drawVideo(canvas, left, top, size)
             Y2Icon.SEARCH -> {
                 canvas.drawCircle(centerX - size * .1f, centerY - size * .1f, size * .27f, paint)
                 canvas.drawLine(centerX + size * .1f, centerY + size * .1f, centerX + size * .35f, centerY + size * .35f, paint)
@@ -171,6 +172,17 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
         canvas.drawLine(x + s * .40f, y + s * .24f, x + s * .78f, y + s * .16f, paint)
         canvas.drawCircle(x + s * .27f, y + s * .71f, s * .13f, paint)
         canvas.drawCircle(x + s * .65f, y + s * .63f, s * .13f, paint)
+    }
+
+    private fun drawVideo(canvas: Canvas, x: Float, y: Float, s: Float) {
+        rect.set(x + s * .12f, y + s * .24f, x + s * .88f, y + s * .76f)
+        canvas.drawRoundRect(rect, s * .08f, s * .08f, paint)
+        path.reset()
+        path.moveTo(x + s * .43f, y + s * .38f)
+        path.lineTo(x + s * .62f, y + s * .50f)
+        path.lineTo(x + s * .43f, y + s * .62f)
+        path.close()
+        canvas.drawPath(path, paint)
     }
 
     private fun drawBook(canvas: Canvas, x: Float, y: Float, s: Float) {

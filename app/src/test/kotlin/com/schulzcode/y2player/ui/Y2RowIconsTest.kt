@@ -30,7 +30,7 @@ class Y2RowIconsTest {
         "settings", "shuffle", "shuffle_all", "sleep_timer",
         "songs", "sort", "sound_effects", "storage",
         "system", "theme", "timeout", "ui_sounds",
-        "volume_mode"
+        "videos", "volume_mode"
     )
 
     private val parameterisedActionKeys = listOf(
@@ -42,7 +42,9 @@ class Y2RowIconsTest {
         "track_artist:1", "track_browse:1", "track_details:1", "track_favorite:1",
         "track_next:1", "track_playlist:1", "track_queue:1", "track_multi:1", "track_remove_playlist:5:1",
         "audiobook:sdcard|AUDIOBOOKS/Dune", "audiobook_chapters:sdcard|AUDIOBOOKS/Dune",
-        "audiobook_restart:sdcard|AUDIOBOOKS/Dune", "audiobook_clear:sdcard|AUDIOBOOKS/Dune"
+        "audiobook_restart:sdcard|AUDIOBOOKS/Dune", "audiobook_clear:sdcard|AUDIOBOOKS/Dune",
+        "video:/storage/sdcard1/Videos/Film.mp4", "video_folder:/storage/sdcard1/Videos/Shows",
+        "video_volume:/storage/sdcard1/Videos"
     )
 
     @Test
@@ -156,7 +158,7 @@ class Y2RowIconsTest {
 
     @Test
     fun `main menu rows are all visually distinct`() {
-        val icons = listOf("music", "audiobooks", "shuffle_all", "settings")
+        val icons = listOf("music", "audiobooks", "videos", "search", "settings")
             .map(Y2RowIcons::forActionKey)
         assertEquals("main menu icons must be unique", icons.size, icons.toSet().size)
     }

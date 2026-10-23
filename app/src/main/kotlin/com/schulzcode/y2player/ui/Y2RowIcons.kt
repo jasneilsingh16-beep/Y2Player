@@ -58,6 +58,7 @@ object Y2RowIcons {
     private fun exactAction(key: String): Y2Icon? = when (key) {
         "music" -> Y2Icon.MUSIC
         "audiobooks" -> Y2Icon.BOOK
+        "videos" -> Y2Icon.VIDEO
         "fm_radio", "show_fm_radio" -> Y2Icon.SPEAKER
         "now_playing" -> Y2Icon.PLAYING
         "settings" -> Y2Icon.SETTINGS
@@ -137,6 +138,9 @@ object Y2RowIcons {
         key.startsWith("audiobook_restart:") -> Y2Icon.REFRESH
         key.startsWith("audiobook_clear:") -> Y2Icon.REMOVE
         key.startsWith("audiobook:") -> Y2Icon.BOOK
+        key.startsWith("video_folder:") -> Y2Icon.FOLDER
+        key.startsWith("video_volume:") -> Y2Icon.STORAGE
+        key.startsWith("video:") -> Y2Icon.VIDEO
         key.startsWith("playlist:") || key.startsWith("playlist_add:") -> Y2Icon.PLAYLIST
         key.startsWith("playlist_delete:") -> Y2Icon.REMOVE
         key.startsWith("track_next:") -> Y2Icon.NEXT

@@ -78,6 +78,11 @@ object AppReducer {
         is AppAction.ShowMessage -> Reduction(state.copy(transientMessage = action.message))
         is AppAction.SelectIndex -> if (state.currentScreen is Screen.Search) focusSearchResult(state, action.index) else Reduction(normalizeSelection(setSelected(clearAlphabetScrub(state), action.index.coerceAtLeast(0))))
         is AppAction.PressSearchKey -> pressSearchKey(state, action.key)
+        is AppAction.VideosLoaded -> {
+            val key = action.path ?: VideoBrowseState.TOP_LEVEL
+            val updated = state.copy(videos = VideoBrowseState(state.videos.listings + (key to action.items)))
+            Reduction(if ((state.currentScreen as? Screen.Videos)?.path == action.path) preserveSelection(state, updated) else updated)
+        }
     }
 
     private fun moveAlphabet(state: AppState, direction: Int): Reduction {
@@ -228,6 +233,7 @@ object AppReducer {
             is Screen.Search -> confirmSearch(state)
             Screen.Music -> confirmMusic(state, row)
             Screen.Audiobooks -> confirmAudiobook(state, row)
+            is Screen.Videos -> confirmVideos(state, screen, row)
             is Screen.AudiobookOptions -> confirmAudiobookOptions(state, screen, row)
             is Screen.AudiobookChapters -> confirmAudiobookChapter(state, screen, row)
             Screen.Songs, Screen.Favorites, Screen.RecentlyPlayed,
@@ -312,6 +318,7 @@ object AppReducer {
         return when (key) {
             "music" -> push(state, Screen.Music)
             "audiobooks" -> Reduction(pushState(state, Screen.Audiobooks), listOf(RefreshAudiobooks))
+            "videos" -> Reduction(pushState(state, Screen.Videos()), listOf(LoadVideos(null)))
             "fm_radio" -> Reduction(pushState(state, Screen.FmRadio), listOf(FmOpen))
             "search" -> push(state, Screen.Search())
             "shuffle_all" -> Reduction(toNowPlaying(state), listOf(ShuffleAll))
@@ -1016,7 +1023,27 @@ object AppReducer {
     }
 
 
+    private fun confirmVideos(state: AppState, screen: Screen.Videos, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        val path = key.substringAfter(':')
+        return when {
+            key.startsWith(ScreenContent.VIDEO_FOLDER_KEY) || key.startsWith(ScreenContent.VIDEO_VOLUME_KEY) ->
+                Reduction(pushState(state, Screen.Videos(path)), listOf(LoadVideos(path)))
+            key.startsWith(ScreenContent.VIDEO_KEY) -> {
+                val folderVideos = state.videos.listing(screen.path).orEmpty()
+                    .filter { it.kind == VideoItemKind.VIDEO }
+                    .map { it.path }
+                Reduction(state, listOf(PlayVideo(path, folderVideos)))
+            }
+            else -> Reduction(state)
+        }
+    }
+
     private fun confirmEmptyScreen(state: AppState): Reduction {
+        // A Videos folder that is still being listed has nothing to act on yet.
+        (state.currentScreen as? Screen.Videos)?.let { screen ->
+            return if (state.videos.listing(screen.path) == null) Reduction(state) else back(state)
+        }
         if (state.library.isScanning) return Reduction(state)
         val storageAvailable = state.device.internalStorageAvailable || state.device.removableStorageAvailable
         return when {

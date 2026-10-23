@@ -143,7 +143,10 @@ internal class ArtworkSourceResolver(
             "folder.png",
             "cover.jpg",
             "cover.jpeg",
-            "cover.png"
+            "cover.png",
+            "poster.jpg",
+            "poster.jpeg",
+            "poster.png"
         )
     }
 }

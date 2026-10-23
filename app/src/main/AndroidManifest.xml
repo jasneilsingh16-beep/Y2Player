@@ -50,6 +50,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Full-screen video playback, opened from the Videos lists. -->
+        <activity
+            android:name=".video.VideoActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode|locale|fontScale|mcc|mnc"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+
         <service
             android:name=".playback.PlaybackService"
             android:exported="false"

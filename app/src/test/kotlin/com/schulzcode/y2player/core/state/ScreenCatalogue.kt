@@ -17,6 +17,7 @@ object ScreenCatalogue {
         put(Screen.Search("test"))
         put(Screen.Music)
         put(Screen.Audiobooks)
+        put(Screen.Videos())
         put(Screen.AudiobookOptions("sdcard|AUDIOBOOKS/Dune"))
         put(Screen.AudiobookChapters("sdcard|AUDIOBOOKS/Dune"))
         put(Screen.Songs)
@@ -102,7 +103,7 @@ object ScreenCatalogue {
     val contentScreens: Set<String> = setOf(
         Screen.Songs.code, Screen.Favorites.code, Screen.RecentlyPlayed.code,
         Screen.Search().code,
-        Screen.Albums.code, Screen.Artists.code, Screen.Genres.code, Screen.Years.code, Screen.Audiobooks.code,
+        Screen.Albums.code, Screen.Artists.code, Screen.Genres.code, Screen.Years.code, Screen.Audiobooks.code, Screen.Videos().code,
         Screen.Queue.code, Screen.AlbumSongs("").code, Screen.ArtistAlbums("").code,
         Screen.ArtistSongs("").code, Screen.Folders().code, Screen.PlaylistTracks(0, "").code,
         Screen.AudiobookChapters("").code, Screen.MultiSelect(emptyList(), emptySet()).code,

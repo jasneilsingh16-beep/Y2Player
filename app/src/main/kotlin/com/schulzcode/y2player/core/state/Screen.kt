@@ -13,6 +13,8 @@ sealed interface Screen {
     ) : Screen
     data object Music : Screen
     data object Audiobooks : Screen
+    /** A folder in the Videos section; null is the section's top level. */
+    data class Videos(val path: String? = null) : Screen
     data class AudiobookOptions(val folderKey: String) : Screen
     data class AudiobookChapters(val folderKey: String) : Screen
     data object Songs : Screen
@@ -109,6 +111,7 @@ val Screen.code: String get() = when (this) {
     is Screen.Search -> "search"
     Screen.Music -> "music"
     Screen.Audiobooks -> "audiobooks"
+    is Screen.Videos -> "videos"
     is Screen.AudiobookOptions -> "audiobook_options"
     is Screen.AudiobookChapters -> "audiobook_chapters"
     Screen.Songs -> "songs"

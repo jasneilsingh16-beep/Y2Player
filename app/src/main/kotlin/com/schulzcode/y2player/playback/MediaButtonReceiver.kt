@@ -10,6 +10,7 @@ import com.schulzcode.y2player.BuildConfig
 import com.schulzcode.y2player.Y2Application
 import com.schulzcode.y2player.diagnostics.DiagnosticLogger
 import com.schulzcode.y2player.input.HardwareKeyGate
+import com.schulzcode.y2player.video.VideoActivity
 import com.schulzcode.y2player.input.InputProbe
 import com.schulzcode.y2player.input.isMediaTransportKey
 import kotlin.math.abs
@@ -22,6 +23,9 @@ class MediaButtonReceiver : BroadcastReceiver() {
         event ?: return
         val source = if (intent.action == ACTION_Y2_KEY) HardwareKeyGate.Source.Y2_BROADCAST else HardwareKeyGate.Source.MEDIA_BROADCAST
         val fromLocalKeypad = HardwareKeyGate.isLocalKeypad(event.deviceId)
+        // While a video is on screen it owns the transport keys, so a headset
+        // button never starts music underneath it.
+        if (VideoActivity.consumeMediaKey(event, fromLocalKeypad)) return
         val preferences = (context.applicationContext as? Y2Application)?.container?.preferences?.snapshot()
         val serviceRequest = MediaButtonPolicy.serviceRequest(
             keyCode = event.keyCode,

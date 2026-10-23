@@ -45,6 +45,7 @@ sealed interface AppAction {
     data class ShowMessage(val message: String?) : AppAction
     data class SelectIndex(val index: Int) : AppAction
     data class PressSearchKey(val key: String) : AppAction
+    data class VideosLoaded(val path: String?, val items: List<VideoItem>) : AppAction
 }
 
 sealed interface AppEffect {
@@ -147,6 +148,11 @@ sealed interface AppEffect {
     data object ExitSafeMode : AppEffect
 
     data object OpenAndroidSettings : AppEffect
+
+    // Videos: folders are listed on a background thread; playback runs in its
+    // own full-screen activity, with music paused first.
+    data class LoadVideos(val path: String?) : AppEffect
+    data class PlayVideo(val path: String, val folderVideos: List<String>) : AppEffect
 }
 
 data class Reduction(val state: AppState, val effects: List<AppEffect> = emptyList())
@@ -188,4 +194,5 @@ val AppAction.code: String get() = when (this) {
     is AppAction.ShowMessage -> "show_message"
     is AppAction.SelectIndex -> "select_index"
     is AppAction.PressSearchKey -> "search_key"
+    is AppAction.VideosLoaded -> "videos_loaded"
 }

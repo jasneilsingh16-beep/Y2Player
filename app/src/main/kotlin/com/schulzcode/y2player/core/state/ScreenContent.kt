@@ -23,6 +23,7 @@ import com.schulzcode.y2player.playback.AudioBalance
 import com.schulzcode.y2player.playback.CrossfadeMode
 import com.schulzcode.y2player.playback.VolumeCurve
 import com.schulzcode.y2player.playback.VolumeMode
+import com.schulzcode.y2player.util.TimeFormat
 import java.io.File
 import java.util.Locale
 
@@ -30,12 +31,15 @@ sealed interface ScreenRow {
     val title: String
     val subtitle: String?
     val artworkTrackId: Long? get() = null
+    /** Artwork found beside a file outside the music library (video folder posters). */
+    val artworkPath: String? get() = null
 
     data class Action(
         override val title: String,
         override val subtitle: String? = null,
         val key: String,
-        override val artworkTrackId: Long? = null
+        override val artworkTrackId: Long? = null,
+        override val artworkPath: String? = null
     ) : ScreenRow
     data class TrackRow(
         val track: Track,
@@ -88,6 +92,7 @@ sealed interface ScreenGroupTarget {
 object ScreenContent {
     fun title(state: AppState): String = when (val screen = state.currentScreen) {
         Screen.MainMenu -> "Y2 Player"
+        is Screen.Videos -> screen.path?.let { java.io.File(it).name } ?: "Videos"
         is Screen.Search -> "Search"
         Screen.Music -> "Music"
         Screen.FmRadio -> "FM Radio"
@@ -201,6 +206,7 @@ object ScreenContent {
         is Screen.Search -> searchRows(state)
         Screen.Music -> musicRows(state)
         Screen.Audiobooks -> audiobookRows(state)
+        is Screen.Videos -> videoRows(state, screen)
         is Screen.AudiobookOptions -> audiobookOptionRows(state, screen.folderKey)
         is Screen.AudiobookChapters -> audiobookChapterRows(state, screen.folderKey)
         Screen.Songs -> collectionRows(state.library.index.organization.sortTracks(
@@ -316,11 +322,38 @@ object ScreenContent {
     private fun mainMenuRows(state: AppState): List<ScreenRow> = buildList {
         add(ScreenRow.Action("Music", "Songs, albums, artists and playlists", "music"))
         add(ScreenRow.Action("Audiobooks", "Pick up where you stopped", "audiobooks"))
+        add(ScreenRow.Action("Videos", "Films and shows", "videos"))
         if (state.preferences.showFmRadio) {
             add(ScreenRow.Action("FM Radio", "Tune the built-in tuner", "fm_radio"))
         }
         add(ScreenRow.Action("Search", "Find anything on this device", "search"))
         add(ScreenRow.Action("Settings", if (state.safeMode) "SAFE MODE" else null, "settings"))
+    }
+
+    private fun videoRows(state: AppState, screen: Screen.Videos): List<ScreenRow> =
+        state.videos.listing(screen.path).orEmpty().map { item ->
+            when (item.kind) {
+                VideoItemKind.VOLUME -> ScreenRow.Action(
+                    item.title, videoCountLabel(item.videoCount), VIDEO_VOLUME_KEY + item.path
+                )
+                VideoItemKind.FOLDER -> ScreenRow.Action(
+                    item.title, videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
+                    artworkPath = item.artworkPath
+                )
+                VideoItemKind.VIDEO -> ScreenRow.Action(
+                    item.title,
+                    if (item.resumeMs > 0) "Resume at ${TimeFormat.duration(item.resumeMs)}" else videoSizeLabel(item.sizeBytes),
+                    VIDEO_KEY + item.path
+                )
+            }
+        }
+
+    private fun videoCountLabel(count: Int): String = if (count == 1) "1 video" else "$count videos"
+
+    private fun videoSizeLabel(bytes: Long): String = when {
+        bytes >= 1_000_000_000L -> String.format(Locale.US, "%.1f GB", bytes / 1_000_000_000.0)
+        bytes >= 1_000_000L -> "${bytes / 1_000_000L} MB"
+        else -> "${(bytes / 1_000L).coerceAtLeast(1L)} KB"
     }
 
     internal fun searchResults(state: AppState): List<DeviceSearchResult> {
@@ -1665,6 +1698,9 @@ object ScreenContent {
 
     const val COLLECTION_SHUFFLE_KEY = "collection_shuffle"
     const val AUDIOBOOK_KEY_PREFIX = "audiobook:"
+    const val VIDEO_KEY = "video:"
+    const val VIDEO_FOLDER_KEY = "video_folder:"
+    const val VIDEO_VOLUME_KEY = "video_volume:"
     const val AUDIOBOOK_CHAPTERS_KEY = "audiobook_chapters:"
     const val AUDIOBOOK_RESTART_KEY = "audiobook_restart:"
     const val AUDIOBOOK_CLEAR_KEY = "audiobook_clear:"

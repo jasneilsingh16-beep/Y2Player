@@ -57,6 +57,9 @@ import com.schulzcode.y2player.settings.SystemHapticsController
 import com.schulzcode.y2player.settings.UiSoundEffectsController
 import com.schulzcode.y2player.storage.StorageMonitor
 import com.schulzcode.y2player.storage.Y2StoragePaths
+import com.schulzcode.y2player.video.VideoActivity
+import com.schulzcode.y2player.video.VideoLibrary
+import com.schulzcode.y2player.video.VideoResumeStore
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
@@ -324,6 +327,7 @@ class MainActivity : Activity() {
         backgroundExecutor.execute { controller.apply(uiSounds) }
         hapticController.setLevel(currentPreferences.hapticLevel)
         playerView.setTextAnimationsVisible(true)
+        (store.state.currentScreen as? Screen.Videos)?.let { loadVideos(it.path) }
     }
 
     override fun onPause() {
@@ -360,6 +364,19 @@ class MainActivity : Activity() {
     }
 
     private var skinsLoading = false
+
+    private fun loadVideos(path: String?) {
+        val resume = VideoResumeStore(applicationContext)
+        backgroundExecutor.execute {
+            val items = runCatching {
+                VideoLibrary.load(path, Y2StoragePaths.availableRoots(), resume::get)
+            }.getOrElse {
+                logger.warn("Video", "listing failed: ${it.javaClass.simpleName}")
+                emptyList()
+            }
+            mainHandler.post { if (!destroyed) store.dispatch(AppAction.VideosLoaded(path, items)) }
+        }
+    }
 
     private fun reloadSkins() {
         if (skinsLoading) return
@@ -698,6 +715,16 @@ class MainActivity : Activity() {
                 showMessage("Safe Mode disabled")
             }
 
+            is AppEffect.LoadVideos -> loadVideos(effect.path)
+            is AppEffect.PlayVideo -> {
+                // One output at a time: music pauses and stays exactly where it was.
+                playbackBinder?.let { binder ->
+                    val status = binder.snapshot().status
+                    if (status == PlaybackStatus.PLAYING || status == PlaybackStatus.PREPARING) binder.togglePlayback()
+                }
+                runCatching { startActivity(VideoActivity.intent(this, effect.path, effect.folderVideos)) }
+                    .onFailure { showMessage("Videos could not open") }
+            }
             AppEffect.OpenAndroidSettings -> {
                 val settings = Intent(android.provider.Settings.ACTION_SETTINGS)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

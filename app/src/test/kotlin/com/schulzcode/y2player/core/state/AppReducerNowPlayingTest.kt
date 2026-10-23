@@ -59,7 +59,7 @@ class AppReducerNowPlayingTest {
     @Test fun mainMenuKeepsOnlyThePrimaryDestinations() {
         val rows = ScreenContent.rows(AppState())
         assertEquals(
-            listOf("music", "audiobooks", "search", "settings"),
+            listOf("music", "audiobooks", "videos", "search", "settings"),
             rows.map { (it as ScreenRow.Action).key }
         )
 
