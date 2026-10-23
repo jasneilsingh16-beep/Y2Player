@@ -1,0 +1,1279 @@
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:01 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:02 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:03 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:04 --:--:--     0  0     0    0     0    0     0      0      0 --:--:--  0:00:05 --:--:--     0  1 11.1M    1  207k    0     0  34608      0  0:05:38  0:00:06  0:05:32 45369 30 11.1M   30 3454k    0     0   484k      0  0:00:23  0:00:07  0:00:16  739k100 11.1M  100 11.1M    0     0  1460k      0  0:00:07  0:00:07 --:--:-- 2617k
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0  0  506M    0 1178k    0     0  4298k      0  0:02:00 --:--:--  0:02:00 4284k 22  506M   22  115M    0     0  90.0M      0  0:00:05  0:00:01  0:00:04 89.9M 44  506M   44  226M    0     0  99.4M      0  0:00:05  0:00:02  0:00:03 99.3M 71  506M   71  363M    0     0   110M      0  0:00:04  0:00:03  0:00:01  110M 88  506M   88  446M    0     0   104M      0  0:00:04  0:00:04 --:--:--  104M100  506M  100  506M    0     0   100M      0  0:00:05  0:00:05 --:--:--  106M
+applying 0001-mov-initialise-chnl-return-value.patch
+applying 0002-skip-attached-picture-payloads.patch
+install prefix            /home/runner/work/Y2Player/Y2Player/build/native/ffmpeg/armeabi-v7a
+source path               /home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292
+C compiler                /home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang
+C library                 bionic
+host C compiler           gcc
+host C library            glibc
+ARCH                      arm (armv7-a)
+big-endian                no
+runtime cpu detection     yes
+ARMv5TE enabled           yes
+ARMv6 enabled             yes
+ARMv6T2 enabled           yes
+VFP enabled               yes
+NEON enabled              no
+THUMB enabled             no
+debug symbols             no
+strip symbols             yes
+optimize for size         yes
+optimizations             yes
+static                    yes
+shared                    no
+network support           no
+threading support         pthreads
+safe bitstream reader     yes
+texi2html enabled         no
+perl enabled              yes
+pod2man enabled           yes
+makeinfo enabled          yes
+makeinfo supports HTML    yes
+experimental features     yes
+xmllint enabled           no
+
+External libraries:
+
+External libraries providing hardware acceleration:
+
+Libraries:
+avcodec                 avutil
+avformat                swresample
+
+Programs:
+
+Enabled decoders:
+aac                     pcm_f64le               pcm_s32le
+alac                    pcm_s16be               pcm_s8
+flac                    pcm_s16le               pcm_u8
+mp3                     pcm_s24be               vorbis
+opus                    pcm_s24le
+pcm_f32le               pcm_s32be
+
+Enabled encoders:
+
+Enabled hwaccels:
+
+Enabled parsers:
+aac                     mpegaudio               vorbis
+flac                    opus
+
+Enabled demuxers:
+aac                     flac                    ogg
+aiff                    mov                     wav
+asf                     mp3
+
+Enabled muxers:
+
+Enabled protocols:
+file
+
+Enabled filters:
+
+Enabled bsfs:
+
+Enabled indevs:
+
+Enabled outdevs:
+
+License: LGPL version 2.1 or later
+GEN	libavutil/libavutil.version
+GEN	libavcodec/libavcodec.version
+GEN	libavformat/libavformat.version
+GEN	libswresample/libswresample.version
+CC	libavformat/aacdec.o
+CC	libavformat/aiff.o
+CC	libavformat/aiffdec.o
+CC	libavformat/allformats.o
+CC	libavformat/apetag.o
+CC	libavformat/asf.o
+CC	libavformat/asf_tags.o
+CC	libavformat/asfcrypt.o
+CC	libavformat/asfdec_f.o
+CC	libavformat/av1.o
+CC	libavformat/avformat.o
+CC	libavformat/avio.o
+CC	libavformat/aviobuf.o
+CC	libavformat/avlanguage.o
+CC	libavformat/codecstring.o
+CC	libavformat/demux.o
+CC	libavformat/demux_utils.o
+CC	libavformat/dovi_isom.o
+CC	libavformat/dump.o
+CC	libavformat/dv.o
+CC	libavformat/dvdclut.o
+CC	libavformat/file.o
+CC	libavformat/flac_picture.o
+CC	libavformat/flacdec.o
+CC	libavformat/format.o
+CC	libavformat/iamf.o
+CC	libavformat/iamf_parse.o
+CC	libavformat/iamf_reader.o
+CC	libavformat/id3v1.o
+CC	libavformat/id3v2.o
+CC	libavformat/img2.o
+CC	libavformat/isom.o
+CC	libavformat/isom_tags.o
+CC	libavformat/metadata.o
+CC	libavformat/mov.o
+CC	libavformat/mov_chan.o
+CC	libavformat/mov_esds.o
+CC	libavformat/mp3dec.o
+CC	libavformat/mux.o
+CC	libavformat/mux_utils.o
+CC	libavformat/nal.o
+CC	libavformat/oggdec.o
+CC	libavformat/oggparsecelt.o
+CC	libavformat/oggparsedirac.o
+CC	libavformat/oggparseflac.o
+CC	libavformat/oggparseogm.o
+CC	libavformat/oggparseopus.o
+CC	libavformat/oggparseskeleton.o
+CC	libavformat/oggparsespeex.o
+CC	libavformat/oggparsetheora.o
+CC	libavformat/oggparsevorbis.o
+CC	libavformat/oggparsevp8.o
+CC	libavformat/options.o
+CC	libavformat/os_support.o
+CC	libavformat/pcm.o
+CC	libavformat/protocols.o
+CC	libavformat/qtpalette.o
+CC	libavformat/rawdec.o
+CC	libavformat/replaygain.o
+CC	libavformat/riff.o
+src/libavformat/rawdec.c:106:12: warning: unused function 'raw_data_read_header' [-Wunused-function]
+static int raw_data_read_header(AVFormatContext *s)
+           ^
+1 warning generated.
+CC	libavformat/riffdec.o
+CC	libavformat/sdp.o
+CC	libavformat/seek.o
+CC	libavformat/url.o
+CC	libavformat/urldecode.o
+CC	libavformat/utils.o
+CC	libavformat/version.o
+CC	libavformat/vorbiscomment.o
+CC	libavformat/vpcc.o
+CC	libavformat/wavdec.o
+GEN	libavformat/libavformat.pc
+CC	libavcodec/ac3_channel_layout_tab.o
+CC	libavcodec/to_upper4.o
+GEN	libavcodec/libavcodec.pc
+GEN	libswresample/libswresample.pc
+GEN	libavutil/libavutil.pc
+CC	libavcodec/aac/aacdec.o
+CC	libavcodec/aac/aacdec_ac.o
+CC	libavcodec/aac/aacdec_float.o
+CC	libavcodec/aac/aacdec_lpd.o
+CC	libavcodec/aac/aacdec_tab.o
+CC	libavcodec/aac/aacdec_usac.o
+CC	libavcodec/aac/aacdec_usac_mps212.o
+CC	libavcodec/aac_ac3_parser.o
+src/libavcodec/aac_ac3_parser.c:99:13: warning: variable 'bit_rate' is used uninitialized whenever 'if' condition is true [-Wsometimes-uninitialized]
+        if (avctx->codec_id != AV_CODEC_ID_AAC) {
+            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/libavcodec/aac_ac3_parser.c:167:18: note: uninitialized use occurs here
+                (bit_rate - avctx->bit_rate) / s->frame_number;
+                 ^~~~~~~~
+src/libavcodec/aac_ac3_parser.c:99:9: note: remove the 'if' if its condition is always false
+        if (avctx->codec_id != AV_CODEC_ID_AAC) {
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/libavcodec/aac_ac3_parser.c:92:21: note: initialize the variable 'bit_rate' to silence this warning
+        int bit_rate;
+                    ^
+                     = 0
+1 warning generated.
+CC	libavcodec/aac_parser.o
+CC	libavcodec/aacps_common.o
+CC	libavcodec/aacps_float.o
+CC	libavcodec/aacpsdsp_float.o
+CC	libavcodec/aacsbr.o
+CC	libavcodec/aactab.o
+CC	libavcodec/ac3_parser.o
+CC	libavcodec/adts_header.o
+CC	libavcodec/adts_parser.o
+CC	libavcodec/alac.o
+CC	libavcodec/alac_data.o
+CC	libavcodec/alacdsp.o
+CC	libavcodec/allcodecs.o
+CC	libavcodec/arm/aacpsdsp_init_arm.o
+AS	libavcodec/arm/flacdsp_arm.o
+CC	libavcodec/arm/flacdsp_init_arm.o
+AS	libavcodec/arm/idctdsp_arm.o
+AS	libavcodec/arm/idctdsp_armv6.o
+CC	libavcodec/arm/idctdsp_init_arm.o
+CC	libavcodec/arm/idctdsp_init_armv5te.o
+CC	libavcodec/arm/idctdsp_init_armv6.o
+AS	libavcodec/arm/jrevdct_arm.o
+AS	libavcodec/arm/mpegaudiodsp_fixed_armv6.o
+CC	libavcodec/arm/mpegaudiodsp_init_arm.o
+CC	libavcodec/arm/sbrdsp_init_arm.o
+AS	libavcodec/arm/simple_idct_arm.o
+AS	libavcodec/arm/simple_idct_armv5te.o
+AS	libavcodec/arm/simple_idct_armv6.o
+CC	libavcodec/arm/vorbisdsp_init_arm.o
+CC	libavcodec/avcodec.o
+CC	libavcodec/avdct.o
+CC	libavcodec/bitstream.o
+CC	libavcodec/bitstream_filters.o
+CC	libavcodec/bsf.o
+CC	libavcodec/cbrt_data.o
+CC	libavcodec/cbrt_tablegen_common.o
+CC	libavcodec/codec_desc.o
+CC	libavcodec/codec_par.o
+CC	libavcodec/d3d11va.o
+CC	libavcodec/dct32_fixed.o
+CC	libavcodec/dct32_float.o
+CC	libavcodec/decode.o
+CC	libavcodec/dirac.o
+CC	libavcodec/dv_profile.o
+CC	libavcodec/encode.o
+CC	libavcodec/exif.o
+CC	libavcodec/faandct.o
+CC	libavcodec/faanidct.o
+CC	libavcodec/fdctdsp.o
+CC	libavcodec/flac.o
+CC	libavcodec/flac_parser.o
+CC	libavcodec/flacdata.o
+CC	libavcodec/flacdec.o
+CC	libavcodec/flacdsp.o
+CC	libavcodec/get_buffer.o
+CC	libavcodec/golomb.o
+CC	libavcodec/idctdsp.o
+CC	libavcodec/imgconvert.o
+CC	libavcodec/jfdctfst.o
+CC	libavcodec/jfdctint.o
+CC	libavcodec/jni.o
+CC	libavcodec/jrevdct.o
+CC	libavcodec/kbdwin.o
+CC	libavcodec/mathtables.o
+CC	libavcodec/mediacodec.o
+CC	libavcodec/mpeg12framerate.o
+CC	libavcodec/mpeg4audio.o
+CC	libavcodec/mpeg4audio_sample_rates.o
+CC	libavcodec/mpegaudio.o
+CC	libavcodec/mpegaudio_parser.o
+CC	libavcodec/mpegaudiodata.o
+CC	libavcodec/mpegaudiodec_common.o
+CC	libavcodec/mpegaudiodec_fixed.o
+CC	libavcodec/mpegaudiodecheader.o
+CC	libavcodec/mpegaudiodsp.o
+CC	libavcodec/mpegaudiodsp_data.o
+CC	libavcodec/mpegaudiodsp_fixed.o
+CC	libavcodec/mpegaudiodsp_float.o
+CC	libavcodec/mpegaudiotabs.o
+CC	libavcodec/options.o
+CC	libavcodec/opus/celt.o
+CC	libavcodec/opus/dec.o
+CC	libavcodec/opus/dec_celt.o
+CC	libavcodec/opus/dsp.o
+CC	libavcodec/opus/frame_duration_tab.o
+CC	libavcodec/opus/parse.o
+CC	libavcodec/opus/parser.o
+CC	libavcodec/opus/pvq.o
+CC	libavcodec/opus/rc.o
+CC	libavcodec/opus/silk.o
+CC	libavcodec/opus/tab.o
+CC	libavcodec/packet.o
+CC	libavcodec/parser.o
+CC	libavcodec/parsers.o
+CC	libavcodec/pcm.o
+CC	libavcodec/profiles.o
+CC	libavcodec/pthread.o
+CC	libavcodec/pthread_frame.o
+CC	libavcodec/pthread_slice.o
+CC	libavcodec/qsv_api.o
+CC	libavcodec/raw.o
+CC	libavcodec/sbrdsp.o
+CC	libavcodec/simple_idct.o
+CC	libavcodec/sinewin.o
+CC	libavcodec/threadprogress.o
+CC	libavcodec/tiff_common.o
+CC	libavcodec/utils.o
+CC	libavcodec/version.o
+CC	libavcodec/vlc.o
+CC	libavcodec/vorbis.o
+CC	libavcodec/vorbis_data.o
+CC	libavcodec/vorbis_parser.o
+CC	libavcodec/vorbisdec.o
+CC	libavcodec/vorbisdsp.o
+CC	libavcodec/xiph.o
+CC	libswresample/arm/audio_convert_init.o
+CC	libswresample/arm/resample_init.o
+CC	libswresample/audioconvert.o
+CC	libswresample/dither.o
+CC	libswresample/options.o
+CC	libswresample/rematrix.o
+CC	libswresample/resample.o
+CC	libswresample/resample_dsp.o
+CC	libswresample/swresample.o
+CC	libswresample/swresample_frame.o
+CC	libswresample/version.o
+CC	libavutil/../compat/strtod.o
+CC	libavutil/adler32.o
+CC	libavutil/aes.o
+CC	libavutil/aes_ctr.o
+CC	libavutil/ambient_viewing_environment.o
+CC	libavutil/arm/cpu.o
+CC	libavutil/arm/float_dsp_init_arm.o
+CC	libavutil/arm/float_dsp_init_vfp.o
+AS	libavutil/arm/float_dsp_vfp.o
+CC	libavutil/audio_fifo.o
+CC	libavutil/avsscanf.o
+CC	libavutil/avstring.o
+CC	libavutil/base64.o
+CC	libavutil/blowfish.o
+CC	libavutil/bprint.o
+CC	libavutil/buffer.o
+CC	libavutil/camellia.o
+CC	libavutil/cast5.o
+CC	libavutil/channel_layout.o
+CC	libavutil/container_fifo.o
+CC	libavutil/cpu.o
+CC	libavutil/crc.o
+CC	libavutil/csp.o
+CC	libavutil/des.o
+CC	libavutil/detection_bbox.o
+CC	libavutil/dict.o
+CC	libavutil/display.o
+CC	libavutil/dovi_meta.o
+CC	libavutil/downmix_info.o
+CC	libavutil/encryption_info.o
+CC	libavutil/error.o
+CC	libavutil/eval.o
+CC	libavutil/executor.o
+CC	libavutil/fifo.o
+CC	libavutil/file.o
+CC	libavutil/file_open.o
+CC	libavutil/film_grain_params.o
+CC	libavutil/fixed_dsp.o
+CC	libavutil/float_dsp.o
+CC	libavutil/float_scalarproduct.o
+CC	libavutil/frame.o
+CC	libavutil/hash.o
+CC	libavutil/hdr_dynamic_metadata.o
+CC	libavutil/hdr_dynamic_vivid_metadata.o
+CC	libavutil/hmac.o
+CC	libavutil/hwcontext.o
+CC	libavutil/hwcontext_stub.o
+CC	libavutil/iamf.o
+CC	libavutil/imgutils.o
+CC	libavutil/integer.o
+CC	libavutil/intmath.o
+CC	libavutil/lfg.o
+CC	libavutil/lls.o
+CC	libavutil/log.o
+CC	libavutil/log2_tab.o
+CC	libavutil/lzo.o
+CC	libavutil/mastering_display_metadata.o
+CC	libavutil/mathematics.o
+CC	libavutil/md5.o
+CC	libavutil/mem.o
+CC	libavutil/murmur3.o
+CC	libavutil/opt.o
+CC	libavutil/parseutils.o
+CC	libavutil/pixdesc.o
+CC	libavutil/pixelutils.o
+CC	libavutil/random_seed.o
+CC	libavutil/rational.o
+CC	libavutil/rc4.o
+CC	libavutil/refstruct.o
+CC	libavutil/reverse.o
+CC	libavutil/ripemd.o
+CC	libavutil/samplefmt.o
+CC	libavutil/sha.o
+CC	libavutil/sha512.o
+CC	libavutil/side_data.o
+CC	libavutil/slicethread.o
+CC	libavutil/spherical.o
+CC	libavutil/stereo3d.o
+CC	libavutil/tdrdi.o
+CC	libavutil/tea.o
+CC	libavutil/threadmessage.o
+CC	libavutil/time.o
+CC	libavutil/timecode.o
+CC	libavutil/timecode_internal.o
+CC	libavutil/timestamp.o
+CC	libavutil/tree.o
+CC	libavutil/twofish.o
+CC	libavutil/tx.o
+CC	libavutil/tx_double.o
+CC	libavutil/tx_float.o
+CC	libavutil/tx_int32.o
+CC	libavutil/utils.o
+CC	libavutil/uuid.o
+CC	libavutil/version.o
+CC	libavutil/video_enc_params.o
+CC	libavutil/video_hint.o
+CC	libavutil/xga_font_data.o
+CC	libavutil/xtea.o
+AR	libavformat/libavformat.a
+AR	libavcodec/libavcodec.a
+AR	libswresample/libswresample.a
+AR	libavutil/libavutil.a
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_http_serve_files.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_list_dir.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_read_callback.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_filter_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_filter_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/demux_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/encode_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/encode_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/extract_mvs.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/filter_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/hw_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/mux.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/qsv_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/qsv_transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/remux.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/resample_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/scale_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/show_metadata.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/transcode_aac.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/vaapi_encode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/vaapi_transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/README
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/Makefile
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_http_serve_files.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_list_dir.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/avio_read_callback.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_filter_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_filter_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/decode_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/demux_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/encode_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/encode_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/extract_mvs.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/filter_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/hw_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/mux.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/qsv_decode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/qsv_transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/remux.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/resample_audio.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/scale_video.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/show_metadata.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/transcode_aac.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/vaapi_encode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/vaapi_transcode.c
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/README
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/doc/examples/Makefile
+INSTALL	libavformat/libavformat.a
+INSTALL	libavcodec/libavcodec.a
+INSTALL	libswresample/libswresample.a
+INSTALL	libavutil/libavutil.a
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavformat/avformat.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavformat/avio.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavformat/version.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavformat/version_major.h
+INSTALL	libavformat/libavformat.pc
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/ac3_parser.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/adts_parser.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/avcodec.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/avdct.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/bsf.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/codec.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/codec_desc.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/codec_id.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/codec_par.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/d3d11va.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/defs.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/dirac.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/dv_profile.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/dxva2.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/exif.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/jni.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/mediacodec.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/packet.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/qsv.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/smpte_436m.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/vdpau.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/version.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/version_major.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/videotoolbox.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavcodec/vorbis_parser.h
+INSTALL	libavcodec/libavcodec.pc
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libswresample/swresample.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libswresample/version.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libswresample/version_major.h
+INSTALL	libswresample/libswresample.pc
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/adler32.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/aes.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/aes_ctr.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/ambient_viewing_environment.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/attributes.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/audio_fifo.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/avassert.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/avstring.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/avutil.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/base64.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/blowfish.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/bprint.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/bswap.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/buffer.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/cast5.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/camellia.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/channel_layout.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/common.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/container_fifo.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/cpu.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/crc.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/csp.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/des.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/detection_bbox.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/dict.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/display.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/dovi_meta.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/downmix_info.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/encryption_info.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/error.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/eval.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/executor.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/fifo.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/file.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/film_grain_params.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/frame.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hash.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hdr_dynamic_metadata.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hdr_dynamic_vivid_metadata.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hmac.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_cuda.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_d3d11va.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_d3d12va.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_drm.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_dxva2.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_amf.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_qsv.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_mediacodec.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_opencl.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_oh.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_vaapi.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_videotoolbox.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_vdpau.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/hwcontext_vulkan.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/iamf.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/imgutils.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/intfloat.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/intreadwrite.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/lfg.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/log.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/lzo.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/macros.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/mathematics.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/mastering_display_metadata.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/md5.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/mem.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/motion_vector.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/murmur3.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/opt.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/parseutils.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/pixdesc.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/pixelutils.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/pixfmt.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/random_seed.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/rc4.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/rational.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/refstruct.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/replaygain.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/ripemd.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/samplefmt.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/sha.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/sha512.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/spherical.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/stereo3d.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/tdrdi.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/threadmessage.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/time.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/timecode.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/timestamp.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/tree.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/twofish.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/uuid.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/version.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/video_enc_params.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/xtea.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/tea.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/tx.h
+INSTALL	home/runner/.cache/y2player/ffmpeg-src/ffmpeg-8.1.2-e32c300783773292/libavutil/video_hint.h
+INSTALL	libavutil/avconfig.h
+INSTALL	libavutil/ffversion.h
+INSTALL	libavutil/libavutil.pc
+Y2Player native audio build
+FFmpeg version: 8.1.2
+FFmpeg SHA-256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
+FFmpeg signing key: FCF986EA15E6E293A5644F10B4322F04D67658D8
+NDK version: 25.2.9519653
+NDK archive SHA-256: 769ee342ea75f80619d985c2da990c48b3d8eaf45f48783a2d48870d04b46108
+Target API: 19
+ABI: armeabi-v7a
+NEON enabled: 0 (runtime-dispatched; C fallback retained)
+FFmpeg patches: 2
+  0001-mov-initialise-chnl-return-value.patch 287218de6d2726c20ecc7c4e34901e44f4538ff1bfe37dcbc7fc8f8c4a88607b
+  0002-skip-attached-picture-payloads.patch 04873f1c3c32c9edb6a2cbd62e03fc12c6e65adfe60968bebdd03ef96ccd0755
+Configure identity: 065358545597436c22df7e2f6d202eb59ddd642323fcf6ef0f9c8042d015ec93
+Configure flags:
+  --target-os=android
+  --arch=arm
+  --cpu=armv7-a
+  --enable-cross-compile
+  --cc=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang
+  --cxx=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang++
+  --ar=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+  --nm=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm
+  --ranlib=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
+  --strip=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+  --sysroot=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot
+  --disable-everything
+  --disable-autodetect
+  --disable-programs
+  --disable-doc
+  --disable-debug
+  --disable-network
+  --disable-avdevice
+  --disable-avfilter
+  --disable-swscale
+  --disable-encoders
+  --disable-muxers
+  --disable-iconv
+  --disable-zlib
+  --disable-bzlib
+  --disable-lzma
+  --disable-symver
+  --disable-neon
+  --enable-small
+  --enable-static
+  --disable-shared
+  --enable-pic
+  --enable-avformat
+  --enable-avcodec
+  --enable-avutil
+  --enable-swresample
+  --enable-protocol=file
+  --enable-demuxer=aac,aiff,asf,flac,mov,mp3,ogg,wav
+  --enable-decoder=aac,alac,flac,mp3,opus,vorbis,pcm_f32le,pcm_f64le,pcm_s8,pcm_s16be,pcm_s16le,pcm_s24be,pcm_s24le,pcm_s32be,pcm_s32le,pcm_u8
+  --enable-parser=aac,flac,mpegaudio,opus,vorbis
+  --extra-cflags=-Os
+Artifact SHA-256: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+Artifact size: 1464568 bytes
+File identity: /home/runner/work/Y2Player/Y2Player/build/native/output/armeabi-v7a/liby2audio.so: ELF 32-bit LSB shared object, ARM, EABI5 version 1 (SYSV), dynamically linked, stripped
+Android ABI note: API 19 verified
+Imported shared libraries:
+  liblog.so
+  libdl.so
+  libm.so
+  libc.so
+Undefined platform symbols:
+           U __android_log_vprint
+           U __assert2@LIBC
+           U __cxa_atexit@LIBC
+           U __cxa_finalize@LIBC
+           U __errno@LIBC
+           U __mmap2@LIBC
+           U __sF@LIBC
+           U __sched_cpucount@LIBC
+           U _exit@LIBC
+           U abort@LIBC
+           U access@LIBC
+           U acos@LIBC
+           U arc4random_buf@LIBC
+           U asin@LIBC
+           U atan2@LIBC
+           U atan2f@LIBC
+           U atan@LIBC
+           U atanf@LIBC
+           U atoi@LIBC
+           U bsearch@LIBC
+           U calloc@LIBC
+           U cbrt@LIBC
+           U cbrtf@LIBC
+           U ceil@LIBC
+           U clock_gettime@LIBC
+           U close@LIBC
+           U closedir@LIBC
+           U cos@LIBC
+           U cosh@LIBC
+           U dladdr@LIBC
+           U exp2@LIBC
+           U exp2f@LIBC
+           U exp@LIBC
+           U fabs@LIBC
+           U fclose@LIBC
+           U fcntl@LIBC
+           U fdopen@LIBC
+           U fgets@LIBC
+           U floor@LIBC
+           U fmax@LIBC
+           U fmod@LIBC
+           U fopen@LIBC
+           U fprintf@LIBC
+           U fputc@LIBC
+           U fputs@LIBC
+           U fread@LIBC
+           U free@LIBC
+           U frexp@LIBC
+           U fstat@LIBC
+           U fsync@LIBC
+           U ftruncate@LIBC
+           U fwrite@LIBC
+           U getauxval@LIBC
+           U getenv@LIBC
+           U getpid@LIBC
+           U gettimeofday@LIBC
+           U gmtime_r@LIBC
+           U hypot@LIBC
+           U isatty@LIBC
+           U ldexpf@LIBC
+           U llrint@LIBC
+           U llrintf@LIBC
+           U localtime_r@LIBC
+           U log10@LIBC
+           U log2f@LIBC
+           U log@LIBC
+           U lrint@LIBC
+           U lrintf@LIBC
+           U lseek64@LIBC
+           U lstat@LIBC
+           U malloc@LIBC
+           U memchr@LIBC
+           U memcmp@LIBC
+           U memcpy@LIBC
+           U memmove@LIBC
+           U memset@LIBC
+           U mkdir@LIBC
+           U mkstemp@LIBC
+           U mktime@LIBC
+           U munmap@LIBC
+           U nanosleep@LIBC
+           U open@LIBC
+           U opendir@LIBC
+           U posix_memalign@LIBC
+           U pow@LIBC
+           U powf@LIBC
+           U prctl@LIBC
+           U pthread_cond_broadcast@LIBC
+           U pthread_cond_destroy@LIBC
+           U pthread_cond_init@LIBC
+           U pthread_cond_signal@LIBC
+           U pthread_cond_wait@LIBC
+           U pthread_create@LIBC
+           U pthread_getspecific@LIBC
+           U pthread_join@LIBC
+           U pthread_key_create@LIBC
+           U pthread_key_delete@LIBC
+           U pthread_mutex_destroy@LIBC
+           U pthread_mutex_init@LIBC
+           U pthread_mutex_lock@LIBC
+           U pthread_mutex_unlock@LIBC
+           U pthread_once@LIBC
+           U pthread_setspecific@LIBC
+           U qsort@LIBC
+           U read@LIBC
+           U readdir@LIBC
+           U realloc@LIBC
+           U rename@LIBC
+           U rint@LIBC
+           U rmdir@LIBC
+           U round@LIBC
+           U scalbn@LIBC
+           U sched_getaffinity@LIBC
+           U sigaction@LIBC
+           U sin@LIBC
+           U sincos@LIBC
+           U sincosf@LIBC
+           U sinf@LIBC
+           U sinh@LIBC
+           U snprintf@LIBC
+           U sscanf@LIBC
+           U strchr@LIBC
+           U strcmp@LIBC
+           U strcpy@LIBC
+           U strcspn@LIBC
+           U strerror_r@LIBC
+           U strftime@LIBC
+           U strlen@LIBC
+           U strncmp@LIBC
+           U strnlen@LIBC
+           U strrchr@LIBC
+           U strspn@LIBC
+           U strstr@LIBC
+           U strtod@LIBC
+           U strtol@LIBC
+           U strtoll@LIBC
+           U strtoul@LIBC
+           U strtoull@LIBC
+           U syscall@LIBC
+           U tan@LIBC
+           U tanh@LIBC
+           U trunc@LIBC
+           U unlink@LIBC
+           U vsnprintf@LIBC
+           U write@LIBC
+native source stamp: c7a18077a1161bb7867a342f391a1609df6f98fae371eba23c77309bc6a18e7b
+Downloading https://services.gradle.org/distributions/gradle-9.3.1-bin.zip
+Downloaded 8 MiB
+Downloaded 16 MiB
+Downloaded 24 MiB
+Downloaded 32 MiB
+Downloaded 40 MiB
+Downloaded 48 MiB
+Downloaded 56 MiB
+Downloaded 64 MiB
+Downloaded 72 MiB
+Downloaded 80 MiB
+Downloaded 88 MiB
+Downloaded 96 MiB
+Downloaded 104 MiB
+Downloaded 112 MiB
+Downloaded 120 MiB
+Downloaded 128 MiB
+
+Welcome to Gradle 9.3.1!
+
+Here are the highlights of this release:
+ - Test reporting improvements
+ - Error and warning improvements
+ - Build authoring improvements
+
+For more details see https://docs.gradle.org/9.3.1/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:clean UP-TO-DATE
+> Task :app:verifyNativeAudioStamp
+> Task :app:preBuild
+> Task :app:preDebugBuild
+> Task :app:generateDebugBuildConfig
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:processDebugNavigationResources
+> Task :app:parseDebugLocalResources
+> Task :app:generateDebugRFile
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:49:16 'constructor(p0: Int, p1: Int, p2: Int, p3: Int, p4: Int, p5: Int): AudioTrack' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:131:50 'var isWiredHeadsetOn: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:160:41 'fun requestAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!, p1: Int, p2: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:228:24 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:300:28 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:348:58 'fun abandonAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/fm/FmController.kt:131:20 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/skin/SkinRenderer.kt:206:59 'fun saveLayerAlpha(p0: Float, p1: Float, p2: Float, p3: Float, p4: Int, p5: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoActivity.kt:186:74 'static field MEDIA_MIMETYPE_TEXT_SUBRIP: String' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileDebug
+> Task :app:compileDebugJavaWithJavac
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:compileDebugNavigationResources
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:preDebugUnitTestBuild
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:extractProguardFiles
+> Task :app:generateDebugLintReportModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebug
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///home/runner/work/Y2Player/Y2Player/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+> Task :app:preReleaseBuild
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseNativeLibs
+> Task :app:stripReleaseDebugSymbols
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:generateReleaseBuildConfig
+> Task :app:generateReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:processReleaseNavigationResources
+> Task :app:parseReleaseLocalResources
+> Task :app:generateReleaseRFile
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/fm/FmController.kt:131:20 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/skin/SkinRenderer.kt:206:59 'fun saveLayerAlpha(p0: Float, p1: Float, p2: Float, p3: Float, p4: Int, p5: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoActivity.kt:186:74 'static field MEDIA_MIMETYPE_TEXT_SUBRIP: String' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileRelease
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:mergeReleaseArtProfile
+> Task :app:checkReleaseAarMetadata
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:compileReleaseNavigationResources
+> Task :app:mergeReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :app:processReleaseResources
+> Task :app:expandReleaseArtProfileWildcards
+> Task :app:mergeReleaseGeneratedProguardFiles
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeReleaseStartupProfile
+> Task :app:minifyReleaseWithR8
+> Task :app:compileReleaseArtProfile
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:convertShrunkResourcesToBinaryRelease
+> Task :app:optimizeReleaseResources
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+
+BUILD SUCCESSFUL in 4m 57s
+85 actionable tasks: 84 executed, 1 up-to-date
+Verifies
+Verified using v1 scheme (JAR signing): true
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V2 Signer: certificate DN: CN=Y2Player Videos, O=Personal build
+V2 Signer: certificate SHA-256 digest: 9afce8cf9f72b25d9fb616e50bf4af5cd27c51f1881fdf00656b1442ec91a675
+V2 Signer: certificate SHA-1 digest: 8158689fc931b28248136b121d700b42ffc04bdf
+V2 Signer: certificate MD5 digest: fe7cf9d49a59a41c435cc7bd35e5fec5
+V2 Signer: key algorithm: RSA
+V2 Signer: key size (bits): 2048
+V2 Signer: public key SHA-256 digest: 1a42864086b96f59d39bff702dde465085d926b281503dde999e0b78bb2cf724
+V2 Signer: public key SHA-1 digest: 321aed1bf9f0a16b0c726201a6cde51993e8dd19
+V2 Signer: public key MD5 digest: d95ed9f45c74b1c1369495f89e840add
+WARNING: META-INF/com/android/build/gradle/app-metadata.properties not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+WARNING: META-INF/version-control-info.textproto not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+Release APK: /home/runner/work/Y2Player/Y2Player/dist/firmware/Y2Player.apk
+
+=== Validating system-image environment ===
+      found python3
+      found debugfs
+      found e2fsck
+      found dumpe2fs
+      found sha256sum
+      system.img format: Android sparse
+      base system.img: 499930676 bytes
+      APK install path: /system/priv-app/Y2Player.apk
+      native install path: /system/lib/liby2audio.so
+      patched HAL path: /system/lib/libaudio.primary.default.so
+      patched keypad path: /system/usr/keylayout/mtk-kpd.kl
+      package profile: conservative Y2Player appliance
+      optional packages pruned: 35
+      critical package guards: 26
+      boot.img: not used and not emitted
+
+=== Integrating Y2Player into system.img ===
+=== Y2Player firmware integration (system partition only) ===
+stock system.img : /home/runner/work/Y2Player/Y2Player/y2_v3.2.0_FM-20260813/system.img
+  sha256         : 49cb4d40f053390e04641f135818bd2a479a545322026aae6442bf505a646d85
+payload APK      : /home/runner/work/Y2Player/Y2Player/app/build/outputs/apk/release/app-release.apk (1201022 bytes)
+  sha256         : 57e490a863ee7feb717342e56f6ead3eb31b0cdb428eba680639bfe4496cbf65
+native library   : /home/runner/work/Y2Player/Y2Player/app/src/main/jniLibs/armeabi-v7a/liby2audio.so (1464568 bytes)
+  sha256         : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+  ELF/ABI        : ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+  APK entry      : lib/armeabi-v7a/liby2audio.so (byte-identical)
+
+[1/6] expanding sparse image
+      859832320 bytes (209920 blocks x 4096)
+
+[2/6] verifying stock contents and preparing guarded system patches
+      found /priv-app/MyLauncher.apk
+      audited SystemUI: 2122282 bytes, SHA-256 c6320280eb36efe358aaad23379bb2e1fb80711d13dbd88322e5c3b58dcbefa4
+      package profile: conservative Y2Player appliance (35 optional packages)
+        prune stock media applications: 8
+        prune standalone utilities: 8
+        prune wallpapers and dreams: 10
+        prune unused phone user interfaces: 3
+        prune engineering and desktop tools: 6
+      removable payload: 74 files, 71488475 bytes
+      required package guard: 26 APKs
+      stock HAL (Y2 v3.2.0 FM): 757172 bytes, SHA-256 409430ce670538326110f8f991ead095b0c16df1274fab2e14a8988b69cc4304
+      patched HAL: 757172 bytes, SHA-256 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      DAC frequency hook: guarded numeric 44100/48000-Hz ioctl
+      stock keypad: 1680 bytes, SHA-256 de48544bbfd465ac844bff2fd9f30c5793738041b6da6f228eeb8c40e9d444a7
+      patched keypad: 1684 bytes, SHA-256 b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      physical volume scan codes 115/114: app-owned FF/REW surrogates
+      free space before: 329207808 bytes
+
+[3/6] pruning optional packages and installing Y2Player runtime
+      removing 35 optional packages and 5 private support libraries
+
+[4/6] reconciling filesystem and clearing freed blocks
+      e2fsck -E discard exit 0 (clean)
+      zeroed 112305 free blocks (460001280 bytes) across 29 ext4 ranges
+      post-zero e2fsck -fn exit 0
+
+[5/6] verifying result
+      /priv-app/Y2Player.apk: Inode: 13   Type: regular    Mode:  0644   Flags: 0x80000 User:     0   Group:     0   Project:     0   Size: 1201022
+      selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /lib/liby2audio.so: Inode: 14   Type: regular    Mode:  0644   Flags: 0x80000 Size: 1464568 SHA-256: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      native selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /lib/libaudio.primary.default.so: Inode: 17   Type: regular    Mode:  0644   Flags: 0x80000 Size: 757172 SHA-256: 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      HAL selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /usr/keylayout/mtk-kpd.kl: Inode: 18   Type: regular    Mode:  0644   Flags: 0x80000 Size: 1684 SHA-256: b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      keypad selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /media/audio/ui/battery_y2player_suppressed: Size: 2
+      free space after: 460001280 bytes
+      filesystem space recovered: 130793472 bytes
+      all checks passed
+
+[6/6] re-encoding sparse image
+      /home/runner/work/Y2Player/Y2Player/build/work/system/system.img: 369149924 bytes, 166 chunks
+      sha256: aad79286293833559d478f93761f95543aaa835e5cdde1f46498b92b6cb7b710
+
+RESULT: system image ready to flash (ANDROID partition only).
+
+report written to /home/runner/work/Y2Player/Y2Player/build/work/system/system-report.txt
+
+=== Reopening and verifying system.img ===
+=== Independent system.img verification ===
+      ok   compiled native library is ELF
+      ok   compiled native library ABI is ELF32 little-endian ARM EABI5
+      native ELF : ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      native size: 1464568 bytes
+      native sha : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      ok   APK contains exactly lib/armeabi-v7a/liby2audio.so
+      ok   APK native library size and SHA-256 match compiled artifact
+      ok   scatter declares the ANDROID partition size
+      file    : /home/runner/work/Y2Player/Y2Player/build/work/system/system.img (369149924 bytes)
+      sha256  : aad79286293833559d478f93761f95543aaa835e5cdde1f46498b92b6cb7b710
+      expands : 859832320 bytes (209920 x 4096); sparse format valid
+      ok   ext4 size matches ANDROID partition (859832320 bytes)
+      ok   ext4 structure is sound (e2fsck -fn exit 0)
+      ok   all ext4 free blocks are zero (112305 blocks / 460001280 bytes)
+      ok   /priv-app/Y2Player.apk exists
+      ok   embedded APK size matches output APK
+      ok   embedded APK can be read back
+      ok   embedded APK SHA-256 matches output APK
+      ok   APK mode is 0644
+      ok   APK ownership is root:root
+      ok   APK SELinux context is system_file
+      ok   /lib/liby2audio.so exists
+      ok   runtime library size matches compiled artifact (1464568 bytes)
+      ok   runtime library can be read back
+      ok   runtime library SHA-256 matches compiled and APK copies
+      ok   runtime library ABI is ELF32 little-endian ARM EABI5
+      runtime sha: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      runtime ELF: ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      ok   runtime library mode is 0644
+      ok   runtime library ownership is root:root
+      ok   runtime library SELinux context is system_file
+      ok   /lib/libaudio.primary.default.so exists
+      ok   patched primary-audio HAL size matches a supported variant
+      ok   patched primary-audio HAL mode is 0644
+      ok   patched primary-audio HAL ownership is root:root
+      ok   patched primary-audio HAL SELinux context is system_file
+      ok   patched primary-audio HAL can be read back
+      ok   patched primary-audio HAL SHA-256 and code match an audited patch
+      ok   patched primary-audio HAL ABI is ELF32 little-endian ARM EABI5
+      HAL sha    : 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      HAL ELF    : ELF32 little-endian ARM EABI5 (e_flags=0x05000000)
+      ok   /usr/keylayout/mtk-kpd.kl exists
+      ok   patched keypad layout size is 1684 bytes
+      ok   patched keypad layout mode is 0644
+      ok   patched keypad layout ownership is root:root
+      ok   patched keypad layout SELinux context is system_file
+      ok   patched keypad layout can be read back
+      ok   patched keypad layout SHA-256 matches the audited patch
+      ok   physical volume scan codes map to app-owned media surrogates
+      ok   framework volume mappings are absent for physical scan codes 115/114
+      keypad sha : b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      ok   /media/audio/ui/battery_y2player_suppressed exists
+      ok   battery-warning suppression marker is 2 bytes
+      ok   battery-warning suppression marker can be read back
+      ok   battery-warning suppression marker matches the audited payload
+      ok   stock SystemUI size remains unchanged
+      ok   stock SystemUI can be read back
+      ok   stock SystemUI matches the audited battery-warning implementation
+      ok   liby2audio.so exists exactly once under /system/lib
+      ok   no conflicting runtime library exists under /system/vendor/lib
+      ok   no conflicting runtime library exists under /system/lib64
+      ok   no conflicting runtime library exists under /system/vendor/lib64
+      ok   stock MyLauncher.apk is absent
+      ok   stale MyLauncher.odex is absent
+      ok   optional package FMRadio and its ODEX are absent
+      ok   optional package Gallery2 and its ODEX are absent
+      ok   optional package Music and its ODEX are absent
+      ok   optional package SoundRecorder and its ODEX are absent
+      ok   optional package VideoEditor and its ODEX are absent
+      ok   optional package VideoFavorites and its ODEX are absent
+      ok   optional package Videos and its ODEX are absent
+      ok   optional package MusicFX and its ODEX are absent
+      ok   optional package ApplicationGuide and its ODEX are absent
+      ok   optional package Calculator and its ODEX are absent
+      ok   optional package DeskClock and its ODEX are absent
+      ok   optional package FileManager and its ODEX are absent
+      ok   optional package PrintSpooler and its ODEX are absent
+      ok   optional package Protips and its ODEX are absent
+      ok   optional package QuickSearchBox and its ODEX are absent
+      ok   optional package Todos and its ODEX are absent
+      ok   optional package BasicDreams and its ODEX are absent
+      ok   optional package Galaxy4 and its ODEX are absent
+      ok   optional package HoloSpiralWallpaper and its ODEX are absent
+      ok   optional package LiveWallpapers and its ODEX are absent
+      ok   optional package LiveWallpapersPicker and its ODEX are absent
+      ok   optional package MagicSmokeWallpapers and its ODEX are absent
+      ok   optional package NoiseField and its ODEX are absent
+      ok   optional package PhaseBeam and its ODEX are absent
+      ok   optional package VisualizationWallpapers and its ODEX are absent
+      ok   optional package MtkVideoLiveWallpaper and its ODEX are absent
+      ok   optional package Contacts and its ODEX are absent
+      ok   optional package Dialer and its ODEX are absent
+      ok   optional package Mms and its ODEX are absent
+      ok   optional package EngineerCode and its ODEX are absent
+      ok   optional package EngineerMode and its ODEX are absent
+      ok   optional package EngineerModeSim and its ODEX are absent
+      ok   optional package MTKAndroidSuiteDaemon and its ODEX are absent
+      ok   optional package MTKLogger and its ODEX are absent
+      ok   optional package CDS_INFO and its ODEX are absent
+      ok   private VideoEditor support libraries are absent
+      ok   required package /app/BatteryWarning.apk is retained
+      ok   required package /app/Bluetooth.apk is retained
+      ok   required package /app/CellConnService.apk is retained
+      ok   required package /app/CertInstaller.apk is retained
+      ok   required package /app/DocumentsUI.apk is retained
+      ok   required package /app/DownloadProviderUi.apk is retained
+      ok   required package /app/KeyChain.apk is retained
+      ok   required package /app/LatinIME.apk is retained
+      ok   required package /app/MTKThermalManager.apk is retained
+      ok   required package /app/MtkBt.apk is retained
+      ok   required package /app/PackageInstaller.apk is retained
+      ok   required package /app/PermissionControl.apk is retained
+      ok   required package /app/Provision.apk is retained
+      ok   required package /app/TelephonyProvider.apk is retained
+      ok   required package /priv-app/DefaultContainerService.apk is retained
+      ok   required package /priv-app/DownloadProvider.apk is retained
+      ok   required package /priv-app/ExternalStorageProvider.apk is retained
+      ok   required package /priv-app/InputDevices.apk is retained
+      ok   required package /priv-app/Keyguard.apk is retained
+      ok   required package /priv-app/MediaProvider.apk is retained
+      ok   required package /priv-app/OneTimeInitializer.apk is retained
+      ok   required package /priv-app/Settings.apk is retained
+      ok   required package /priv-app/SettingsProvider.apk is retained
+      ok   required package /priv-app/Shell.apk is retained
+      ok   required package /priv-app/SystemUI.apk is retained
+      ok   required package /priv-app/TeleService.apk is retained
+      ok   Y2Player.apk exists exactly once under /system/priv-app
+      ok   no duplicate Y2Player exists under /system/app
+      ok   /bin/y2bridged is absent
+      ok   /bin/y2powerd is absent
+
+=== Result ===
+All system-image content, package-policy, metadata, hash, filesystem, and size checks passed.
+Device boot and stock-UMS behavior still require hardware validation.
+
+=== Assembling current artifacts ===
+
+=== Build complete ===
+      output directory: /home/runner/work/Y2Player/Y2Player/out/firmware
+      total 361704
+      drwxr-xr-x 2 runner runner      4096 Oct 23 07:22 .
+      drwxr-xr-x 3 runner runner      4096 Oct 23 07:22 ..
+      -rw-r--r-- 1 runner runner   1201022 Oct 23 07:22 Y2Player.apk
+      -rw-r--r-- 1 runner runner      3274 Oct 23 07:22 build-manifest.txt
+      -rw-r--r-- 1 runner runner       331 Oct 23 07:22 checksums.txt
+      -rw-r--r-- 1 runner runner 369149924 Oct 23 07:22 system.img
+      -rw-r--r-- 1 runner runner      8315 Oct 23 07:22 verification-report.txt
+unpacked 859832320 bytes (209920 x 4096)
+unpacked 132120576 bytes (32256 x 4096)
+unpacked 837812224 bytes (204544 x 4096)
+adding boot.img
+adding BromAdapterTool.ini
+adding cache.img
+adding console_mode.xsd
+adding console_readback.xml
+adding CustPT.ini
+adding DA_PL.bin
+adding DA_PL_CRYPTO20.bin
+adding DA_SWSEC.bin
+adding DA_SWSEC_CRYPTO20.bin
+adding dl_without_scatter.xml
+adding download_scene.ini
+adding EBR1
+adding EBR2
+adding factory.ini
+adding flash_tool.exe
+adding flashtool.qch
+adding flashtool.qhc
+adding FlashToolLib.dll
+adding FlashToolLib.v1.dll
+adding FlashtoollibEx.dll
+adding history.ini
+adding hwparam.json
+adding key.ini
+adding lk.bin
+adding logo.bin
+adding MBR
+adding msvcp90.dll
+adding msvcr90.dll
+adding MT6582_Android_scatter.txt
+adding MTK_AllInOne_DA.bin
+adding option.ini
+adding phonon4.dll
+adding platform.xml
+adding preloader_eastaeon82_wet_kk.bin
+adding QtCLucene4.dll
+adding QtCore4.dll
+adding QtGui4.dll
+adding QtHelp4.dll
+adding QtNetwork4.dll
+adding QtSql4.dll
+adding QtWebKit4.dll
+adding QtXml4.dll
+adding QtXmlPatterns4.dll
+adding rb_without_scatter.xml
+adding readback.log
+adding readback.xml
+adding readback_ui_bak.xsd
+adding recovery.img
+adding registry.ini
+adding secro.img
+adding SLA_Challenge.dll
+adding sp_readback.xml
+adding storage_setting.xml
+adding system.img
+adding usb_setting.xml
+adding userdata.img
+Full updater package: /home/runner/work/Y2Player/Y2Player/out/updater/rom_y2.zip
+WARNING: installing this package erases user data.

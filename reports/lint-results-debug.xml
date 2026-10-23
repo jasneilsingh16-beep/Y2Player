@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.1.1">
+
+    <issue
+        id="PrivateApi"
+        severity="Warning"
+        message="Accessing internal APIs via reflection is not supported and may not work on all devices or in the future"
+        category="Correctness"
+        priority="6"
+        summary="Using Private APIs"
+        explanation="Using reflection to access hidden/private Android APIs is not safe; it will often not work on devices from other vendors, and it may suddenly stop working (if the API is removed) or crash spectacularly (if the API behavior changes, since there are no guarantees for compatibility)."
+        url="https://developer.android.com/preview/restrictions-non-sdk-interfaces"
+        urls="https://developer.android.com/preview/restrictions-non-sdk-interfaces"
+        errorLine1="                    val system = Class.forName(&quot;android.media.AudioSystem&quot;)"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt"
+            line="202"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="PrivateApi"
+        severity="Warning"
+        message="Accessing internal APIs via reflection is not supported and may not work on all devices or in the future"
+        category="Correctness"
+        priority="6"
+        summary="Using Private APIs"
+        explanation="Using reflection to access hidden/private Android APIs is not safe; it will often not work on devices from other vendors, and it may suddenly stop working (if the API is removed) or crash spectacularly (if the API behavior changes, since there are no guarantees for compatibility)."
+        url="https://developer.android.com/preview/restrictions-non-sdk-interfaces"
+        urls="https://developer.android.com/preview/restrictions-non-sdk-interfaces"
+        errorLine1="                    val method = system.getDeclaredMethod("
+        errorLine2="                                 ^">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt"
+            line="203"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        severity="Warning"
+        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
+        category="Correctness"
+        priority="6"
+        summary="Hardcoded reference to `/sdcard`"
+        explanation="Your code should not reference the `/sdcard` path directly; instead use `Environment.getExternalStorageDirectory().getPath()`.&#xA;&#xA;Similarly, do not reference the `/data/data/` path directly; it can vary in multi-user scenarios. Instead, use `Context.getFilesDir().getPath()`."
+        url="https://developer.android.com/training/data-storage#filesExternal"
+        urls="https://developer.android.com/training/data-storage#filesExternal"
+        errorLine1="        const val DEFAULT_OUTPUT = &quot;/sdcard/y2-fm-probe.json&quot;"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt"
+            line="399"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        severity="Warning"
+        message="`contentReceiver` is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected broadcasts registered for android.intent.action.MEDIA_SCANNER_FINISHED"
+        category="Correctness"
+        priority="5"
+        summary="Missing `registerReceiver()` exported flag"
+        explanation="In Android U, all receivers registering for non-system broadcasts are required to include a flag indicating the receiver&apos;s exported state. Apps registering for non-system broadcasts should use the `ContextCompat#registerReceiver` APIs with flags set to either `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED`.&#xA;&#xA;If you are not expecting broadcasts from other apps on the device, register your receiver with `RECEIVER_NOT_EXPORTED` to protect your receiver on all platform releases."
+        url="https://developer.android.com/reference/androidx/core/content/ContextCompat#registerReceiver(android.content.Context,android.content.BroadcastReceiver,android.content.IntentFilter,int)"
+        urls="https://developer.android.com/reference/androidx/core/content/ContextCompat#registerReceiver(android.content.Context,android.content.BroadcastReceiver,android.content.IntentFilter,int)"
+        errorLine1="            appContext.registerReceiver("
+        errorLine2="            ^">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/storage/StorageMonitor.kt"
+            line="106"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        severity="Warning"
+        message="A newer version of Gradle than 9.3.1 is available: 9.8.2"
+        category="Correctness"
+        priority="4"
+        summary="Obsolete Android Gradle Plugin Version"
+        explanation="This detector looks for usage of the Android Gradle Plugin where the version you are using is not the current stable release. Using older versions is fine, and there are cases where you deliberately want to stick with an older version. However, you may simply not be aware that a more recent version is available, and that is what this lint check helps find."
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.3.1-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/gradle/wrapper/gradle-wrapper.properties"
+            line="3"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        severity="Warning"
+        message="A newer version of org.json:json than 20240303 is available: 20260814"
+        category="Correctness"
+        priority="4"
+        summary="Newer Library Versions Available"
+        explanation="This detector checks with a central repository to see if there are newer versions available for the dependencies used by this project. This is similar to the `GradleDependency` check, which checks for newer versions available in the Android SDK tools and libraries, but this works with any MavenCentral dependency, and connects to the library every time, which makes it more flexible but also **much** slower."
+        errorLine1="    testImplementation(&quot;org.json:json:20240303&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/build.gradle.kts"
+            line="204"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="ChromeOsAbiSupport"
+        severity="Warning"
+        message="Missing x86_64 ABI support for ChromeOS"
+        category="Correctness:Chrome OS"
+        priority="4"
+        summary="Missing ABI Support for ChromeOS"
+        explanation="To properly support ChromeOS, your Android application should have an x86 and/or x86_64 binary as part of the build configuration. To fix the issue, ensure your files are properly optimized for ARM; the binary translator will then ensure compatibility with x86. Alternatively, add an `abiSplit` for x86 within your `build.gradle` file and create the required x86 dependencies."
+        url="https://developer.android.com/ndk/guides/abis"
+        urls="https://developer.android.com/ndk/guides/abis"
+        errorLine1="            abiFilters += &quot;armeabi-v7a&quot;"
+        errorLine2="                          ~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/build.gradle.kts"
+            line="55"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="ExportedService"
+        severity="Warning"
+        message="Exported service does not require permission"
+        category="Security"
+        priority="5"
+        summary="Exported service does not require permission"
+        explanation="Exported services (services which either set `exported=true` or contain an intent-filter and do not specify `exported=false`) should define a permission that an entity must have in order to launch the service or bind to it. Without this, any application can use this service."
+        url="https://goo.gle/ExportedService"
+        urls="https://goo.gle/ExportedService"
+        errorLine1="        &lt;service"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/AndroidManifest.xml"
+            line="9"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ExportedService"
+        severity="Warning"
+        message="Exported service does not require permission"
+        category="Security"
+        priority="5"
+        summary="Exported service does not require permission"
+        explanation="Exported services (services which either set `exported=true` or contain an intent-filter and do not specify `exported=false`) should define a permission that an entity must have in order to launch the service or bind to it. Without this, any application can use this service."
+        url="https://goo.gle/ExportedService"
+        urls="https://goo.gle/ExportedService"
+        errorLine1="        &lt;service"
+        errorLine2="         ~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/AndroidManifest.xml"
+            line="13"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Wakelock"
+        severity="Warning"
+        message="The `release()` call is not always reached (because of a possible exception in the path acquire() → call() → powerup() → toString() → = → runCatching() → stop() → java.lang.IllegalStateException exit; use try/finally to ensure `release` is always called)"
+        category="Performance"
+        priority="9"
+        summary="Incorrect `WakeLock` usage"
+        explanation="Failing to release a wakelock properly can keep the Android device in a high power mode, which reduces battery life. There are several causes of this, such as releasing the wake lock in `onDestroy()` instead of in `onPause()`, failing to call `release()` in all possible code paths after an `acquire()`, and so on.&#xA;&#xA;NOTE: If you are using the lock just to keep the screen on, you should strongly consider using `FLAG_KEEP_SCREEN_ON` instead. This window flag will be correctly managed by the platform as the user moves between applications and doesn&apos;t require a special permission. See https://developer.android.com/reference/android/view/WindowManager.LayoutParams.html#FLAG_KEEP_SCREEN_ON."
+        errorLine1="            runCatching { if (wakeLock.isHeld) wakeLock.release() }"
+        errorLine2="                                                        ~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt"
+            line="349"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="WakelockTimeout"
+        severity="Warning"
+        message="Provide a timeout when requesting a wakelock with `PowerManager.Wakelock.acquire(long timeout)`. This will ensure the OS will cleanup any wakelocks that last longer than you intend, and will save your user&apos;s battery."
+        category="Performance"
+        priority="9"
+        summary="Using wakeLock without timeout"
+        explanation="Wakelocks have two acquire methods: one with a timeout, and one without. You should generally always use the one with a timeout. A typical timeout is 10 minutes. If the task takes longer than it is critical that it happens (i.e. can&apos;t use `JobScheduler`) then maybe they should consider a foreground service instead (which is a stronger run guarantee and lets the user know something long/important is happening)."
+        errorLine1="            required &amp;&amp; !wakeLock.isHeld -> wakeLock.acquire()"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/playback/FfmpegPlaybackEngine.kt"
+            line="621"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="WakelockTimeout"
+        severity="Warning"
+        message="Provide a timeout when requesting a wakelock with `PowerManager.Wakelock.acquire(long timeout)`. This will ensure the OS will cleanup any wakelocks that last longer than you intend, and will save your user&apos;s battery."
+        category="Performance"
+        priority="9"
+        summary="Using wakeLock without timeout"
+        explanation="Wakelocks have two acquire methods: one with a timeout, and one without. You should generally always use the one with a timeout. A typical timeout is 10 minutes. If the task takes longer than it is critical that it happens (i.e. can&apos;t use `JobScheduler`) then maybe they should consider a foreground service instead (which is a stronger run guarantee and lets the user know something long/important is happening)."
+        errorLine1="            wakeLock.acquire()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt"
+            line="164"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="WakelockTimeout"
+        severity="Warning"
+        message="Provide a timeout when requesting a wakelock with `PowerManager.Wakelock.acquire(long timeout)`. This will ensure the OS will cleanup any wakelocks that last longer than you intend, and will save your user&apos;s battery."
+        category="Performance"
+        priority="9"
+        summary="Using wakeLock without timeout"
+        explanation="Wakelocks have two acquire methods: one with a timeout, and one without. You should generally always use the one with a timeout. A typical timeout is 10 minutes. If the task takes longer than it is critical that it happens (i.e. can&apos;t use `JobScheduler`) then maybe they should consider a foreground service instead (which is a stronger run guarantee and lets the user know something long/important is happening)."
+        errorLine1="            required &amp;&amp; !wakeLock.isHeld -> wakeLock.acquire()"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/playback/PlaybackWakeLock.kt"
+            line="22"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        severity="Warning"
+        message="Do not place Android context classes in static fields (static reference to `VideoActivity` which has field `videoView` pointing to `VideoView`); this is a memory leak"
+        category="Performance"
+        priority="6"
+        summary="Static Field Leaks"
+        explanation="A static field will leak contexts.&#xA;&#xA;Non-static inner classes have an implicit reference to their outer class. If that outer class is for example a `Fragment` or `Activity`, then this reference means that the long-running handler/loader/task will hold a reference to the activity which prevents it from getting garbage collected.&#xA;&#xA;Similarly, direct field references to activities and fragments from these longer running instances can cause leaks.&#xA;&#xA;ViewModel classes should never point to Views or non-application Contexts."
+        errorLine1="        @Volatile private var foreground: VideoActivity? = null"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoActivity.kt"
+            line="472"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ViewConstructor"
+        severity="Warning"
+        message="Custom view `VideoOsdView` is missing constructor used by tools: `(Context)` or `(Context,AttributeSet)` or `(Context,AttributeSet,int)`"
+        category="Usability"
+        priority="3"
+        summary="Missing View constructors for XML inflation"
+        explanation="Some layout tools (such as the Android layout editor) need to find a constructor with one of the following signatures:&#xA;* `View(Context context)`&#xA;* `View(Context context, AttributeSet attrs)`&#xA;* `View(Context context, AttributeSet attrs, int defStyle)`&#xA;&#xA;If your custom view needs to perform initialization which does not apply when used in a layout editor, you can surround the given code with a check to see if `View#isInEditMode()` is false, since that method will return `false` at runtime but true within a user interface editor."
+        errorLine1="class VideoOsdView(context: Context, private val palette: Y2Palette) : View(context) {"
+        errorLine2="      ~~~~~~~~~~~~">
+        <location
+            file="/home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoOsdView.kt"
+            line="21"
+            column="7"/>
+    </issue>
+
+</issues>
