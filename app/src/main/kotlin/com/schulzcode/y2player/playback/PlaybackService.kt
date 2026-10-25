@@ -90,7 +90,14 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             consecutiveErrors = 0
             syncReplayGain()
             syncTransition()
-            prepareCurrent(autoPlay = true, positionMs = prepareAudiobookStart(ignoreSavedPosition = fromStart))
+            // A series plays in order; a talk inside a shuffled Favourites keeps the shuffle.
+            val seriesKey = trackIds.getOrNull(startIndex)?.let(libraryRepository::findTrack)?.audiobookFolderKey
+            val wholeSeries = !shuffled && seriesKey != null &&
+                trackIds.all { libraryRepository.findTrack(it)?.audiobookFolderKey == seriesKey }
+            prepareCurrent(
+                autoPlay = true,
+                positionMs = prepareAudiobookStart(forceOrdered = wholeSeries, ignoreSavedPosition = fromStart)
+            )
         }
 
         fun clearAudiobookProgress(folderKey: String, onComplete: (Boolean) -> Unit) = post {

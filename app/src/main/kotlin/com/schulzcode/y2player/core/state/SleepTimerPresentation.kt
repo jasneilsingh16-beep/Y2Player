@@ -27,6 +27,12 @@ internal object SleepTimerPresentation {
         return "$minutes min"
     }
 
+    /** Status bar form, rounded up: "23m", "1h 5m". */
+    fun statusLabel(remainingMs: Long): String {
+        val minutes = (remainingMs.coerceAtLeast(0L) + 59_999L) / 60_000L
+        return if (minutes < 60L) "${minutes}m" else "${minutes / 60L}h ${minutes % 60L}m"
+    }
+
     fun label(mode: SleepTimerMode, remainingMs: Long?): String =
         if (mode == SleepTimerMode.MINUTES && remainingMs != null) countdown(remainingMs) else mode.label
 
@@ -40,13 +46,15 @@ internal object SleepTimerPresentation {
     }
 
     /** Screens whose rows carry a ticking countdown. */
-    fun showsCountdown(screen: Screen): Boolean = screen == Screen.NowPlayingOptions || screen == Screen.MainMenu
+    fun showsCountdown(screen: Screen): Boolean = screen == Screen.NowPlayingOptions || screen == Screen.MainMenu ||
+        screen == Screen.SleepTimer || screen == Screen.NowPlaying
 
+    /** The status bar shows the minutes left on every screen, so any visible screen refreshes. */
+    @Suppress("UNUSED_PARAMETER")
     fun shouldRefresh(
         screen: Screen,
         mode: SleepTimerMode,
         deadlineElapsedMs: Long?,
         uiVisible: Boolean
-    ): Boolean = uiVisible && showsCountdown(screen) &&
-        mode == SleepTimerMode.MINUTES && deadlineElapsedMs != null
+    ): Boolean = uiVisible && mode == SleepTimerMode.MINUTES && deadlineElapsedMs != null
 }

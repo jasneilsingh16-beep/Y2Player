@@ -16,7 +16,12 @@ sealed interface Screen {
     /** A folder in the Videos section; null is the section's top level. */
     data class Videos(val path: String? = null) : Screen
     data class AudiobookOptions(val folderKey: String) : Screen
+    /** A series in Talks & Podcasts: carry on, then its episodes. */
     data class AudiobookChapters(val folderKey: String) : Screen
+    /** A folder of series, such as Basics of Sikhi. */
+    data class TalkCollection(val path: String) : Screen
+    /** Everything part-way through: talks and videos. */
+    data object Continue : Screen
     data object Songs : Screen
     data object Favorites : Screen
     data object RecentlyPlayed : Screen
@@ -88,6 +93,7 @@ sealed interface Screen {
     data object Brightness : Screen
     data object ScreenTimeout : Screen
     data object DateTime : Screen
+    data object Bedtime : Screen
     data object ClockHour : Screen
     data class ClockMinute(val hour: Int) : Screen
     data object ClockYear : Screen
@@ -108,9 +114,11 @@ sealed interface Screen {
 
 data class ScreenEntry(val screen: Screen, val selectedIndex: Int = 0)
 
-/** Command menus shown with the wheel-driven circular overlay. */
-fun Screen.isRadialMenu(): Boolean =
-    this == Screen.NowPlayingOptions || this == Screen.QueueManagement || this is Screen.QueueOptions
+/** Short menus drawn as a card over the screen they were opened from. */
+fun Screen.isCardMenu(): Boolean =
+    this == Screen.NowPlayingOptions || this == Screen.QueueManagement || this is Screen.QueueOptions ||
+        this is Screen.TrackOptions || this is Screen.CollectionOptions || this is Screen.ConfirmAction ||
+        this is Screen.AudiobookOptions
 
 // R8 renames these classes, so simpleName logs as `b0` in release builds.
 val Screen.code: String get() = when (this) {
@@ -121,6 +129,8 @@ val Screen.code: String get() = when (this) {
     is Screen.Videos -> "videos"
     is Screen.AudiobookOptions -> "audiobook_options"
     is Screen.AudiobookChapters -> "audiobook_chapters"
+    is Screen.TalkCollection -> "talk_collection"
+    Screen.Continue -> "continue"
     Screen.Songs -> "songs"
     Screen.Favorites -> "favorites"
     Screen.RecentlyPlayed -> "recently_played"
@@ -180,6 +190,7 @@ val Screen.code: String get() = when (this) {
     Screen.Brightness -> "brightness"
     Screen.ScreenTimeout -> "screen_timeout"
     Screen.DateTime -> "date_time"
+    Screen.Bedtime -> "bedtime"
     Screen.ClockHour -> "clock_hour"
     is Screen.ClockMinute -> "clock_minute"
     Screen.ClockYear -> "clock_year"

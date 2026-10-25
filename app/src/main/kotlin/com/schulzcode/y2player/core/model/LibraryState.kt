@@ -24,10 +24,9 @@ class LibraryIndex private constructor(val tracks: List<Track>) {
             if (track.available) {
                 available.add(track)
                 availableIds.add(track.id)
-                if (!track.isAudiobookChapter) {
-                    music.add(track)
-                    if (track.favorite) favoriteMusic.add(track)
-                }
+                if (!track.isAudiobookChapter) music.add(track)
+                // A favourite is kept in Favourites even when it is a talk.
+                if (track.favorite) favoriteMusic.add(track)
             }
         }
         byId = ids

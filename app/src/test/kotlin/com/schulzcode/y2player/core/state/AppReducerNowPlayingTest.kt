@@ -59,14 +59,14 @@ class AppReducerNowPlayingTest {
     @Test fun mainMenuKeepsOnlyThePrimaryDestinations() {
         val rows = ScreenContent.rows(AppState())
         assertEquals(
-            listOf("music", "audiobooks", "videos", "search", "settings"),
+            listOf("favorites", "music", "audiobooks", "videos", "search", "settings"),
             rows.map { (it as ScreenRow.Action).key }
         )
 
-        val music = AppReducer.reduce(AppState(), AppAction.Confirm).state
+        val music = AppReducer.reduce(AppState(screenStack = listOf(ScreenEntry(Screen.MainMenu, 1))), AppAction.Confirm).state
         assertEquals(Screen.Music, music.currentScreen)
         assertEquals(
-            listOf("shuffle_all", "songs", "albums", "artists", "genres", "years", "playlists", "favorites", "recent", "folders"),
+            listOf("shuffle_all", "songs", "artists", "genres", "albums", "playlists", "recent", "folders"),
             ScreenContent.rows(music).map { (it as ScreenRow.Action).key }
         )
     }
@@ -178,26 +178,22 @@ class AppReducerNowPlayingTest {
         val trackOptions = optionsReductionFor("np_track_options:1").state
         assertEquals(Screen.TrackOptions(1, fromNowPlaying = true), trackOptions.currentScreen)
         assertEquals(
-            listOf("track_browse:1", "track_details:1"),
+            listOf("track_favorite:1", "track_playlist:1", "track_artist:1", "track_album:1", "track_details:1"),
             ScreenContent.rows(trackOptions).map { (it as ScreenRow.Action).key }
         )
 
-        val browseIndex = ScreenContent.rows(trackOptions)
-            .indexOfFirst { (it as? ScreenRow.Action)?.key == "track_browse:1" }
-        val browse = AppReducer.reduce(
+        fun choose(key: String) = AppReducer.reduce(
             trackOptions.copy(
-                screenStack = trackOptions.screenStack.dropLast(1) +
-                    trackOptions.currentEntry.copy(selectedIndex = browseIndex)
+                screenStack = trackOptions.screenStack.dropLast(1) + trackOptions.currentEntry.copy(
+                    selectedIndex = ScreenContent.rows(trackOptions).indexOfFirst { (it as? ScreenRow.Action)?.key == key }
+                )
             ),
             AppAction.Confirm
         ).state
-        assertEquals(Screen.TrackBrowse(1), browse.currentScreen)
-
-        assertEquals(Screen.AlbumSongs("Album", "Artist"), AppReducer.reduce(browse, AppAction.Confirm).state.currentScreen)
-        val artistSelected = browse.copy(
-            screenStack = browse.screenStack.dropLast(1) + browse.currentEntry.copy(selectedIndex = 1)
-        )
-        val artistDestination = AppReducer.reduce(artistSelected, AppAction.Confirm).state.currentScreen
+        val album = choose("track_album:1")
+        assertEquals(Screen.AlbumSongs("Album", "Artist"), album.currentScreen)
+        assertFalse("the card closes behind the album", album.screenStack.any { it.screen is Screen.TrackOptions })
+        val artistDestination = choose("track_artist:1").currentScreen
         assertEquals(Screen.ArtistAlbums("Artist"), artistDestination)
         assertFalse(artistDestination is Screen.ArtistSongs)
     }
@@ -251,7 +247,7 @@ class AppReducerNowPlayingTest {
         val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
         val rows = ScreenContent.rows(settings)
         assertEquals(
-            listOf("bluetooth", "audio", "interface", "date_time", "library_settings", "system"),
+            listOf("audio", "display", "bedtime", "controls", "date_time", "bluetooth", "library_settings", "system"),
             rows.map { (it as ScreenRow.Action).key }
         )
         val systemIndex = rows.indexOfFirst { (it as? ScreenRow.Action)?.key == "system" }
@@ -274,7 +270,7 @@ class AppReducerNowPlayingTest {
             AppAction.Confirm
         ).state
         assertEquals(Screen.Audio, audio.currentScreen)
-        assertEquals("Audio", ScreenContent.title(audio))
+        assertEquals("Sound", ScreenContent.title(audio))
         assertEquals(
             listOf("sound_effects", "playback_volume", "playback_transitions", "playback_interruptions", "output"),
             ScreenContent.rows(audio).map { (it as ScreenRow.Action).key }
@@ -291,7 +287,8 @@ class AppReducerNowPlayingTest {
         assertEquals(Screen.PlaybackInterruptions, openAudioRow(3))
         assertEquals(Screen.OutputInformation, openAudioRow(4))
 
-        val settingsRoot = AppState(screenStack = listOf(ScreenEntry(Screen.Settings, 0)))
+        val bluetoothIndex = ScreenContent.rows(settingsHome).indexOfFirst { (it as? ScreenRow.Action)?.key == "bluetooth" }
+        val settingsRoot = AppState(screenStack = listOf(ScreenEntry(Screen.Settings, bluetoothIndex)))
         assertEquals(Screen.Bluetooth, AppReducer.reduce(settingsRoot, AppAction.Confirm).state.currentScreen)
     }
 

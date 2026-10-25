@@ -40,8 +40,8 @@ class AudiobookMusicSeparationTest {
         assertEquals(listOf("Book"), rows(Screen.Audiobooks).map { it.title })
     }
 
-    @Test fun `music track screens exclude audiobook chapters`() {
-        listOf(Screen.Songs, Screen.Favorites, Screen.RecentlyPlayed, Screen.PlaylistTracks(7, "Mixed"))
+    @Test fun `music track screens exclude talks`() {
+        listOf(Screen.Songs, Screen.RecentlyPlayed)
             .forEach { screen -> assertEquals(screen.toString(), listOf(song.id), trackIds(screen)) }
 
         assertTrue(trackIds(Screen.AlbumSongs("Book")).isEmpty())
@@ -54,13 +54,29 @@ class AudiobookMusicSeparationTest {
         assertEquals(listOf("Music"), rows(Screen.Folders("sdcard", "")).map { it.title })
     }
 
-    @Test fun `music and playlist counts exclude audiobook chapters`() {
-        val musicRows = actions(Screen.Music).associateBy { it.key }
-        assertEquals("1 track", musicRows.getValue("favorites").subtitle)
-        assertEquals("1 track", musicRows.getValue("recent").subtitle)
-
+    @Test fun `a talk you put in a playlist or Favourites stays there`() {
+        // Chosen by hand, so it is kept, while Songs and Recently Played stay music only.
+        assertEquals(listOf(song.id, chapter.id), trackIds(Screen.PlaylistTracks(7, "Mixed")))
         val playlist = actions(Screen.Playlists).single { it.key == "playlist:7" }
-        assertEquals("1 track", playlist.subtitle)
+        assertEquals("2 tracks", playlist.subtitle)
+
+        val favourites = library.copy(index = com.schulzcode.y2player.core.model.LibraryIndex.of(
+            listOf(song.copy(favorite = true), chapter.copy(favorite = true))
+        ))
+        val state = AppState(screenStack = listOf(ScreenEntry(Screen.Favorites)), library = favourites)
+        assertEquals(setOf(song.id, chapter.id),
+            ScreenContent.rows(state).filterIsInstance<ScreenRow.TrackRow>().map { it.track.id }.toSet())
+        assertEquals("Music shuffles music only", "1 track",
+            actions(Screen.Music).single { it.key == "shuffle_all" }.subtitle)
+    }
+
+    @Test fun `a file tagged Podcast is a talk wherever it is`() {
+        val podcast = track(3, "Downloads/Suraj/Ep 1.mp3", "Ep 1", "Jvala Singh", "Suraj").copy(genre = "Podcast")
+        val katha = track(4, "Music/Giani Ji/Japji 1.mp3", "Japji 1", "Giani Ji", "Japji").copy(genre = "Katha")
+        val talks = LibraryState(tracks = listOf(song, podcast, katha))
+        assertEquals(listOf(song), talks.musicTracks)
+        val state = AppState(screenStack = listOf(ScreenEntry(Screen.Audiobooks)), library = talks)
+        assertEquals(setOf("Suraj", "Giani Ji"), ScreenContent.rows(state).map { it.title }.toSet())
     }
 
     private fun state(screen: Screen) = AppState(

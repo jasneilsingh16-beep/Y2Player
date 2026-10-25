@@ -68,15 +68,16 @@ class SleepTimerPresentationTest {
         ))
     }
 
-    @Test fun refreshRunsOnlyWhileANumericCountdownIsVisible() {
+    @Test fun refreshRunsWhileANumericCountdownIsRunningOnAnyVisibleScreen() {
         assertTrue(SleepTimerPresentation.shouldRefresh(
             Screen.NowPlayingOptions,
             SleepTimerMode.MINUTES,
             deadlineElapsedMs = 900_000L,
             uiVisible = true
         ))
-        assertFalse(SleepTimerPresentation.shouldRefresh(
-            Screen.NowPlaying,
+        // The status bar shows the minutes left everywhere.
+        assertTrue(SleepTimerPresentation.shouldRefresh(
+            Screen.Songs,
             SleepTimerMode.MINUTES,
             deadlineElapsedMs = 900_000L,
             uiVisible = true

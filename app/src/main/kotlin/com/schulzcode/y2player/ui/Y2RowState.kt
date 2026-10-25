@@ -23,6 +23,11 @@ object Y2RowState {
             key == "shuffle" -> state.playback.shuffleEnabled
             key == "repeat" -> state.playback.repeatMode != RepeatMode.OFF
             key == "sleep_timer" || key == "main_sleep_timer" -> state.playback.sleepTimerMode != SleepTimerMode.OFF
+            key == "sleep_timer_end_track" -> state.playback.sleepTimerMode == SleepTimerMode.END_TRACK
+            key == "sleep_timer_end_album" -> state.playback.sleepTimerMode == SleepTimerMode.END_ALBUM
+            key == "sleep_timer_end_queue" -> state.playback.sleepTimerMode == SleepTimerMode.END_QUEUE
+            key.startsWith("sleep_timer_minutes:") -> state.playback.sleepTimerMode == SleepTimerMode.MINUTES &&
+                key.substringAfter(':').toIntOrNull() == state.playback.sleepTimerConfiguredMinutes
             key == "gapless" -> state.preferences.gaplessEnabled && state.preferences.crossfadeMs == 0
             key == "crossfade" -> state.preferences.crossfadeMs > 0
             key == "pause_fade" -> state.preferences.pauseResumeFadeMs > 0

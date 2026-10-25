@@ -109,7 +109,7 @@ class LibraryBrowseOrganizationTest {
 
     @Test fun `sorting settings emit typed effects and return to the sorting overview`() {
         val overview = state(Screen.SortOrder)
-        assertEquals(listOf("Tracks", "Albums", "Year Lists"), ScreenContent.rows(overview).map(ScreenRow::title))
+        assertEquals("Years left Music, so their order has no setting", listOf("Tracks", "Albums"), ScreenContent.rows(overview).map(ScreenRow::title))
         val albums = AppReducer.reduce(select(overview, "Albums"), AppAction.Confirm).state
         val chosen = AppReducer.reduce(select(albums, "Year · oldest first"), AppAction.Confirm)
         assertEquals(Screen.SortOrder, chosen.state.currentScreen)

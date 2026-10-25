@@ -1,6 +1,7 @@
 package com.schulzcode.y2player.playback
 
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
@@ -96,13 +97,14 @@ class VolumeOwnershipArchitectureTest {
         assertTrue(liveGain.contains("engine.setOutputGain(outputVolume * transientOutputGain"))
     }
 
-    @Test fun wheelSystemVolumeUsesTheFrameworkUiNotificationPath() {
+    @Test fun everyVolumeChangeShowsTheInAppBarRatherThanAndroidsPanel() {
         val source = File(
             root,
             "app/src/main/kotlin/com/schulzcode/y2player/ui/MainActivity.kt"
         ).readText()
         val adjust = source.substringAfter("private fun adjustVolume(direction: Int)")
             .substringBefore("private fun refreshPlaybackHistory")
-        assertTrue(adjust.contains("AudioManager.FLAG_SHOW_UI"))
+        assertFalse("Android's pop-up covered the screen", adjust.contains("AudioManager.FLAG_SHOW_UI"))
+        assertEquals("both volume modes show the bar", 2, Regex("playerView\\.showVolume\\(").findAll(adjust).count())
     }
 }

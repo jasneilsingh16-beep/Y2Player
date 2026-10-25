@@ -359,6 +359,16 @@ class MainActivity : Activity() {
         hapticController.setLevel(currentPreferences.hapticLevel)
         playerView.setTextAnimationsVisible(true)
         (store.state.currentScreen as? Screen.Videos)?.let { loadVideos(it.path) }
+        // Coming back from a video changes what Continue offers.
+        refreshVideoProgress()
+    }
+
+    private fun refreshVideoProgress() {
+        val resume = VideoResumeStore(applicationContext)
+        backgroundExecutor.execute {
+            val items = resume.inProgress()
+            mainHandler.post { if (!destroyed) store.dispatch(AppAction.VideoProgressLoaded(items)) }
+        }
     }
 
     override fun onPause() {
@@ -748,6 +758,7 @@ class MainActivity : Activity() {
             }
 
             is AppEffect.LoadVideos -> loadVideos(effect.path)
+            AppEffect.RefreshVideoProgress -> refreshVideoProgress()
             is AppEffect.PlayVideo -> {
                 // One output at a time: music pauses and stays exactly where it was.
                 // A running sleep timer moves to the video and comes back afterwards.
@@ -771,6 +782,7 @@ class MainActivity : Activity() {
             }
             AppEffect.Toggle24HourClock -> applyPlaybackPreferences(preferences.toggle24HourClock())
             AppEffect.ToggleStatusClock -> applyPlaybackPreferences(preferences.toggleStatusClock())
+            is AppEffect.SetBedtime -> applyPlaybackPreferences(preferences.setBedtime(effect.startHour))
             is AppEffect.SetDateTime -> setDateTime(effect)
             is AppEffect.SetTimeZone -> setTimeZone(effect.id)
             AppEffect.OpenAndroidSettings -> {
@@ -803,20 +815,25 @@ class MainActivity : Activity() {
         if (store.state.preferences.volumeMode != VolumeMode.PERCEPTUAL) {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             val before = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            // No FLAG_SHOW_UI: Android's own pop-up covered the screen; the slim bar replaces it.
             audioManager.adjustStreamVolume(
                 AudioManager.STREAM_MUSIC,
                 if (direction > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
-                AudioManager.FLAG_SHOW_UI
+                0
             )
-            if (audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != before) pulseAcceptedAction()
+            val after = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+            if (after != before) pulseAcceptedAction()
+            val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            playerView.showVolume(after * 100 / maximum)
             return
         }
         val before = store.state.preferences.volumeLevel
         val value = preferences.adjustVolumeLevel(direction)
+        // At either end the bar still shows, so a press is never met with nothing.
+        playerView.showVolume(VolumeCurve.percentForLevel(value.volumeLevel))
         if (value.volumeLevel == before) return
         applyPlaybackPreferences(value)
         pulseAcceptedAction()
-        showMessage("Volume ${VolumeCurve.percentForLevel(value.volumeLevel)}%")
         eventLog.logRateLimited(
             "volume_level",
             VOLUME_LOG_WINDOW_MS,

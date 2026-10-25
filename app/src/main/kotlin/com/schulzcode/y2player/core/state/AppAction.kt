@@ -47,6 +47,9 @@ sealed interface AppAction {
     data class PressSearchKey(val key: String) : AppAction
     data class VideosLoaded(val path: String?, val items: List<VideoItem>) : AppAction
     data class ClockChanged(val clock: ClockState) : AppAction
+    data class VideoProgressLoaded(val items: List<VideoProgress>) : AppAction
+    /** Holding Play/Pause: the sleep timer, from any screen. */
+    data object ShowSleepTimer : AppAction
 }
 
 sealed interface AppEffect {
@@ -107,6 +110,7 @@ sealed interface AppEffect {
     data object ToggleShowFmRadio : AppEffect
     data object Toggle24HourClock : AppEffect
     data object ToggleStatusClock : AppEffect
+    data class SetBedtime(val startHour: Int) : AppEffect
     /** Month is 1–12. Applied in the device's current time zone. */
     data class SetDateTime(val year: Int, val month: Int, val day: Int, val hour: Int, val minute: Int) : AppEffect
     data class SetTimeZone(val id: String) : AppEffect
@@ -158,6 +162,7 @@ sealed interface AppEffect {
     // Videos: folders are listed on a background thread; playback runs in its
     // own full-screen activity, with music paused first.
     data class LoadVideos(val path: String?) : AppEffect
+    data object RefreshVideoProgress : AppEffect
     data class PlayVideo(val path: String, val folderVideos: List<String>) : AppEffect
 }
 
@@ -202,4 +207,6 @@ val AppAction.code: String get() = when (this) {
     is AppAction.PressSearchKey -> "search_key"
     is AppAction.VideosLoaded -> "videos_loaded"
     is AppAction.ClockChanged -> "clock_changed"
+    is AppAction.VideoProgressLoaded -> "video_progress_loaded"
+    AppAction.ShowSleepTimer -> "show_sleep_timer"
 }

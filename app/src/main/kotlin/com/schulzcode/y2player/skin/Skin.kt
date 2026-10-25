@@ -81,7 +81,7 @@ data class SkinSummary(val id: String, val name: String, val author: String = ""
 
 /** Pure state snapshot, so the reducer never depends on files or Android rendering. */
 data class SkinCatalogState(
-    val available: List<SkinSummary> = listOf(SkinSummary(SkinIds.CLASSIC, "Classic"), SkinSummary(SkinIds.LIGHT, "Classic Light")),
+    val available: List<SkinSummary> = listOf(SkinSummary(SkinIds.LIGHT, "Porcelain"), SkinSummary(SkinIds.CLASSIC, "Classic Dark")),
     val errors: List<String> = emptyList(),
     val revision: Int = 0
 ) {

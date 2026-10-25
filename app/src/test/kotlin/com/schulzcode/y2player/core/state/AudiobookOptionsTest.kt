@@ -78,14 +78,14 @@ class AudiobookOptionsTest {
         assertEquals(AppEffect.NextTrack, result.effects.single())
     }
 
-    @Test fun `Confirm still resumes rather than opening options`() {
+    @Test fun `Confirm opens the series page rather than the options card`() {
         val list = AppState(
             screenStack = listOf(ScreenEntry(Screen.Audiobooks)),
             library = library(startedAtChapter(4))
         )
         val result = AppReducer.reduce(list, AppAction.Confirm)
-        assertEquals(Screen.NowPlaying, result.state.currentScreen)
-        assertTrue(result.effects.single() is AppEffect.PlayCollection)
+        assertEquals(Screen.AudiobookChapters(dune), result.state.currentScreen)
+        assertTrue(result.effects.isEmpty())
     }
 
     @Test fun `Book Options is titled with the book`() {
@@ -107,10 +107,10 @@ class AudiobookOptionsTest {
         assertEquals("audiobook_clear:$dune", keys[2])
     }
 
-    @Test fun `Clear Progress names the chapter it forgets`() {
+    @Test fun `Mark All Unplayed says what it forgets`() {
         val row = ScreenContent.rows(onOptions(startedAtChapter(4)))[2] as ScreenRow.Action
-        assertEquals("Clear Progress", row.title)
-        assertEquals("Forget chapter 4", row.subtitle)
+        assertEquals("Mark All Unplayed", row.title)
+        assertEquals("Forget where you are", row.subtitle)
     }
 
     @Test fun `progress on a deleted chapter does not offer Clear Progress`() {
@@ -180,18 +180,33 @@ class AudiobookOptionsTest {
 
     // ---- Chapters ------------------------------------------------------------------
 
-    @Test fun `Chapters lists every chapter in playback order`() {
+    @Test fun `Episodes lists every episode in playback order after a way to start`() {
         val result = AppReducer.reduce(selectKey(onOptions(), "audiobook_chapters:"), AppAction.Confirm)
         assertEquals(Screen.AudiobookChapters(dune), result.state.currentScreen)
+        assertEquals("the card is replaced, so Back returns to the list",
+            listOf(Screen.Audiobooks, Screen.AudiobookChapters(dune)), result.state.screenStack.map { it.screen })
         val rows = ScreenContent.rows(result.state)
-        assertEquals(10, rows.size)
-        assertEquals("01.mp3", rows.first().title)
+        assertEquals(11, rows.size)
+        assertEquals("Play from Episode 1", rows.first().title)
+        assertEquals("01.mp3", rows[1].title)
         assertEquals("10.mp3", rows.last().title)
+        assertEquals("1", (rows[1] as ScreenRow.Action).leading)
     }
 
-    @Test fun `Chapters opens on the chapter you are listening to`() {
+    @Test fun `Episodes opens on the episode you are listening to`() {
         val result = AppReducer.reduce(selectKey(onOptions(startedAtChapter(7)), "audiobook_chapters:"), AppAction.Confirm)
-        assertEquals(6, result.state.selectedIndex)
+        assertEquals(7, result.state.selectedIndex)
+        assertEquals("07.mp3", ScreenContent.rows(result.state)[7].title)
+    }
+
+    @Test fun `earlier episodes read as played and later ones as unplayed`() {
+        val page = AppState(screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(dune))), library = library(startedAtChapter(4)))
+        val rows = ScreenContent.rows(page).map { it as ScreenRow.Action }
+        assertEquals("Played", rows[1].subtitle)
+        assertEquals(RowProgress.PLAYED, rows[3].progress)
+        assertEquals("9 min left", rows[4].subtitle)
+        assertEquals(RowProgress.UNPLAYED, rows[5].progress)
+        assertEquals("10 min", rows[5].subtitle)
     }
 
     @Test fun `Chapters opens at the top for an untouched book`() {
@@ -204,7 +219,7 @@ class AudiobookOptionsTest {
             screenStack = listOf(
                 ScreenEntry(Screen.Audiobooks),
                 ScreenEntry(Screen.AudiobookOptions(dune)),
-                ScreenEntry(Screen.AudiobookChapters(dune), 3)
+                ScreenEntry(Screen.AudiobookChapters(dune), 4)
             ),
             library = library(startedAtChapter(7))
         )
@@ -217,7 +232,7 @@ class AudiobookOptionsTest {
 
     @Test fun `long center on a chapter opens Track Options`() {
         val chaptersScreen = AppState(
-            screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(dune), 2)),
+            screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(dune), 3)),
             library = library()
         )
         val result = AppReducer.reduce(chaptersScreen, AppAction.ConfirmLong)

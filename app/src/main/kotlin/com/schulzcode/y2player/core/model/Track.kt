@@ -58,7 +58,10 @@ data class Track(
 
     val decodeFailed: Boolean get() = playbackError != null
 
-    val audiobookFolderKey: String? get() = AudiobookIdentity.folderKey(volumeId, relativePath)
+    /** The series (or book) this file belongs to in Talks & Podcasts; null for music. */
+    val audiobookFolderKey: String? by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        AudiobookIdentity.folderKey(volumeId, relativePath, genre)
+    }
 
     val isAudiobookChapter: Boolean get() = audiobookFolderKey != null
 }
@@ -171,24 +174,45 @@ object ArtistCredit {
     private const val REPEATED_VALUE_SEPARATOR = ';'
 }
 
+/**
+ * Talks & Podcasts: spoken recordings kept apart from music. A file belongs there
+ * when it sits under a folder named for spoken word (AUDIOBOOKS, Podcasts, Talks,
+ * Katha), or when its genre tag says it is spoken word. Nothing has to be moved:
+ * a podcast tagged "Podcast" is found wherever it is on the card.
+ */
 object AudiobookIdentity {
     const val ROOT_SEGMENT = "AUDIOBOOKS"
 
+    /** Folder names that mark everything below them as spoken word. */
+    private val ROOT_SEGMENTS = setOf("audiobooks", "audiobook", "podcasts", "talks", "talks & podcasts", "katha")
+
+    /** Genre tags that mark a single file as spoken word, matched whole and without case. */
+    private val SPOKEN_GENRES = setOf(
+        "podcast", "podcasts", "katha", "talk", "talks", "lecture", "lectures", "speech",
+        "spoken", "spoken word", "audiobook", "audiobooks", "audio book", "sermon", "vichar"
+    )
+
     private const val KEY_SEPARATOR = '|'
 
-    fun folderKey(volumeId: String, relativePath: String): String? {
+    fun isRootSegment(segment: String): Boolean = segment.trim().lowercase() in ROOT_SEGMENTS
+
+    fun isSpokenGenre(genre: String?): Boolean = genre?.split(';', '/', ',')
+        ?.any { it.trim().lowercase() in SPOKEN_GENRES } == true
+
+    fun folderKey(volumeId: String, relativePath: String, genre: String? = null): String? {
         val segments = segmentsOf(relativePath) ?: return null
-        if (segments.size < 2) return null
-        val rootIndex = segments.indexOfFirst { it.equals(ROOT_SEGMENT, ignoreCase = true) }
-        if (rootIndex < 0) return null
+        if (segments.isEmpty()) return null
         val fileIndex = segments.lastIndex
-        if (rootIndex >= fileIndex) return null
+        val rootIndex = segments.subList(0, fileIndex).indexOfFirst(::isRootSegment)
+        if (rootIndex < 0 && !isSpokenGenre(genre)) return null
         var bookIndex = fileIndex - 1
         // Stops one folder below the marker: the book itself may be named "Part 1".
         while (bookIndex > rootIndex + 1 && isDiscFolder(segments[bookIndex])) {
             bookIndex -= 1
         }
-        val endExclusive = if (bookIndex > rootIndex) bookIndex + 1 else segments.size
+        // A file straight inside the marker folder, or a tagged file loose at the
+        // top of the card, is its own one-file series keyed on its name.
+        val endExclusive = if (bookIndex > rootIndex && bookIndex >= 0) bookIndex + 1 else segments.size
         return buildString {
             append(volumeId)
             append(KEY_SEPARATOR)
@@ -198,6 +222,11 @@ object AudiobookIdentity {
             }
         }
     }
+
+    /** The folder path inside a key, without its volume. */
+    fun pathOf(folderKey: String): String = folderKey.substringAfter(KEY_SEPARATOR)
+
+    fun volumeOf(folderKey: String): String = folderKey.substringBefore(KEY_SEPARATOR)
 
     private fun isDiscFolder(segment: String): Boolean =
         DISC_FOLDER.matches(segment.trim())

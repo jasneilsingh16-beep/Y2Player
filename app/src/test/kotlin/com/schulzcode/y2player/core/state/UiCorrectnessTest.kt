@@ -47,14 +47,14 @@ class UiCorrectnessTest {
     @Test fun `a live session has no duplicate Now Playing row`() {
         val state = AppState(library = LibraryState(), playback = playing)
         assertEquals(
-            listOf("music", "audiobooks", "videos", "search", "settings"),
+            listOf("favorites", "music", "audiobooks", "videos", "search", "settings"),
             keys(state)
         )
     }
 
     @Test fun `main destinations stay stable when the session ends`() {
         val stopped = AppState(library = LibraryState(tracks = listOf(track)), playback = PlaybackSnapshot())
-        assertEquals(listOf("music", "audiobooks", "videos", "search", "settings"), keys(stopped))
+        assertEquals(listOf("favorites", "music", "audiobooks", "videos", "search", "settings"), keys(stopped))
     }
 
     @Test fun `a restored queue has neither Shuffle All nor a duplicate Now Playing row`() {
@@ -63,16 +63,17 @@ class UiCorrectnessTest {
             playback = PlaybackSnapshot(queue = testQueue(1L), currentQueueEntryId = 1L)
         )
         assertEquals(
-            listOf("music", "audiobooks", "videos", "search", "settings"),
+            listOf("favorites", "music", "audiobooks", "videos", "search", "settings"),
             keys(restored)
         )
     }
 
     @Test fun `Settings selection survives removal of the idle Shuffle All row`() {
         val idle = AppState(
-            screenStack = listOf(ScreenEntry(Screen.MainMenu, 4)),
+            screenStack = listOf(ScreenEntry(Screen.MainMenu, 5)),
             library = LibraryState(tracks = listOf(track))
         )
+        assertEquals("settings", keys(idle)[5])
         val live = AppReducer.reduce(idle, AppAction.PlaybackChanged(playing)).state
         assertEquals("settings", keys(live)[live.selectedIndex])
     }
@@ -227,7 +228,7 @@ class UiCorrectnessTest {
         assertFalse("playlists are deleted, not rebuilt", detail.contains("playlists are rebuilt"))
         assertTrue("must mention playlists", detail.contains("Playlists"))
         assertTrue("must mention favourites", detail.contains("favourites"))
-        assertTrue("must mention audiobook positions", detail.contains("audiobook positions"))
+        assertTrue("must mention places in talks", detail.contains("places in talks"))
         assertTrue("must reassure about the music files", detail.contains("Music files are kept"))
     }
 

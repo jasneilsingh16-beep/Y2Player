@@ -118,7 +118,9 @@ data class PlayerPreferencesState(
     val equalizerBandLevelsMb: List<Int> = emptyList(),
     val bassStrength: Int = 0,
     val loudnessGainMb: Int = 0,
-    val balance: Int = AudioBalance.CENTRE
+    val balance: Int = AudioBalance.CENTRE,
+    /** Hour Bedtime starts, through to 6 am; -1 when it is off. */
+    val bedtimeStartHour: Int = -1
 )
 
 fun isProgressOnlyUpdate(previous: PlaybackSnapshot, current: PlaybackSnapshot): Boolean =
@@ -144,7 +146,9 @@ data class AppState(
     val skins: com.schulzcode.y2player.skin.SkinCatalogState = com.schulzcode.y2player.skin.SkinCatalogState(),
     val safeMode: Boolean = false,
     val transientMessage: String? = null,
-    val alphabetScrub: AlphabetScrubState? = null
+    val alphabetScrub: AlphabetScrubState? = null,
+    /** Where the playing music was chosen from, such as "Favourites"; null when unknown. */
+    val playSource: String? = null
 ) {
     val currentEntry: ScreenEntry get() = screenStack.last()
     val currentScreen: Screen get() = currentEntry.screen

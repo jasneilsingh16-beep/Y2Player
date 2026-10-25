@@ -21,13 +21,14 @@ import com.schulzcode.y2player.core.model.SleepTimerMode
 import com.schulzcode.y2player.core.state.AppAction
 import com.schulzcode.y2player.core.state.AppState
 import com.schulzcode.y2player.core.state.ClockState
+import com.schulzcode.y2player.core.state.HomePane
 import com.schulzcode.y2player.fm.FmState
 import com.schulzcode.y2player.core.state.Screen
 import com.schulzcode.y2player.core.state.ScreenContent
 import com.schulzcode.y2player.core.state.ScreenRow
 import com.schulzcode.y2player.core.state.SearchKeyboard
 import com.schulzcode.y2player.core.state.SleepTimerPresentation
-import com.schulzcode.y2player.core.state.isRadialMenu
+import com.schulzcode.y2player.core.state.isCardMenu
 import com.schulzcode.y2player.core.state.isProgressOnlyUpdate
 import com.schulzcode.y2player.util.TimeFormat
 import kotlin.math.PI
@@ -94,8 +95,8 @@ class Y2PlayerView(
     private fun activeSkin() = if (state.safeMode) null else com.schulzcode.y2player.skin.SkinRepository.skins[state.preferences.skinId]
 
 
-    private fun applyPalette(lightTheme: Boolean): Boolean {
-        val next = Y2Palette.of(lightTheme)
+    private fun applyPalette(lightTheme: Boolean, bedtime: Boolean): Boolean {
+        val next = Y2Palette.of(lightTheme, bedtime)
         if (next == palette) return false
         palette = next
         return true
@@ -107,35 +108,30 @@ class Y2PlayerView(
     private var detailArtwork: Bitmap? = null
     private var detailArtworkPath: String? = null
     private var visibleStart = 0
-    private val rowHeight = Y2UiTheme.ROW_HEIGHT_DP * density
+    private var rowHeight = Y2UiTheme.ROW_HEIGHT_DP * density
+    /** Every row of the list keeps one height, so the wheel moves evenly. */
+    private var listTwoLine = false
+    private var listArtColumn = false
+    private var listLeadingColumn = false
+    private val cachedProgress = arrayOfNulls<com.schulzcode.y2player.core.state.RowProgress>(MAX_VISIBLE_ROWS)
+    private val cachedLeading = arrayOfNulls<String>(MAX_VISIBLE_ROWS)
+    private val listLeadingIcons = false
+    private val reusablePath = android.graphics.Path()
+    private val bitmapPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val headerHeight = Y2UiTheme.HEADER_HEIGHT_DP * density
     private val detailHeaderHeight = Y2UiTheme.DETAIL_HEADER_HEIGHT_DP * density
-    private val footerHeight: Float
-        get() = when {
-            isSplitHome() -> 0f
-
-            isNowPlayingSurface() ->
-                Y2UiTheme.COMPACT_FOOTER_HEIGHT_DP * density
-
-            state.playback.currentTrackId != null ->
-                Y2UiTheme.MINI_PLAYER_HEIGHT_DP * density
-
-            else ->
-                Y2UiTheme.COMPACT_FOOTER_HEIGHT_DP * density
-        }
+    // No footer: hints and the mini player are gone, and Home leads with Now Playing.
+    private val footerHeight = 0f
     private var pendingTouchIndex: Int? = null
     private var pendingTouchActive = false
-    private var radialAnimationStartedAt = 0L
-    private var radialAnimationOpening = false
-    private var radialAnimationActive = false
-    private var closingRadialState: AppState? = null
-    private var closingRadialRows: List<ScreenRow> = emptyList()
 
     private val cachedTitles = arrayOfNulls<String>(MAX_VISIBLE_ROWS)
     private val cachedSubtitles = arrayOfNulls<String>(MAX_VISIBLE_ROWS)
     private val cachedIcons = Array(MAX_VISIBLE_ROWS) { Y2Icon.INFO }
     private val cachedTrailingIcons = arrayOfNulls<Y2Icon>(MAX_VISIBLE_ROWS)
     private val cachedTrailingText = arrayOfNulls<String>(MAX_VISIBLE_ROWS)
+    private val cachedTrailingAccent = BooleanArray(MAX_VISIBLE_ROWS)
+    private val cachedLeadingIcons = BooleanArray(MAX_VISIBLE_ROWS)
     private val cachedTrackNumbers = arrayOfNulls<String>(MAX_VISIBLE_ROWS)
     private val cachedTitleWidths = FloatArray(MAX_VISIBLE_ROWS)
     private val cachedTitleAvailableWidths = FloatArray(MAX_VISIBLE_ROWS)
@@ -150,10 +146,6 @@ class Y2PlayerView(
     private var cachedHeaderRouteIcon: RouteIcon? = null
     private var cachedBatteryText = "--"
     private var cachedBatteryPercent: Int? = null
-    private var cachedFooterPosition = ""
-    private var cachedFooterHint = ""
-    private var cachedMiniTitle = ""
-    private var cachedMiniArtist = ""
     private var cachedNowTitle = "Nothing playing"
     private var cachedNowTitleFull = "Nothing playing"
     private var cachedNowTitleWidth = 0f
@@ -171,6 +163,11 @@ class Y2PlayerView(
     private var cachedDacLabel = "Balanced"
     private var cachedElapsed = "0:00"
     private var cachedDuration = "0:00"
+    private var cachedRemaining = "−0:00"
+    private var cachedNowSource = ""
+    private var cachedNowTitleLines: List<String> = emptyList()
+    private var cachedNowArtistLines: List<String> = emptyList()
+    private var nowPlayingPane: HomePane.NowPlaying? = null
     private var cachedMessageSource: String? = null
     private var cachedMessageTitle = ""
     private var cachedMessageBody = ""
@@ -256,19 +253,11 @@ class Y2PlayerView(
 
     fun render(newState: AppState) {
         val oldState = state
-        val openingRadial = !oldState.currentScreen.isRadialMenu() &&
-            newState.currentScreen.isRadialMenu()
-        val closingRadial = oldState.currentScreen.isRadialMenu() &&
-            !newState.currentScreen.isRadialMenu()
-        if (closingRadial) {
-            closingRadialState = oldState
-            closingRadialRows = rowsForState(oldState)
-        }
-        when {
-            openingRadial -> startRadialAnimation(opening = true)
-            closingRadial -> startRadialAnimation(opening = false)
-        }
-        val themeChanged = applyPalette(newState.preferences.skinId == "classic-light") ||
+        // A card menu floats over a still image of the screen it was opened from.
+        if (newState.currentScreen.isCardMenu() && !oldState.currentScreen.isCardMenu()) captureCardBackdrop()
+        if (!newState.currentScreen.isCardMenu()) cardBackdrop = null
+        val light = newState.preferences.skinId == "classic-light"
+        val themeChanged = applyPalette(light, light && ScreenContent.isBedtime(newState)) ||
             oldState.preferences.skinId != newState.preferences.skinId || oldState.skins.revision != newState.skins.revision
         val progressOnly = !themeChanged && isProgressOnlyUpdate(oldState.playback, newState.playback) &&
             oldState.copy(playback = newState.playback) == newState
@@ -287,6 +276,7 @@ class Y2PlayerView(
             stopTextScrollCallbacks()
             if (!progressOnly) {
                 rows = rowsForState(newState)
+                updateListLayout()
                 requestArtwork()
                 updatePresentationCache()
             }
@@ -296,7 +286,7 @@ class Y2PlayerView(
         }
         if (selectionOnly) {
             if (ensureSelectionVisible()) requestVisibleRowArtworks()
-            updateFooterPosition()
+            if (isSplitHome()) updateHomePane()
             updateContentDescription(newState)
             invalidate(0, headerHeight.toInt(), width, height)
             return
@@ -304,6 +294,7 @@ class Y2PlayerView(
         if (progressOnly) {
             cachedElapsed = TimeFormat.duration(newState.playback.positionMs)
             cachedDuration = TimeFormat.duration(newState.playback.durationMs)
+            cachedRemaining = remainingLabel(newState.playback.positionMs, newState.playback.durationMs)
             when (newState.currentScreen) {
                 Screen.NowPlaying -> invalidate(0, headerHeight.toInt(), width, (height - footerHeight).toInt())
                 Screen.MainMenu -> if (isSplitHome() && newState.playback.currentTrackId != null) {
@@ -314,6 +305,7 @@ class Y2PlayerView(
                 Screen.NowPlayingOptions, Screen.QueueManagement, is Screen.QueueOptions -> {
                     if (oldState.playback.sleepTimerRemainingMs != newState.playback.sleepTimerRemainingMs) {
                         rows = rowsForState(newState)
+                        updateListLayout()
                         invalidateRowCache()
                     }
                     invalidate()
@@ -326,11 +318,13 @@ class Y2PlayerView(
         }
 
         rows = rowsForState(newState)
+        updateListLayout()
         requestArtwork()
         updatePresentationCache()
         invalidateRowCache()
         ensureSelectionVisible()
         requestVisibleRowArtworks()
+        updateHomePane()
         updateContentDescription(newState)
         invalidate()
     }
@@ -358,13 +352,12 @@ class Y2PlayerView(
         detailArtworkPath = null
         cancelVisibleRowArtworkRequests()
         stopSleepTimerCountdownCallback()
-        radialAnimationActive = false
-        closingRadialState = null
-        closingRadialRows = emptyList()
+        cardBackdrop = null
     }
 
     override fun onSizeChanged(width: Int, height: Int, oldWidth: Int, oldHeight: Int) {
         super.onSizeChanged(width, height, oldWidth, oldHeight)
+        updateListLayout()
         invalidateRowCache()
         updatePresentationCache()
         ensureSelectionVisible()
@@ -414,8 +407,13 @@ class Y2PlayerView(
 
     private fun refreshSleepTimerCountdownRows() {
         val updated = rowsForState(state)
-        if (updated == rows) return
+        if (updated == rows) {
+            // The status bar countdown and Now Playing's Sleep tile tick even when no row does.
+            if (isNowPlayingSurface()) invalidate() else invalidate(0, 0, width, headerHeight.toInt())
+            return
+        }
         rows = updated
+        updateListLayout()
         invalidateRowCache()
         updateContentDescription(state)
         invalidate()
@@ -505,6 +503,11 @@ class Y2PlayerView(
             if (skinRenderer.needsAnimation && attached && textAnimationsVisible) postInvalidateDelayed(33L)
             return
         }
+        if (state.currentScreen.isCardMenu()) {
+            drawCardMenu(canvas)
+            drawVolumeOverlay(canvas)
+            return
+        }
         canvas.drawColor(palette.background)
         drawHeader(canvas)
         if (state.currentScreen == Screen.FmRadio) {
@@ -514,41 +517,46 @@ class Y2PlayerView(
         } else {
             if (hasDetailHeader()) drawDetailHeader(canvas)
             if (state.currentScreen is Screen.Search) drawSearchQuery(canvas)
+            drawScreenNote(canvas)
             drawRows(canvas)
             if (state.currentScreen is Screen.Search) drawSearchKeyboard(canvas)
         }
         if (isSplitHome()) drawHomePane(canvas)
-        drawFooter(canvas)
         drawStatusMessage(canvas)
         drawAlphabetScrubOverlay(canvas)
-        if (state.currentScreen.isRadialMenu()) {
-            drawRadialOptionsOverlay(canvas, state, rows, radialAnimationProgress())
-        } else {
-            val closingState = closingRadialState
-            if (closingState != null) {
-                drawRadialOptionsOverlay(canvas, closingState, closingRadialRows, radialAnimationProgress())
-            }
-        }
+        drawVolumeOverlay(canvas)
     }
 
-    private fun isNowPlayingSurface(): Boolean =
-        state.currentScreen == Screen.NowPlaying || state.currentScreen.isRadialMenu()
+    private fun isNowPlayingSurface(): Boolean = state.currentScreen == Screen.NowPlaying
 
     private fun isSplitHome(): Boolean = state.currentScreen == Screen.MainMenu && width > height
 
-    private fun rowAreaRight(): Float = if (isSplitHome()) width * .55f else width.toFloat()
+    private fun rowAreaRight(): Float = if (isSplitHome()) HOME_LIST_WIDTH_DP * density else width.toFloat()
 
     private fun hasDetailHeader(): Boolean = state.currentScreen is Screen.AlbumSongs || state.currentScreen is Screen.ArtistSongs
 
     private fun rowAreaTop(): Float = headerHeight + when {
         state.currentScreen is Screen.Search -> SEARCH_QUERY_HEIGHT_DP * density
         hasDetailHeader() -> detailHeaderHeight
-        else -> 0f
+        cachedScreenNote != null -> SCREEN_NOTE_HEIGHT_DP * density
+        else -> 4f * density
+    }
+
+    /** A line under the title that explains the screen, where it needs one. */
+    private var cachedScreenNote: String? = null
+
+    private fun drawScreenNote(canvas: Canvas) {
+        val note = cachedScreenNote ?: return
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        paint.color = palette.secondaryText
+        canvas.drawText(note, (Y2UiTheme.EDGE_DP + Y2UiTheme.ROW_PADDING_DP) * density, headerHeight + 20f * density, paint)
     }
 
     private fun rowAreaBottom(): Float =
         (if (state.currentScreen is Screen.Search) height.toFloat() - SEARCH_KEYBOARD_HEIGHT_DP * density
-        else height - footerHeight) - if (cachedMessageSource != null) 66f * density else 0f
+        else height - footerHeight) - if (cachedMessageSource != null && cachedMessageTitle != "Status") 66f * density else 0f
 
     fun handleSkinInput(action: AppAction): Boolean {
         if (activeSkin() == null) return false
@@ -587,7 +595,7 @@ class Y2PlayerView(
                         dispatch(AppAction.PressSearchKey(searchKey))
                         return true
                     }
-                    if (state.currentScreen.isRadialMenu()) {
+                    if (state.currentScreen.isCardMenu()) {
                         pendingTouchIndex = null
                         performClick()
                         return true
@@ -610,7 +618,7 @@ class Y2PlayerView(
 
     override fun performClick(): Boolean {
         super.performClick()
-        if (state.currentScreen == Screen.NowPlaying || state.currentScreen.isRadialMenu()) {
+        if (state.currentScreen == Screen.NowPlaying || state.currentScreen.isCardMenu()) {
             dispatch(AppAction.Confirm)
             pendingTouchActive = false
             pendingTouchIndex = null
@@ -697,99 +705,75 @@ class Y2PlayerView(
 
     private fun drawHeader(canvas: Canvas) {
         paint.style = Paint.Style.FILL
-        paint.color = palette.surface
+        paint.color = palette.background
         canvas.drawRect(0f, 0f, width.toFloat(), headerHeight, paint)
+        paint.color = palette.divider
+        canvas.drawRect(0f, headerHeight - density, width.toFloat(), headerHeight, paint)
 
-        val headerSave = canvas.save()
-        canvas.translate(0f, -2f * density)
-
+        val baseline = headerHeight * .5f + 6f * density
         val hasBack = state.screenStack.size > 1
-        val titleLeft =
-            if (hasBack) 36f * density
-            else Y2UiTheme.EDGE_DP * density
-
+        val titleLeft = if (hasBack) 30f * density else 16f * density
         if (hasBack) {
             val save = canvas.save()
-            canvas.rotate(180f, 19f * density, 23f * density)
-            iconPainter.draw(
-                canvas,
-                Y2Icon.CHEVRON,
-                19f * density,
-                23f * density,
-                18f * density,
-                palette.primaryText
-            )
+            canvas.rotate(180f, 17f * density, headerHeight * .5f)
+            iconPainter.draw(canvas, Y2Icon.CHEVRON, 17f * density, headerHeight * .5f, 16f * density, palette.primaryText)
             canvas.restoreToCount(save)
         }
 
         boldPaint.color = palette.primaryText
         boldPaint.textSize = Y2UiTheme.SCREEN_TITLE_SP * density
         boldPaint.textAlign = Paint.Align.LEFT
-        canvas.drawText(
-            cachedHeaderTitle,
-            titleLeft,
-            30f * density,
-            boldPaint
-        )
+        canvas.drawText(cachedHeaderTitle, titleLeft, baseline, boldPaint)
 
         if (state.safeMode || state.library.isScanning) {
-            val markerX =
-                titleLeft +
-                        boldPaint.measureText(cachedHeaderTitle) +
-                        9f * density
-
+            val markerX = titleLeft + boldPaint.measureText(cachedHeaderTitle) + 9f * density
             paint.style = Paint.Style.FILL
-
             if (state.safeMode) {
                 paint.textAlign = Paint.Align.LEFT
                 paint.textSize = Y2UiTheme.BADGE_SP * density
                 paint.color = palette.warning
-                canvas.drawText("SAFE", markerX, 29f * density, paint)
+                canvas.drawText("SAFE", markerX, baseline - density, paint)
             } else {
                 paint.color = palette.accent
-                canvas.drawCircle(
-                    markerX + 3f * density,
-                    23f * density,
-                    3f * density,
-                    paint
-                )
+                canvas.drawCircle(markerX + 3f * density, headerHeight * .5f, 3f * density, paint)
             }
         }
 
-        var rightEdge = width - 10f * density
-        rightEdge = drawBattery(canvas, rightEdge)
-
-        val clockRight = if (cachedHeaderRouteIcon != null) rightEdge - 22f * density else rightEdge
+        // Right to left: battery, its percentage, the clock, the sleep timer.
+        var right = width - 12f * density
+        right = drawBattery(canvas, right, headerHeight * .5f)
         cachedHeaderRouteIcon?.let { icon ->
-            val color =
-                if (cachedRoute.warning) {
-                    palette.warning
-                } else {
-                    palette.accent
-                }
-
-            iconPainter.draw(
-                canvas,
-                routeIcon(icon),
-                rightEdge - 8f * density,
-                22f * density,
-                16f * density,
-                color
-            )
-
-            paint.style = Paint.Style.FILL
+            val color = if (cachedRoute.warning) palette.warning else palette.secondaryText
+            iconPainter.draw(canvas, routeIcon(icon), right - 7f * density, headerHeight * .5f, 14f * density, color)
+            right -= 24f * density
         }
-
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.RIGHT
+        paint.textSize = Y2UiTheme.STATUS_SP * density
         if (state.preferences.showStatusClock) {
-            paint.style = Paint.Style.FILL
-            paint.textAlign = Paint.Align.RIGHT
-            paint.textSize = Y2UiTheme.BADGE_SP * density
             paint.color = palette.primaryText
-            canvas.drawText(statusClockText(), clockRight, 28f * density, paint)
-            paint.textAlign = Paint.Align.LEFT
+            val clock = statusClockText()
+            canvas.drawText(clock, right, baseline - density, paint)
+            right -= paint.measureText(clock) + 10f * density
         }
+        statusSleepText()?.let { label ->
+            paint.color = palette.accent
+            canvas.drawText(label, right, baseline - density, paint)
+            val textWidth = paint.measureText(label)
+            iconPainter.draw(canvas, Y2Icon.MOON, right - textWidth - 9f * density, headerHeight * .5f, 13f * density, palette.accent)
+        }
+        paint.textAlign = Paint.Align.LEFT
+    }
 
-        canvas.restoreToCount(headerSave)
+    /** "23m", "1h 5m", or "End" for a timer that waits for the track, book or queue to finish. */
+    private fun statusSleepText(): String? {
+        val playback = state.playback
+        return when (playback.sleepTimerMode) {
+            SleepTimerMode.OFF -> null
+            SleepTimerMode.MINUTES -> SleepTimerPresentation.remainingMs(playback, SystemClock.elapsedRealtime())
+                ?.let { SleepTimerPresentation.statusLabel(it) }
+            else -> "End"
+        }
     }
 
     private var statusClockMinute = Long.MIN_VALUE
@@ -813,45 +797,47 @@ class Y2PlayerView(
         return statusClockLabel
     }
 
-    private fun drawBattery(canvas: Canvas, rightEdge: Float): Float {
+    // The body is filled in proportion to the reading, so 100% is a full battery.
+    private fun drawBattery(canvas: Canvas, rightEdge: Float, centerY: Float): Float {
+        val percent = cachedBatteryPercent
         val color = when {
             state.device.charging -> palette.success
-            (cachedBatteryPercent ?: 100) <= 15 -> palette.warning
-            else -> palette.secondaryText
+            (percent ?: 100) <= 15 -> palette.warning
+            else -> palette.primaryText
         }
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.RIGHT
-        paint.textSize = Y2UiTheme.BADGE_SP * density
-        paint.color = color
-        val textWidth = if (cachedBatteryText.isEmpty()) 0f else {
-            canvas.drawText(cachedBatteryText, rightEdge, 28f * density, paint)
-            paint.measureText(BATTERY_TEXT_REFERENCE) + 5f * density
-        }
-
         val nubWidth = 2f * density
-        val bodyRight = rightEdge - textWidth - nubWidth
-        val bodyWidth = 15f * density
-        val bodyTop = 16f * density
-        val bodyBottom = 28f * density
+        val bodyWidth = 22f * density
+        val bodyHeight = 11f * density
+        val bodyRight = rightEdge - nubWidth
+        val bodyLeft = bodyRight - bodyWidth
+        val stroke = 1.5f * density
         paint.style = Paint.Style.STROKE
-        paint.strokeWidth = 1.2f * density
-        reusableRectF.set(bodyRight - bodyWidth, bodyTop, bodyRight, bodyBottom)
-        canvas.drawRoundRect(reusableRectF, 2f * density, 2f * density, paint)
+        paint.strokeWidth = stroke
+        paint.color = color
+        reusableRectF.set(bodyLeft + stroke * .5f, centerY - bodyHeight * .5f + stroke * .5f,
+            bodyRight - stroke * .5f, centerY + bodyHeight * .5f - stroke * .5f)
+        canvas.drawRoundRect(reusableRectF, 3f * density, 3f * density, paint)
         paint.style = Paint.Style.FILL
-        reusableRectF.set(bodyRight, bodyTop + 2.5f * density, bodyRight + nubWidth, bodyBottom - 2.5f * density)
+        reusableRectF.set(bodyRight, centerY - 2.5f * density, bodyRight + nubWidth, centerY + 2.5f * density)
         canvas.drawRoundRect(reusableRectF, density, density, paint)
-        val percent = (cachedBatteryPercent ?: 0).coerceIn(0, 100)
-        if (percent > 0) {
-            val innerWidth = (bodyWidth - 4f * density) * percent / 100f
-            reusableRectF.set(
-                bodyRight - bodyWidth + 2f * density,
-                bodyTop + 2f * density,
-                bodyRight - bodyWidth + 2f * density + innerWidth,
-                bodyBottom - 2f * density
-            )
+        val inset = stroke + density
+        val innerWidth = bodyWidth - inset * 2
+        val fill = (percent ?: 0).coerceIn(0, 100)
+        if (fill > 0) {
+            reusableRectF.set(bodyLeft + inset, centerY - bodyHeight * .5f + inset,
+                bodyLeft + inset + innerWidth * fill / 100f, centerY + bodyHeight * .5f - inset)
             canvas.drawRoundRect(reusableRectF, density, density, paint)
         }
-        return bodyRight - bodyWidth - 10f * density
+        var left = bodyLeft
+        if (cachedBatteryText.isNotEmpty()) {
+            paint.textAlign = Paint.Align.RIGHT
+            paint.textSize = Y2UiTheme.BADGE_SP * density
+            paint.color = if (color == palette.primaryText) palette.secondaryText else color
+            canvas.drawText(cachedBatteryText, bodyLeft - 5f * density, centerY + 4.5f * density, paint)
+            left = bodyLeft - 5f * density - paint.measureText(cachedBatteryText)
+            paint.textAlign = Paint.Align.LEFT
+        }
+        return left - 10f * density
     }
 
     private fun drawRows(canvas: Canvas) {
@@ -865,49 +851,76 @@ class Y2PlayerView(
         val rowsTop = rowAreaTop()
         val saveCount = canvas.save()
         canvas.clipRect(0f, rowsTop, rowsRight, rowAreaBottom())
+        val surfaceRight = rowSurfaceRight()
+        val textLeft = rowTextLeft()
         for (index in cachedRowStart until cachedRowEnd) {
             val slot = index - cachedRowStart
             val top = rowsTop + (index - visibleStart) * rowHeight
             val bottom = top + rowHeight
             val focused = index == state.selectedIndex &&
                 ((state.currentScreen as? Screen.Search)?.resultsFocused != false)
-            val visual = Y2UiLogic.rowVisualState(focused, cachedActive[slot], cachedUnavailable[slot])
-            if (focused) drawFocus(canvas, top, bottom) else if (cachedActive[slot]) drawActiveRow(canvas, top, bottom)
-
-            val iconColor = when (visual) {
-                RowVisualState.FOCUSED, RowVisualState.FOCUSED_ACTIVE, RowVisualState.ACTIVE -> palette.accent
-                RowVisualState.UNAVAILABLE -> palette.mutedText
-                RowVisualState.NORMAL -> palette.secondaryText
+            val active = cachedActive[slot]
+            val unavailable = cachedUnavailable[slot]
+            if (focused) drawFocus(canvas, top, bottom)
+            val titleColor = when {
+                focused -> palette.onFocus
+                unavailable -> palette.mutedText
+                active && rows[index] is ScreenRow.TrackRow -> palette.accent
+                else -> palette.primaryText
             }
-            val rowArtwork = visibleRowArtworks[index]?.bitmap
-            val trackNumber = cachedTrackNumbers[slot]
-            if (rowArtwork != null) {
-                drawArtwork(
-                    canvas,
-                    ROW_ARTWORK_LEFT_DP * density,
-                    top + (rowHeight - ROW_ARTWORK_SIZE_DP * density) * .5f,
-                    ROW_ARTWORK_SIZE_DP * density,
-                    rowArtwork
-                )
-            } else if (trackNumber != null && !cachedActive[slot]) {
-                boldPaint.textAlign = Paint.Align.CENTER
-                boldPaint.textSize = Y2UiTheme.META_SP * density
-                boldPaint.color = iconColor
-                canvas.drawText(trackNumber, 28f * density, top + rowHeight * .5f + 4f * density, boldPaint)
-                boldPaint.textAlign = Paint.Align.LEFT
-            } else {
-                iconPainter.draw(canvas, cachedIcons[slot], 28f * density, top + rowHeight * .5f, Y2UiTheme.ICON_SIZE_DP * density, iconColor)
+            val secondaryColor = if (focused) palette.onFocusSecondary else palette.secondaryText
+            val iconColor = if (focused) palette.onFocus else palette.accent
+
+            if (listArtColumn) {
+                val artSize = ROW_ARTWORK_SIZE_DP * density
+                val artLeft = (Y2UiTheme.EDGE_DP + 6f) * density
+                val artTop = top + (rowHeight - artSize) * .5f
+                val rowArtwork = visibleRowArtworks[index]?.bitmap
+                val trackNumber = cachedTrackNumbers[slot]
+                when {
+                    rowArtwork != null -> drawRowArtwork(canvas, artLeft, artTop, artSize, rowArtwork)
+                    trackNumber != null -> {
+                        boldPaint.textAlign = Paint.Align.CENTER
+                        boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                        boldPaint.color = if (focused) palette.onFocusSecondary else palette.mutedText
+                        canvas.drawText(trackNumber, artLeft + artSize * .5f, top + rowHeight * .5f + 5f * density, boldPaint)
+                        boldPaint.textAlign = Paint.Align.LEFT
+                    }
+                    // An action in a list of covers, such as Shuffle, is a plain blue icon.
+                    rows[index] is ScreenRow.Action && rows[index].artworkTrackId == null && rows[index].artworkPath == null ->
+                        iconPainter.draw(canvas, cachedIcons[slot], artLeft + artSize * .5f, artTop + artSize * .5f,
+                            artSize * .55f, if (focused) palette.onFocus else palette.accent)
+                    else -> {
+                        reusableRectF.set(artLeft, artTop, artLeft + artSize, artTop + artSize)
+                        paint.style = Paint.Style.FILL
+                        paint.color = if (focused) colorAtAlpha(palette.onFocus, .18f) else palette.surfaceRaised
+                        canvas.drawRoundRect(reusableRectF, 6f * density, 6f * density, paint)
+                        iconPainter.draw(canvas, cachedIcons[slot], artLeft + artSize * .5f, artTop + artSize * .5f,
+                            artSize * .5f, if (focused) palette.onFocus else palette.mutedText)
+                    }
+                }
+            } else if (listLeadingColumn) {
+                cachedLeading[slot]?.let { number ->
+                    paint.style = Paint.Style.FILL
+                    paint.textAlign = Paint.Align.RIGHT
+                    paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                    paint.color = if (focused) palette.onFocusSecondary else palette.mutedText
+                    canvas.drawText(number, (Y2UiTheme.EDGE_DP + 36f) * density, top + rowHeight * .5f + 5f * density, paint)
+                    paint.textAlign = Paint.Align.LEFT
+                }
+            } else if (cachedLeadingIcons[slot]) {
+                iconPainter.draw(canvas, cachedIcons[slot], (Y2UiTheme.EDGE_DP + 21f) * density, top + rowHeight * .5f,
+                    Y2UiTheme.ICON_SIZE_DP * density, iconColor)
             }
 
             val subtitle = cachedSubtitles[slot]
-            boldPaint.textAlign = Paint.Align.LEFT
-            boldPaint.textSize = Y2UiTheme.ROW_TITLE_SP * density
-            boldPaint.color = when (visual) {
-                RowVisualState.UNAVAILABLE -> palette.mutedText
-                RowVisualState.ACTIVE -> palette.accent
-                else -> palette.primaryText
-            }
-            val titleBaseline = if (subtitle == null) top + rowHeight * .5f + 6f * density else top + 24f * density
+            val twoLine = listTwoLine && subtitle != null
+            // Two-line lists keep every title bold, so a row without a second line still matches.
+            val title = boldOrRegular(listTwoLine)
+            title.textAlign = Paint.Align.LEFT
+            title.textSize = (if (listTwoLine) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
+            title.color = titleColor
+            val titleBaseline = if (twoLine) top + rowHeight * .5f - 3f * density else top + rowHeight * .5f + 6f * density
             val fullTitle = rows[index].title
             if (focused && textScroller.isTarget(
                     SelectedTextScroller.TARGET_LIST,
@@ -919,38 +932,103 @@ class Y2PlayerView(
                 drawScrollingText(
                     canvas,
                     fullTitle,
-                    50f * density,
-                    50f * density + cachedTitleAvailableWidths[slot],
+                    textLeft,
+                    textLeft + cachedTitleAvailableWidths[slot],
                     titleBaseline,
-                    boldPaint,
+                    title,
                     textScroller.offsetPx
                 )
             } else {
-                canvas.drawText(cachedTitles[slot].orEmpty(), 50f * density, titleBaseline, boldPaint)
+                canvas.drawText(cachedTitles[slot].orEmpty(), textLeft, titleBaseline, title)
             }
-            if (subtitle != null) {
+            if (twoLine) {
                 paint.style = Paint.Style.FILL
                 paint.textAlign = Paint.Align.LEFT
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
-                paint.color = if (visual == RowVisualState.UNAVAILABLE) palette.mutedText else palette.secondaryText
-                canvas.drawText(subtitle, 50f * density, top + 45f * density, paint)
+                paint.color = if (unavailable && !focused) palette.mutedText else secondaryColor
+                canvas.drawText(subtitle.orEmpty(), textLeft, top + rowHeight * .5f + 15f * density, paint)
             }
 
-            val surfaceRight = rowSurfaceRight()
+            var trailingRight = surfaceRight - 10f * density
+            cachedProgress[slot]?.let { progress ->
+                drawProgressRing(canvas, trailingRight - 11f * density, top + rowHeight * .5f, 10f * density, progress, focused)
+                trailingRight -= 30f * density
+            }
+            cachedTrailingIcons[slot]?.let { trailingIcon ->
+                val color = when {
+                    focused -> palette.onFocus
+                    trailingIcon == Y2Icon.CHEVRON -> palette.mutedText
+                    else -> palette.accent
+                }
+                val size = if (trailingIcon == Y2Icon.CHEVRON) 12f else 16f
+                iconPainter.draw(canvas, trailingIcon, trailingRight - 5f * density, top + rowHeight * .5f, size * density, color)
+                trailingRight -= 20f * density
+            }
             cachedTrailingText[slot]?.let { trailing ->
                 paint.style = Paint.Style.FILL
                 paint.textAlign = Paint.Align.RIGHT
-                paint.textSize = Y2UiTheme.META_SP * density
-                paint.color = if (visual == RowVisualState.UNAVAILABLE) palette.mutedText else palette.secondaryText
-                canvas.drawText(trailing, surfaceRight - 8f * density, top + rowHeight * .5f + 4f * density, paint)
+                paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                paint.color = when {
+                    focused -> palette.onFocusSecondary
+                    cachedTrailingAccent[slot] -> palette.accent
+                    else -> palette.mutedText
+                }
+                canvas.drawText(trailing, trailingRight, top + rowHeight * .5f + 5f * density, paint)
                 paint.textAlign = Paint.Align.LEFT
-            }
-            cachedTrailingIcons[slot]?.let { trailingIcon ->
-                iconPainter.draw(canvas, trailingIcon, surfaceRight - 13f * density, top + rowHeight * .5f, 17f * density, iconColor)
             }
         }
         canvas.restoreToCount(saveCount)
         drawScrollIndicator(canvas)
+    }
+
+    private fun boldOrRegular(bold: Boolean): Paint = if (bold) boldPaint else paint
+
+    /** How far through: an arc, a tick once played, or an empty ring before it is started. */
+    private fun drawProgressRing(
+        canvas: Canvas,
+        centerX: Float,
+        centerY: Float,
+        radius: Float,
+        progress: com.schulzcode.y2player.core.state.RowProgress,
+        focused: Boolean
+    ) {
+        val strong = if (focused) palette.onFocus else palette.accent
+        if (progress.played) {
+            paint.style = Paint.Style.FILL
+            paint.color = if (focused) colorAtAlpha(palette.onFocus, .22f) else palette.activeSurface
+            canvas.drawCircle(centerX, centerY, radius, paint)
+            iconPainter.draw(canvas, Y2Icon.CHECK, centerX, centerY, radius * 1.15f, strong)
+            paint.style = Paint.Style.FILL
+            return
+        }
+        paint.style = Paint.Style.STROKE
+        val started = progress.fraction > 0f
+        paint.strokeWidth = (if (started) 2.5f else 1.6f) * density
+        paint.color = when {
+            focused -> colorAtAlpha(palette.onFocus, .35f)
+            started -> palette.track
+            else -> palette.scrollThumb
+        }
+        canvas.drawCircle(centerX, centerY, radius, paint)
+        if (started) {
+            paint.color = strong
+            paint.strokeCap = Paint.Cap.ROUND
+            reusableRectF.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
+            canvas.drawArc(reusableRectF, -90f, 360f * progress.fraction.coerceIn(0f, 1f), false, paint)
+            paint.strokeCap = Paint.Cap.BUTT
+        }
+        paint.style = Paint.Style.FILL
+    }
+
+    private fun drawRowArtwork(canvas: Canvas, left: Float, top: Float, size: Float, bitmap: Bitmap) {
+        reusableRect.set(left.toInt(), top.toInt(), (left + size).toInt(), (top + size).toInt())
+        val save = canvas.save()
+        reusablePath.reset()
+        reusableRectF.set(left, top, left + size, top + size)
+        reusablePath.addRoundRect(reusableRectF, 6f * density, 6f * density, android.graphics.Path.Direction.CW)
+        canvas.clipPath(reusablePath)
+        canvas.drawBitmap(bitmap, null, reusableRect, bitmapPaint)
+        canvas.restoreToCount(save)
     }
 
     private fun prepareListTextScrollTarget() {
@@ -1030,86 +1108,49 @@ class Y2PlayerView(
     }
 
     private fun drawFocus(canvas: Canvas, top: Float, bottom: Float) {
-        val left = Y2UiTheme.ROW_FOCUS_INSET_DP * density
-        val right = rowSurfaceRight()
-
         reusableRectF.set(
-            left,
-            top + 2.5f * density,
-            right,
-            bottom - 2.5f * density
+            Y2UiTheme.ROW_FOCUS_INSET_DP * density,
+            top + Y2UiTheme.ROW_GAP_DP * .5f * density,
+            rowSurfaceRight(),
+            bottom - Y2UiTheme.ROW_GAP_DP * .5f * density
         )
-
         paint.style = Paint.Style.FILL
-        paint.color = palette.focusSurface
-
-        canvas.drawRoundRect(
-            reusableRectF,
-            Y2UiTheme.ROW_RADIUS_DP * density,
-            Y2UiTheme.ROW_RADIUS_DP * density,
-            paint
-        )
-
-        val barWidth = Y2UiTheme.FOCUS_BAR_WIDTH_DP * density
-
-        reusableRectF.set(
-            left,
-            top + 9f * density,
-            left + barWidth,
-            bottom - 9f * density
-        )
-
-        paint.color = palette.accent
-
-        canvas.drawRoundRect(
-            reusableRectF,
-            barWidth * 0.5f,
-            barWidth * 0.5f,
-            paint
-        )
-    }
-
-    private fun drawActiveRow(canvas: Canvas, top: Float, bottom: Float) {
-        reusableRectF.set(
-            (Y2UiTheme.ROW_FOCUS_INSET_DP + 1f) * density,
-            top + 4f * density,
-            rowSurfaceRight() - density,
-            bottom - 4f * density
-        )
-        paint.color = palette.activeSurface
-        paint.style = Paint.Style.FILL
+        paint.color = palette.focusFill
         canvas.drawRoundRect(reusableRectF, Y2UiTheme.ROW_RADIUS_DP * density, Y2UiTheme.ROW_RADIUS_DP * density, paint)
     }
 
     private fun rowSurfaceRight(): Float {
-        if (!hasScrollIndicator()) return rowAreaRight() - Y2UiTheme.ROW_FOCUS_INSET_DP * density
-        val scrollbarLeft = rowAreaRight() -
-            (Y2UiTheme.SCROLLBAR_END_INSET_DP + Y2UiTheme.SCROLLBAR_WIDTH_DP) * density
-        return scrollbarLeft -
-            (Y2UiTheme.ROW_SCROLLBAR_GAP_DP + Y2UiTheme.FOCUS_OUTLINE_DP * .5f) * density
+        val right = rowAreaRight() - Y2UiTheme.ROW_FOCUS_INSET_DP * density
+        return if (hasScrollIndicator()) right - 4f * density else right
     }
 
-    private fun hasScrollIndicator(): Boolean = !isSplitHome() && rows.size > visibleRowCount()
+    private fun rowTextLeft(): Float =
+        if (listLeadingColumn) (Y2UiTheme.EDGE_DP + 46f) * density
+        else if (listArtColumn) (Y2UiTheme.EDGE_DP + 6f + ROW_ARTWORK_SIZE_DP + 12f) * density
+        else if (listLeadingIcons) (Y2UiTheme.EDGE_DP + 40f) * density
+        else (Y2UiTheme.EDGE_DP + Y2UiTheme.ROW_PADDING_DP) * density
+
+    private fun hasScrollIndicator(): Boolean = rows.size > visibleRowCount()
 
     private fun drawScrollIndicator(canvas: Canvas) {
         val visibleCount = visibleRowCount()
         if (!hasScrollIndicator()) return
-        val right = rowAreaRight()
-        val trackTop = rowAreaTop() + 8f * density
-        val trackBottom = rowAreaBottom() - 8f * density
+        val right = rowAreaRight() - Y2UiTheme.SCROLLBAR_END_INSET_DP * density
+        val left = right - Y2UiTheme.SCROLLBAR_WIDTH_DP * density
+        val trackTop = rowAreaTop() + 4f * density
+        val trackBottom = rowAreaBottom() - 4f * density
         val trackHeight = trackBottom - trackTop
+        val radius = Y2UiTheme.SCROLLBAR_WIDTH_DP * .5f * density
         paint.style = Paint.Style.FILL
-        paint.color = palette.divider
-        val trackRight = right - Y2UiTheme.SCROLLBAR_END_INSET_DP * density
-        val trackLeft = trackRight - Y2UiTheme.SCROLLBAR_WIDTH_DP * density
-        reusableRectF.set(trackLeft, trackTop, trackRight, trackBottom)
-        canvas.drawRoundRect(reusableRectF, density, density, paint)
+        paint.color = palette.track
+        reusableRectF.set(left, trackTop, right, trackBottom)
+        canvas.drawRoundRect(reusableRectF, radius, radius, paint)
         val thumbHeight = (trackHeight * visibleCount / rows.size.toFloat()).coerceAtLeast(24f * density)
         val maxStart = (rows.size - visibleCount).coerceAtLeast(1)
         val thumbTop = trackTop + (trackHeight - thumbHeight) * (visibleStart.toFloat() / maxStart)
-        paint.color = palette.accent
-        reusableRectF.set(trackLeft, thumbTop, trackRight, thumbTop + thumbHeight)
-        canvas.drawRoundRect(reusableRectF, density, density, paint)
+        paint.color = palette.scrollThumb
+        reusableRectF.set(left, thumbTop, right, thumbTop + thumbHeight)
+        canvas.drawRoundRect(reusableRectF, radius, radius, paint)
     }
 
     private fun drawEmptyState(canvas: Canvas) {
@@ -1165,8 +1206,8 @@ class Y2PlayerView(
                 icon = Y2Icon.VIDEO
             }
             EmptyStateKind.EMPTY_AUDIOBOOKS -> {
-                title = "No audiobooks found"
-                detail = "Put books inside an AUDIOBOOKS folder"
+                title = "No talks or podcasts yet"
+                detail = "Put them in a Podcasts folder, or tag them Podcast"
                 icon = Y2Icon.BOOK
             }
             EmptyStateKind.EMPTY_QUEUE -> {
@@ -1199,37 +1240,30 @@ class Y2PlayerView(
         val rowsTop = rowAreaTop()
         val centerY = rowsTop + (rowAreaBottom() - rowsTop) * .42f
         paint.style = Paint.Style.FILL
-        paint.color = palette.surfaceRaised
+        paint.color = palette.surface
         canvas.drawCircle(centerX, centerY - 34f * density, 26f * density, paint)
-        iconPainter.draw(canvas, icon, centerX, centerY - 34f * density, 27f * density, if (kind == EmptyStateKind.STORAGE_MISSING) palette.warning else palette.accent)
+        iconPainter.draw(canvas, icon, centerX, centerY - 34f * density, 26f * density,
+            if (kind == EmptyStateKind.STORAGE_MISSING) palette.warning else palette.accent)
         boldPaint.textAlign = Paint.Align.CENTER
         boldPaint.textSize = Y2UiTheme.SECTION_TITLE_SP * density
         boldPaint.color = palette.primaryText
-        canvas.drawText(title, centerX, centerY + 12f * density, boldPaint)
+        canvas.drawText(title, centerX, centerY + 14f * density, boldPaint)
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = Y2UiTheme.BODY_SP * density
         paint.color = palette.secondaryText
-        canvas.drawText(ellipsize(detail, width - 34f * density, paint), centerX, centerY + 32f * density, paint)
+        canvas.drawText(ellipsize(detail, width - 34f * density, paint), centerX, centerY + 36f * density, paint)
         val emptyAction = if (search != null) EmptyStateAction.NONE else Y2UiLogic.emptyStateAction(kind)
-        if (emptyAction != EmptyStateAction.NONE) {
-            val action = when (emptyAction) {
-                EmptyStateAction.OPEN_STORAGE -> "CENTER · OPEN STORAGE"
-                EmptyStateAction.GO_BACK -> "CENTER · GO BACK"
-                EmptyStateAction.NONE -> ""
-            }
-            reusableRectF.set(centerX - 92f * density, centerY + 41f * density, centerX + 92f * density, centerY + 71f * density)
-            paint.style = Paint.Style.FILL
-            paint.color = palette.focusSurface
-            canvas.drawRoundRect(reusableRectF, 8f * density, 8f * density, paint)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = Y2UiTheme.FOCUS_OUTLINE_DP * density
-            paint.color = palette.accent
-            canvas.drawRoundRect(reusableRectF, 8f * density, 8f * density, paint)
-            paint.style = Paint.Style.FILL
-            paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-            paint.color = palette.primaryText
-            canvas.drawText(action, centerX, centerY + 61f * density, paint)
+        val action = when (emptyAction) {
+            EmptyStateAction.OPEN_STORAGE -> "Centre opens Storage"
+            EmptyStateAction.GO_BACK -> "Centre goes back"
+            EmptyStateAction.NONE -> null
+        }
+        if (action != null) {
+            boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            val pillWidth = boldPaint.measureText(action) + 24f * density
+            boldPaint.textAlign = Paint.Align.LEFT
+            drawPill(canvas, centerX - pillWidth * .5f, centerY + 52f * density, action, chevron = false)
         }
         paint.textAlign = Paint.Align.LEFT
         boldPaint.textAlign = Paint.Align.LEFT
@@ -1239,11 +1273,11 @@ class Y2PlayerView(
         val top = headerHeight
         val bottom = top + detailHeaderHeight
         paint.style = Paint.Style.FILL
-        paint.color = palette.surface
-        canvas.drawRect(0f, top, width.toFloat(), bottom, paint)
+        paint.color = palette.divider
+        canvas.drawRect(16f * density, bottom - density, width - 16f * density, bottom, paint)
 
         val artSize = 60f * density
-        val artLeft = Y2UiTheme.EDGE_DP * density
+        val artLeft = 16f * density
         val artTop = top + 8f * density
         val fallback = if (state.currentScreen is Screen.ArtistSongs) Y2Icon.ARTIST else Y2Icon.ALBUM
         drawArtwork(canvas, artLeft, artTop, artSize, detailArtwork, fallback)
@@ -1268,173 +1302,174 @@ class Y2PlayerView(
         if (Y2UiLogic.playerLayout(width, height) == PlayerLayout.WIDE) drawNowPlayingWide(canvas) else drawNowPlayingTall(canvas)
     }
 
-    private fun startRadialAnimation(opening: Boolean) {
-        radialAnimationOpening = opening
-        radialAnimationStartedAt = SystemClock.uptimeMillis()
-        radialAnimationActive = true
-        if (opening) {
-            closingRadialState = null
-            closingRadialRows = emptyList()
-        }
-        postInvalidateOnAnimation()
+    private var cardBackdrop: Bitmap? = null
+    private var cardStart = 0
+
+    private fun captureCardBackdrop() {
+        if (width <= 0 || height <= 0) return
+        val bitmap = runCatching { Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565) }.getOrNull() ?: return
+        draw(Canvas(bitmap))
+        cardBackdrop = bitmap
     }
 
-    private fun radialAnimationProgress(): Float {
-        if (!radialAnimationActive) {
-            return if (state.currentScreen.isRadialMenu()) 1f else 0f
+    private data class CardHeader(val title: String, val detail: String?, val trackId: Long?, val wrapDetail: Boolean)
+
+    private fun cardHeader(): CardHeader? {
+        fun track(id: Long?) = id?.let(state.library.byId::get)
+        return when (val screen = state.currentScreen) {
+            is Screen.TrackOptions -> track(screen.trackId)?.let { CardHeader(it.title, it.displayArtist, it.id, false) }
+            Screen.NowPlayingOptions -> track(state.playback.currentTrackId)?.let { CardHeader(it.title, it.displayArtist, it.id, false) }
+            is Screen.QueueOptions -> track(state.playback.queue.firstOrNull { it.id == screen.entryId }?.trackId)
+                ?.let { CardHeader(it.title, it.displayArtist, it.id, false) }
+            is Screen.CollectionOptions -> CardHeader(screen.title, ScreenContent.trackCountLabel(screen.trackIds.size), screen.trackIds.firstOrNull(), false)
+            is Screen.AudiobookOptions -> ScreenContent.audiobookEntry(state, screen.folderKey)
+                ?.let { CardHeader(it.name, null, it.currentChapterId ?: it.chapterIds.firstOrNull(), false) }
+            Screen.QueueManagement -> CardHeader("Queue", null, null, false)
+            is Screen.ConfirmAction -> (rows.firstOrNull() as? ScreenRow.Group)?.let { CardHeader(it.title, it.subtitle, null, true) }
+            else -> null
         }
-        val duration = if (radialAnimationOpening) RADIAL_OPEN_MS else RADIAL_CLOSE_MS
-        val raw = ((SystemClock.uptimeMillis() - radialAnimationStartedAt).toFloat() / duration)
-            .coerceIn(0f, 1f)
-        val eased = raw * raw * (3f - 2f * raw)
-        if (raw < 1f) {
-            postInvalidateOnAnimation()
-        } else {
-            radialAnimationActive = false
-            if (!radialAnimationOpening) {
-                closingRadialState = null
-                closingRadialRows = emptyList()
-            }
-        }
-        return if (radialAnimationOpening) eased else 1f - eased
     }
 
-    private fun drawRadialOptionsOverlay(
-        canvas: Canvas,
-        renderState: AppState,
-        optionRows: List<ScreenRow>,
-        progress: Float
-    ) {
-        if (progress <= 0f || optionRows.isEmpty()) return
+    private fun drawCardMenu(canvas: Canvas) {
+        val backdrop = cardBackdrop
+        if (backdrop != null) canvas.drawBitmap(backdrop, 0f, 0f, null) else canvas.drawColor(palette.background)
+        canvas.drawColor(colorAtAlpha(palette.background, .66f))
+
+        val header = cardHeader()
+        val offset = if (state.currentScreen is Screen.ConfirmAction && rows.firstOrNull() is ScreenRow.Group) 1 else 0
+        val items = rows.drop(offset)
+        val cardWidth = (width - 48f * density).coerceAtMost(356f * density)
+        val left = (width - cardWidth) * .5f
+        val right = left + cardWidth
+        val pad = 10f * density
+        val rowH = 40f * density
+
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        val detailLines = header?.detail?.let { if (header.wrapDetail) wrap(it, cardWidth - pad * 4, paint, 3) else listOf(it) }.orEmpty()
+        val headerHeight = when {
+            header == null -> 0f
+            header.trackId != null -> 58f * density
+            else -> (30f + 18f * detailLines.size + 8f) * density
+        }
+        val maxRows = ((height - 24f * density - headerHeight - pad * 2) / rowH).toInt().coerceAtLeast(1)
+        val visible = items.size.coerceAtMost(maxRows)
+        val selected = (state.selectedIndex - offset).coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        if (selected < cardStart) cardStart = selected
+        if (selected >= cardStart + visible) cardStart = selected - visible + 1
+        cardStart = cardStart.coerceIn(0, (items.size - visible).coerceAtLeast(0))
+        val cardHeight = headerHeight + visible * rowH + pad * 2
+        val top = ((height - cardHeight) * .5f).coerceAtLeast(12f * density)
+
+        // A soft shadow, then the card.
         paint.style = Paint.Style.FILL
-        paint.color = colorAtAlpha(0xFF000000.toInt(), .46f * progress)
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
-
-        val contentTop = headerHeight
-        val contentBottom = height - Y2UiTheme.COMPACT_FOOTER_HEIGHT_DP * density
-        val centerX = width * .5f
-        val centerY = (contentTop + contentBottom) * .5f
-        val ringRadius = min(width * .215f, (contentBottom - contentTop) * .36f)
-        val panelRadius = ringRadius + 25f * density
-        val scale = .95f + .05f * progress
-        val selectedIndex = renderState.selectedIndex.coerceIn(0, optionRows.lastIndex)
-        val angleStep = 360f / optionRows.size
-        val selectedAngle = -90f + angleStep * selectedIndex
-
-        val saveCount = canvas.save()
-        canvas.scale(scale, scale, centerX, centerY)
-
-        paint.style = Paint.Style.FILL
-        paint.color = colorAtAlpha(palette.surface, .91f * progress)
-        canvas.drawCircle(centerX, centerY, panelRadius, paint)
+        for (step in 3 downTo 1) {
+            paint.color = colorAtAlpha(0xFF000000.toInt(), .035f * (4 - step))
+            reusableRectF.set(left - step * 2f * density, top - step * density + 6f * density,
+                right + step * 2f * density, top + cardHeight + step * 3f * density)
+            canvas.drawRoundRect(reusableRectF, 18f * density, 18f * density, paint)
+        }
+        paint.color = palette.background
+        reusableRectF.set(left, top, right, top + cardHeight)
+        canvas.drawRoundRect(reusableRectF, 16f * density, 16f * density, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = density
-        paint.color = colorAtAlpha(palette.divider, .72f * progress)
-        canvas.drawCircle(centerX, centerY, ringRadius, paint)
-        paint.color = colorAtAlpha(palette.divider, .9f * progress)
-        canvas.drawCircle(centerX, centerY, panelRadius, paint)
+        paint.color = palette.divider
+        canvas.drawRoundRect(reusableRectF, 16f * density, 16f * density, paint)
+        paint.style = Paint.Style.FILL
 
-        reusableRectF.set(
-            centerX - ringRadius,
-            centerY - ringRadius,
-            centerX + ringRadius,
-            centerY + ringRadius
-        )
-        paint.strokeWidth = 2.5f * density
-        paint.strokeCap = Paint.Cap.ROUND
-        paint.color = colorAtAlpha(palette.accent, progress)
-        canvas.drawArc(
-            reusableRectF,
-            selectedAngle - angleStep * .26f,
-            angleStep * .52f,
-            false,
-            paint
-        )
-        paint.strokeCap = Paint.Cap.BUTT
-
-        optionRows.forEachIndexed { index, row ->
-            val angle = (-90f + angleStep * index) * (PI.toFloat() / 180f)
-            val nodeX = centerX + cos(angle) * ringRadius
-            val nodeY = centerY + sin(angle) * ringRadius
-            val selected = index == selectedIndex
-            val active = Y2RowState.isActive(row, renderState)
-            val nodeRadius = when {
-                selected -> 21f
-                active -> 17f
-                else -> 15f
-            } * density
-            paint.style = Paint.Style.FILL
-            paint.color = colorAtAlpha(
-                when {
-                    selected -> palette.focusSurface
-                    active -> palette.activeSurface
-                    else -> palette.surface
-                },
-                progress
-            )
-            canvas.drawCircle(nodeX, nodeY, nodeRadius, paint)
-            val icon = Y2RowIcons.forRow(
-                row,
-                renderState.currentScreen,
-                renderState.playback.currentTrackId,
-                active
-            )
-            iconPainter.draw(
-                canvas,
-                icon,
-                nodeX,
-                nodeY,
-                (if (selected) 22f else 18f) * density,
-                colorAtAlpha(if (selected || active) palette.accent else palette.secondaryText, progress)
-            )
-            if (active && !selected) {
-                paint.style = Paint.Style.FILL
-                paint.color = colorAtAlpha(palette.accent, progress)
-                canvas.drawCircle(nodeX, nodeY + nodeRadius + 4f * density, 2f * density, paint)
+        var y = top + pad
+        if (header != null) {
+            val textLeft: Float
+            if (header.trackId != null) {
+                val artSize = 38f * density
+                val bitmap = if (header.trackId == state.playback.currentTrackId) artwork else paneArtwork(header.trackId, null)
+                drawCover(canvas, left + pad * 1.6f, y + 4f * density, artSize, bitmap, 6f * density)
+                textLeft = left + pad * 1.6f + artSize + 10f * density
+                boldPaint.textAlign = Paint.Align.LEFT
+                boldPaint.textSize = Y2UiTheme.BODY_SP * density
+                boldPaint.color = palette.primaryText
+                canvas.drawText(ellipsize(header.title, right - pad * 2 - textLeft, boldPaint), textLeft, y + 20f * density, boldPaint)
+                header.detail?.let {
+                    paint.textAlign = Paint.Align.LEFT
+                    paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                    paint.color = palette.secondaryText
+                    canvas.drawText(ellipsize(it, right - pad * 2 - textLeft, paint), textLeft, y + 38f * density, paint)
+                }
+            } else {
+                textLeft = left + pad * 2
+                boldPaint.textAlign = Paint.Align.LEFT
+                boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+                boldPaint.color = palette.primaryText
+                canvas.drawText(ellipsize(header.title, right - pad * 2 - textLeft, boldPaint), textLeft, y + 20f * density, boldPaint)
+                paint.textAlign = Paint.Align.LEFT
+                paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                paint.color = palette.secondaryText
+                detailLines.forEachIndexed { index, line -> canvas.drawText(line, textLeft, y + (38f + 18f * index) * density, paint) }
             }
+            y += headerHeight
+            paint.color = palette.divider
+            canvas.drawRect(left + pad, y - 5f * density, right - pad, y - 4f * density, paint)
         }
 
-        val selectedRow = optionRows[selectedIndex]
-        val selectedActive = Y2RowState.isActive(selectedRow, renderState)
-        val centerIcon = Y2RowIcons.forRow(
-            selectedRow,
-            renderState.currentScreen,
-            renderState.playback.currentTrackId,
-            selectedActive
-        )
-        iconPainter.draw(
-            canvas,
-            centerIcon,
-            centerX,
-            centerY - 24f * density,
-            24f * density,
-            colorAtAlpha(if (selectedActive) palette.accent else palette.primaryText, progress)
-        )
-        boldPaint.textAlign = Paint.Align.CENTER
-        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
-        boldPaint.color = colorAtAlpha(palette.primaryText, progress)
-        val centerTextWidth = 112f * density
-        canvas.drawText(
-            ellipsize(selectedRow.title, centerTextWidth, boldPaint),
-            centerX,
-            centerY + 7f * density,
-            boldPaint
-        )
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.CENTER
-        paint.textSize = Y2UiTheme.BADGE_SP * density
-        paint.color = colorAtAlpha(if (selectedActive) palette.accent else palette.secondaryText, progress)
-        val value = selectedRow.subtitle?.takeIf { it.isNotBlank() } ?: "Centre to open"
-        canvas.drawText(
-            ellipsize(value, centerTextWidth, paint),
-            centerX,
-            centerY + 27f * density,
-            paint
-        )
-        paint.textAlign = Paint.Align.LEFT
-        boldPaint.textAlign = Paint.Align.LEFT
-        canvas.restoreToCount(saveCount)
-        paint.style = Paint.Style.FILL
+        for (index in cardStart until cardStart + visible) {
+            val row = items.getOrNull(index) ?: break
+            val rowTop = y + (index - cardStart) * rowH
+            val focused = index == selected
+            if (focused) {
+                paint.style = Paint.Style.FILL
+                paint.color = palette.focusFill
+                reusableRectF.set(left + pad, rowTop + 1f * density, right - pad, rowTop + rowH - 1f * density)
+                canvas.drawRoundRect(reusableRectF, 10f * density, 10f * density, paint)
+            }
+            val unavailable = row is ScreenRow.Group
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.LEFT
+            paint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+            paint.color = when {
+                focused -> palette.onFocus
+                unavailable -> palette.mutedText
+                else -> palette.primaryText
+            }
+            var valueRight = right - pad * 2
+            val active = isActive(row)
+            val navigation = trailingIconFor(row, active) == Y2Icon.CHEVRON
+            val value = row.subtitle?.takeUnless { navigation }
+            if (navigation) {
+                iconPainter.draw(canvas, Y2Icon.CHEVRON, valueRight - 4f * density, rowTop + rowH * .5f, 11f * density,
+                    if (focused) palette.onFocus else palette.mutedText)
+                valueRight -= 18f * density
+            }
+            val valueWidth = value?.let {
+                paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                paint.measureText(it).coerceAtMost(cardWidth * .4f)
+            } ?: 0f
+            paint.style = Paint.Style.FILL
+            paint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+            paint.color = when {
+                focused -> palette.onFocus
+                unavailable -> palette.mutedText
+                else -> palette.primaryText
+            }
+            canvas.drawText(ellipsize(row.title, valueRight - valueWidth - 12f * density - (left + pad * 2), paint),
+                left + pad * 2, rowTop + rowH * .5f + 5.5f * density, paint)
+            if (value != null) {
+                paint.textAlign = Paint.Align.RIGHT
+                paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                paint.color = if (focused) palette.onFocusSecondary else palette.mutedText
+                canvas.drawText(ellipsize(value, valueWidth, paint), valueRight, rowTop + rowH * .5f + 4.5f * density, paint)
+                paint.textAlign = Paint.Align.LEFT
+            }
+        }
+        if (items.size > visible) {
+            // A short thumb on the card's edge shows there is more below.
+            val trackTop = y
+            val trackBottom = y + visible * rowH
+            val thumb = ((trackBottom - trackTop) * visible / items.size).coerceAtLeast(16f * density)
+            val thumbTop = trackTop + (trackBottom - trackTop - thumb) * cardStart / (items.size - visible).toFloat()
+            paint.color = palette.scrollThumb
+            reusableRectF.set(right - 5f * density, thumbTop, right - 2f * density, thumbTop + thumb)
+            canvas.drawRoundRect(reusableRectF, 1.5f * density, 1.5f * density, paint)
+        }
     }
 
     private fun colorAtAlpha(color: Int, fraction: Float): Int {
@@ -1444,76 +1479,179 @@ class Y2PlayerView(
     }
 
     private fun drawNowPlayingWide(canvas: Canvas) {
-        val contentTop = headerHeight
-        val contentHeight = height - footerHeight - contentTop
-        val margin = 14f * density
-        val artSize = (contentHeight - 2 * margin).coerceAtMost(232f * density)
-        val artTop = contentTop + (contentHeight - artSize) * .5f
-        drawArtwork(canvas, margin, artTop, artSize)
+        val margin = 16f * density
+        val top = headerHeight + 12f * density
+        val artSize = NOW_ART_DP * density
+        drawCover(canvas, margin, top, artSize, artwork, 12f * density)
 
-        val colLeft = margin + artSize + 18f * density
+        val colLeft = margin + artSize + 16f * density
         val colRight = width - margin
-        val controlY = artTop + artSize - 22f * density
-        val barTop = controlY - 48f * density
-
+        val colWidth = colRight - colLeft
+        var y = top + 12f * density
         boldPaint.textAlign = Paint.Align.LEFT
+        if (cachedNowSource.isNotEmpty()) {
+            boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            boldPaint.color = palette.accent
+            canvas.drawText(cachedNowSource, colLeft, y, boldPaint)
+            y += 26f * density
+        } else {
+            y += 12f * density
+        }
         boldPaint.textSize = Y2UiTheme.NOW_TITLE_SP * density
         boldPaint.color = palette.primaryText
-        var y = artTop + 26f * density
-        if (isNowPlayingScrollTarget(SelectedTextScroller.TARGET_NOW_TITLE, cachedNowTitleFull)) {
-            drawScrollingText(canvas, cachedNowTitleFull, colLeft, colRight, y, boldPaint,
-                nowPlayingTextScroller(SelectedTextScroller.TARGET_NOW_TITLE).offsetPx)
-        } else canvas.drawText(cachedNowTitle, colLeft, y, boldPaint)
+        cachedNowTitleLines.forEach { line ->
+            canvas.drawText(line, colLeft, y, boldPaint)
+            y += 27f * density
+        }
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = Y2UiTheme.NOW_ARTIST_SP * density
         paint.color = palette.secondaryText
-        y += 22f * density
-        if (isNowPlayingScrollTarget(SelectedTextScroller.TARGET_NOW_ARTIST, cachedNowArtistFull)) {
-            drawScrollingText(canvas, cachedNowArtistFull, colLeft, colRight, y, paint,
-                nowPlayingTextScroller(SelectedTextScroller.TARGET_NOW_ARTIST).offsetPx)
-        } else canvas.drawText(cachedNowArtist, colLeft, y, paint)
-        if (cachedNowAlbum.isNotEmpty()) {
-            paint.textSize = Y2UiTheme.NOW_ALBUM_SP * density
-            paint.color = palette.mutedText
-            y += 19f * density
-            if (isNowPlayingScrollTarget(SelectedTextScroller.TARGET_NOW_ALBUM, cachedNowAlbumFull)) {
-                drawScrollingText(canvas, cachedNowAlbumFull, colLeft, colRight, y, paint,
-                    nowPlayingTextScroller(SelectedTextScroller.TARGET_NOW_ALBUM).offsetPx)
-            } else canvas.drawText(cachedNowAlbum, colLeft, y, paint)
+        cachedNowArtistLines.forEach { line ->
+            canvas.drawText(line, colLeft, y - 4f * density, paint)
+            y += 20f * density
         }
-        if (cachedNowGenre.isNotEmpty()) {
-            paint.textSize = Y2UiTheme.META_SP * density
-            paint.color = palette.mutedText
-            y += 18f * density
-            canvas.drawText(cachedNowGenre, colLeft, y, paint)
-        }
-        if (cachedNowSecondary.isNotEmpty()) {
-            paint.textSize = Y2UiTheme.META_SP * density
-            paint.color = if (cachedNowSecondaryWarning) palette.warning else palette.mutedText
-            y += 18f * density
-            canvas.drawText(cachedNowSecondary, colLeft, y, paint)
-        }
-        drawStateBadges(canvas, colLeft + 8f * density, (y + 25f * density).coerceAtMost(barTop - 18f * density), 28f * density)
 
-        if (cachedStatusTag.isNotEmpty()) {
-            boldPaint.textAlign = Paint.Align.LEFT
-            boldPaint.textSize = Y2UiTheme.BADGE_SP * density
-            boldPaint.color = if (state.playback.status == PlaybackStatus.ERROR) palette.warning else palette.accent
-            canvas.drawText(cachedStatusTag, colLeft, barTop - 8f * density, boldPaint)
+        // Up next, as a soft card along the bottom of the cover.
+        nowPlayingPane?.let { pane ->
+            val cardTop = top + artSize - 48f * density
+            if (cardTop > y - 12f * density) {
+                reusableRectF.set(colLeft, cardTop, colRight, top + artSize)
+                paint.style = Paint.Style.FILL
+                paint.color = palette.surface
+                canvas.drawRoundRect(reusableRectF, 10f * density, 10f * density, paint)
+                boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                boldPaint.color = palette.mutedText
+                canvas.drawText("Up next", colLeft + 10f * density, cardTop + 18f * density, boldPaint)
+                boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                boldPaint.color = if (pane.upNextIsRepeat) palette.accent else palette.primaryText
+                var textLeft = colLeft + 10f * density
+                if (pane.upNextIsRepeat) {
+                    iconPainter.draw(canvas, Y2Icon.REPEAT, textLeft + 7f * density, cardTop + 33f * density, 14f * density, palette.accent)
+                    textLeft += 19f * density
+                }
+                canvas.drawText(ellipsize(pane.upNext, colRight - 10f * density - textLeft, boldPaint),
+                    textLeft, cardTop + 38f * density, boldPaint)
+            }
         }
-        drawProgressBar(canvas, colLeft, colRight, barTop)
-        val timesY = barTop + 19f * density
+
+        val barTop = top + artSize + 12f * density
+        drawThinBar(canvas, margin, width - margin, barTop, Y2UiTheme.PROGRESS_HEIGHT_DP * density,
+            Y2UiLogic.progressFraction(state.playback.positionMs, state.playback.durationMs), palette.primaryText)
+        val timesY = barTop + 23f * density
         paint.style = Paint.Style.FILL
-        paint.textSize = Y2UiTheme.META_SP * density
+        paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
         paint.color = palette.secondaryText
         paint.textAlign = Paint.Align.LEFT
-        canvas.drawText(cachedElapsed, colLeft, timesY, paint)
+        canvas.drawText(cachedElapsed, margin, timesY, paint)
         paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText(cachedDuration, colRight, timesY, paint)
-        drawPlaybackControls(canvas, colLeft, colRight, controlY)
+        canvas.drawText(cachedRemaining, width - margin, timesY, paint)
+        if (cachedStatusTag.isNotEmpty()) {
+            boldPaint.textAlign = Paint.Align.CENTER
+            boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            boldPaint.color = if (state.playback.status == PlaybackStatus.ERROR) palette.warning else palette.accent
+            canvas.drawText(cachedStatusTag, width * .5f, timesY, boldPaint)
+        }
+        drawNowPlayingTiles(canvas, margin, width - margin, height - 10f * density)
         paint.textAlign = Paint.Align.LEFT
         boldPaint.textAlign = Paint.Align.LEFT
+    }
+
+    /** Four large, labelled tiles; each says its state in words. */
+    private fun drawNowPlayingTiles(canvas: Canvas, left: Float, right: Float, bottom: Float) {
+        val tiles = rows.drop(1).take(4)
+        if (tiles.isEmpty()) return
+        val gap = 8f * density
+        val tileHeight = 46f * density
+        val tileWidth = (right - left - gap * (tiles.size - 1)) / tiles.size
+        val top = bottom - tileHeight
+        tiles.forEachIndexed { index, row ->
+            val tileLeft = left + index * (tileWidth + gap)
+            val focused = state.currentScreen == Screen.NowPlaying && state.selectedIndex == index + 1
+            val on = isTileOn(row)
+            reusableRectF.set(tileLeft, top, tileLeft + tileWidth, bottom)
+            paint.style = Paint.Style.FILL
+            paint.color = when {
+                focused -> palette.focusFill
+                on -> palette.focusSurface
+                else -> palette.surfaceRaised
+            }
+            canvas.drawRoundRect(reusableRectF, 12f * density, 12f * density, paint)
+            val labelColor = when {
+                focused -> palette.onFocusSecondary
+                on -> palette.accent
+                else -> palette.secondaryText
+            }
+            val valueColor = when {
+                focused -> palette.onFocus
+                on -> palette.accent
+                else -> palette.primaryText
+            }
+            val centerX = tileLeft + tileWidth * .5f
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            paint.color = labelColor
+            canvas.drawText(row.title, centerX, top + 19f * density, paint)
+            boldPaint.textAlign = Paint.Align.CENTER
+            boldPaint.textSize = Y2UiTheme.BODY_SP * density
+            boldPaint.color = valueColor
+            canvas.drawText(ellipsize(row.subtitle.orEmpty(), tileWidth - 8f * density, boldPaint), centerX, top + 37f * density, boldPaint)
+        }
+        paint.textAlign = Paint.Align.LEFT
+        boldPaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun isTileOn(row: ScreenRow): Boolean {
+        val key = (row as? ScreenRow.Action)?.key ?: return false
+        return when {
+            key == "shuffle" -> state.playback.shuffleEnabled
+            key == "repeat" -> state.playback.repeatMode != RepeatMode.OFF
+            key == "sleep_timer" -> state.playback.sleepTimerMode != SleepTimerMode.OFF
+            key.startsWith("np_favorite:") -> cachedNowFavorite
+            else -> false
+        }
+    }
+
+    // Volume: a slim bar beside the side buttons, shown while it changes, then faded.
+    private var volumeOverlayPercent = -1
+    private var volumeOverlayShownAt = 0L
+
+    fun showVolume(percent: Int) {
+        volumeOverlayPercent = percent.coerceIn(0, 100)
+        volumeOverlayShownAt = SystemClock.uptimeMillis()
+        postInvalidateOnAnimation()
+    }
+
+    private fun drawVolumeOverlay(canvas: Canvas) {
+        if (volumeOverlayPercent < 0) return
+        val age = SystemClock.uptimeMillis() - volumeOverlayShownAt
+        val alpha = when {
+            age < VOLUME_HOLD_MS -> 1f
+            age < VOLUME_HOLD_MS + VOLUME_FADE_MS -> 1f - (age - VOLUME_HOLD_MS).toFloat() / VOLUME_FADE_MS
+            else -> 0f
+        }
+        if (alpha <= 0f) {
+            volumeOverlayPercent = -1
+            return
+        }
+        postInvalidateOnAnimation()
+        val right = width - 5f * density
+        val left = right - 8f * density
+        val top = headerHeight + 12f * density
+        val bottom = height - 12f * density
+        paint.style = Paint.Style.FILL
+        paint.color = colorAtAlpha(palette.background, .92f * alpha)
+        reusableRectF.set(left - 3f * density, top - 3f * density, right + 3f * density, bottom + 3f * density)
+        canvas.drawRoundRect(reusableRectF, 7f * density, 7f * density, paint)
+        paint.color = colorAtAlpha(palette.track, alpha)
+        reusableRectF.set(left, top, right, bottom)
+        canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
+        val fillTop = bottom - (bottom - top) * volumeOverlayPercent / 100f
+        if (volumeOverlayPercent > 0) {
+            paint.color = colorAtAlpha(palette.accent, alpha)
+            reusableRectF.set(left, fillTop.coerceAtMost(bottom - 8f * density), right, bottom)
+            canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
+        }
     }
 
     private fun drawPlaybackControls(canvas: Canvas, left: Float, right: Float, centerY: Float) {
@@ -1547,64 +1685,316 @@ class Y2PlayerView(
     }
 
     private fun drawHomePane(canvas: Canvas) {
-        val paneLeft = rowAreaRight() + 6f * density
-        val paneRight = width - 10f * density
-        val paneTop = headerHeight + 10f * density
-        val paneBottom = height - footerHeight - 10f * density
-        reusableRectF.set(paneLeft, paneTop, paneRight, paneBottom)
+        val left = rowAreaRight()
+        val right = width.toFloat()
+        val top = headerHeight
+        val bottom = height.toFloat()
         paint.style = Paint.Style.FILL
         paint.color = palette.surface
-        canvas.drawRoundRect(reusableRectF, Y2UiTheme.PANEL_RADIUS_DP * density, Y2UiTheme.PANEL_RADIUS_DP * density, paint)
-
-        val paneWidth = paneRight - paneLeft
-        val centerX = paneLeft + paneWidth * .5f
-        val hasTrack = state.playback.currentTrackId != null
-        if (hasTrack) {
-            val artSize = (paneWidth - 48f * density).coerceAtMost(paneBottom - paneTop - 92f * density)
-            val artTop = paneTop + 12f * density
-            drawArtwork(canvas, centerX - artSize * .5f, artTop, artSize)
-            boldPaint.textAlign = Paint.Align.CENTER
-            boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
-            boldPaint.color = palette.primaryText
-            canvas.drawText(cachedPaneTitle, centerX, artTop + artSize + 20f * density, boldPaint)
-            paint.style = Paint.Style.FILL
-            paint.textAlign = Paint.Align.CENTER
-            paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-            paint.color = palette.secondaryText
-            canvas.drawText(cachedPaneArtist, centerX, artTop + artSize + 36f * density, paint)
-            val barTop = paneBottom - Y2UiTheme.HOME_PROGRESS_BOTTOM_INSET_DP * density
-            val timeBaseline = paneBottom - Y2UiTheme.HOME_PROGRESS_TIME_BOTTOM_INSET_DP * density
-            drawProgressBar(canvas, paneLeft + 16f * density, paneRight - 16f * density, barTop)
-            paint.style = Paint.Style.FILL
-            paint.textSize = Y2UiTheme.BADGE_SP * density
-            paint.color = palette.mutedText
-            paint.textAlign = Paint.Align.LEFT
-            canvas.drawText(cachedElapsed, paneLeft + 16f * density, timeBaseline, paint)
-            paint.textAlign = Paint.Align.RIGHT
-            canvas.drawText(cachedDuration, paneRight - 16f * density, timeBaseline, paint)
-        } else {
-            val centerY = (paneTop + paneBottom) * .5f
-            iconPainter.draw(canvas, Y2Icon.SONG, centerX, centerY - 34f * density, 34f * density, palette.accent)
-            paint.style = Paint.Style.FILL
-            boldPaint.textAlign = Paint.Align.CENTER
-            boldPaint.textSize = Y2UiTheme.BODY_SP * density
-            boldPaint.color = palette.primaryText
-            canvas.drawText(cachedHomeStats, centerX, centerY + 6f * density, boldPaint)
-            paint.textAlign = Paint.Align.CENTER
-            paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-            paint.color = palette.mutedText
-            canvas.drawText(cachedHomeHint, centerX, centerY + 24f * density, paint)
-            if (state.library.isScanning) {
-                drawScanProgressBar(
-                    canvas,
-                    paneLeft + 16f * density,
-                    paneRight - 16f * density,
-                    centerY + 36f * density
-                )
-            }
+        canvas.drawRect(left, top, right, bottom, paint)
+        val inner = left + 14f * density
+        val innerRight = right - 14f * density
+        when (val pane = homePane) {
+            is HomePane.NowPlaying -> drawNowPlayingPane(canvas, pane, inner, innerRight, top + 14f * density, bottom - 12f * density)
+            is HomePane.Continue -> drawContinuePane(canvas, pane, inner, innerRight, top + 14f * density, bottom - 12f * density)
+            is HomePane.Collection -> drawCollectionPane(canvas, pane, inner, innerRight, top + 14f * density, bottom - 12f * density)
+            null -> drawLibraryPane(canvas, inner, innerRight, top, bottom)
         }
         paint.textAlign = Paint.Align.LEFT
         boldPaint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawNowPlayingPane(canvas: Canvas, pane: HomePane.NowPlaying, left: Float, right: Float, top: Float, bottom: Float) {
+        val artSize = 118f * density
+        drawCover(canvas, left, top, artSize, artwork, 10f * density)
+        var y = top + artSize + 22f * density
+        boldPaint.textAlign = Paint.Align.LEFT
+        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+        boldPaint.color = palette.primaryText
+        canvas.drawText(ellipsize(pane.title, right - left, boldPaint), left, y, boldPaint)
+        y += 18f * density
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        paint.color = palette.secondaryText
+        canvas.drawText(ellipsize(pane.artist, right - left, paint), left, y, paint)
+        y += 14f * density
+        val remaining = "−" + TimeFormat.duration((state.playback.durationMs - state.playback.positionMs).coerceAtLeast(0L))
+        paint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(remaining, right, y + 6f * density, paint)
+        val barRight = right - paint.measureText(remaining) - 8f * density
+        drawThinBar(canvas, left, barRight, y, 4f * density,
+            Y2UiLogic.progressFraction(state.playback.positionMs, state.playback.durationMs), palette.accent)
+        drawUpNext(canvas, pane, left, right, bottom)
+    }
+
+    private fun drawUpNext(canvas: Canvas, pane: HomePane.NowPlaying, left: Float, right: Float, bottom: Float) {
+        paint.style = Paint.Style.FILL
+        paint.color = palette.divider
+        canvas.drawRect(left, bottom - 42f * density, right, bottom - 41f * density, paint)
+        boldPaint.textAlign = Paint.Align.LEFT
+        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        boldPaint.color = palette.mutedText
+        canvas.drawText("Up next", left, bottom - 24f * density, boldPaint)
+        boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+        boldPaint.color = if (pane.upNextIsRepeat) palette.accent else palette.primaryText
+        var textLeft = left
+        if (pane.upNextIsRepeat) {
+            iconPainter.draw(canvas, Y2Icon.REPEAT, left + 7f * density, bottom - 6f * density, 14f * density, palette.accent)
+            textLeft += 19f * density
+        }
+        canvas.drawText(ellipsize(pane.upNext, right - textLeft, boldPaint), textLeft, bottom - 2f * density, boldPaint)
+    }
+
+    private fun drawContinuePane(canvas: Canvas, pane: HomePane.Continue, left: Float, right: Float, top: Float, bottom: Float) {
+        val first = pane.first
+        val artSize = 72f * density
+        drawCover(canvas, left, top, artSize, paneArtwork(first.artTrackId, first.artPath), 9f * density, Y2Icon.PLAY)
+        val textLeft = left + artSize + 10f * density
+        boldPaint.textAlign = Paint.Align.LEFT
+        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        boldPaint.color = palette.accent
+        canvas.drawText("Resume", textLeft, top + 12f * density, boldPaint)
+        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+        boldPaint.color = palette.primaryText
+        val titleLines = wrap(first.title, right - textLeft, boldPaint, 2)
+        var y = top + 32f * density
+        titleLines.forEach { line -> canvas.drawText(line, textLeft, y, boldPaint); y += 18f * density }
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        paint.color = palette.secondaryText
+        canvas.drawText(ellipsize(first.detail, right - textLeft, paint), textLeft, y - 1f * density, paint)
+
+        y = top + artSize + 16f * density
+        first.left?.let { label ->
+            val text = "$label left"
+            paint.textAlign = Paint.Align.RIGHT
+            canvas.drawText(text, right, y + 5f * density, paint)
+            drawThinBar(canvas, left, right - paint.measureText(text) - 8f * density, y, 4f * density, first.fraction, palette.accent)
+            paint.textAlign = Paint.Align.LEFT
+        }
+        y += 18f * density
+        drawPill(canvas, left, y, "All in progress", chevron = true)
+        y += 40f * density
+        if (pane.others.isEmpty()) return
+        paint.color = palette.divider
+        canvas.drawRect(left, y - 8f * density, right, y - 7f * density, paint)
+        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        boldPaint.color = palette.mutedText
+        canvas.drawText("Also in progress", left, y + 8f * density, boldPaint)
+        y += 28f * density
+        pane.others.forEach { item ->
+            if (y > bottom) return
+            paint.textAlign = Paint.Align.RIGHT
+            paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            paint.color = palette.secondaryText
+            val left2 = item.left.orEmpty()
+            canvas.drawText(left2, right, y, paint)
+            boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+            boldPaint.color = palette.primaryText
+            canvas.drawText(ellipsize(item.title, right - left - paint.measureText(left2) - 10f * density, boldPaint), left, y, boldPaint)
+            drawThinBar(canvas, left, right, y + 6f * density, 3f * density, item.fraction, palette.mutedText)
+            y += 30f * density
+        }
+        paint.textAlign = Paint.Align.LEFT
+    }
+
+    private fun drawCollectionPane(canvas: Canvas, pane: HomePane.Collection, left: Float, right: Float, top: Float, bottom: Float) {
+        var y = top
+        if (pane.artTrackIds.isNotEmpty()) {
+            val size = 118f * density
+            if (pane.artTrackIds.size >= 4) {
+                val gap = 3f * density
+                val cell = (size - gap) * .5f
+                pane.artTrackIds.take(4).forEachIndexed { index, id ->
+                    val x = left + (index % 2) * (cell + gap)
+                    val cellTop = y + (index / 2) * (cell + gap)
+                    drawCover(canvas, x, cellTop, cell, paneArtwork(id, null), 6f * density)
+                }
+            } else {
+                drawCover(canvas, left, y, size, paneArtwork(pane.artTrackIds.first(), null), 10f * density)
+            }
+            y += size + 22f * density
+        } else {
+            y += 16f * density
+        }
+        boldPaint.textAlign = Paint.Align.LEFT
+        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+        boldPaint.color = palette.primaryText
+        canvas.drawText(ellipsize(pane.title, right - left, boldPaint), left, y, boldPaint)
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.LEFT
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        paint.color = palette.secondaryText
+        pane.detail?.let {
+            y += 18f * density
+            canvas.drawText(ellipsize(it, right - left, paint), left, y, paint)
+        }
+        val hintTop = if (pane.hint != null) bottom - 28f * density else bottom
+        y += 8f * density
+        pane.lines.forEach { line ->
+            if (y + 22f * density > hintTop) return@forEach
+            y += 20f * density
+            val textPaint = if (line.emphasised) boldPaint else paint
+            textPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+            textPaint.color = if (line.emphasised) palette.accent else palette.primaryText
+            val detail = line.detail
+            paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            val detailWidth = if (detail == null) 0f else paint.measureText(detail).coerceAtMost((right - left) * .45f)
+            canvas.drawText(ellipsize(line.text, right - left - detailWidth - 8f * density, textPaint), left, y, textPaint)
+            if (detail != null) {
+                paint.textAlign = Paint.Align.RIGHT
+                paint.color = palette.mutedText
+                canvas.drawText(ellipsize(detail, detailWidth, paint), right, y, paint)
+                paint.textAlign = Paint.Align.LEFT
+            }
+        }
+        pane.hint?.let { drawPill(canvas, left, hintTop, it, chevron = false, maxRight = right) }
+    }
+
+    private fun drawLibraryPane(canvas: Canvas, left: Float, right: Float, top: Float, bottom: Float) {
+        val centerX = (left + right) * .5f
+        val centerY = (top + bottom) * .5f
+        iconPainter.draw(canvas, Y2Icon.SONG, centerX, centerY - 34f * density, 34f * density, palette.accent)
+        boldPaint.textAlign = Paint.Align.CENTER
+        boldPaint.textSize = Y2UiTheme.BODY_SP * density
+        boldPaint.color = palette.primaryText
+        canvas.drawText(cachedHomeStats, centerX, centerY + 6f * density, boldPaint)
+        paint.style = Paint.Style.FILL
+        paint.textAlign = Paint.Align.CENTER
+        paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
+        paint.color = palette.mutedText
+        canvas.drawText(cachedHomeHint, centerX, centerY + 24f * density, paint)
+        if (state.library.isScanning) {
+            drawScanProgressBar(canvas, left, right, centerY + 36f * density)
+        }
+    }
+
+    /** A rounded pill, white on the pane, holding a hint about what a key does. */
+    private fun drawPill(canvas: Canvas, left: Float, top: Float, text: String, chevron: Boolean, maxRight: Float = width.toFloat()) {
+        boldPaint.textAlign = Paint.Align.LEFT
+        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        val padding = 12f * density
+        val extra = if (chevron) 14f * density else 0f
+        val label = ellipsize(text, maxRight - left - padding * 2 - extra, boldPaint)
+        val pillRight = left + padding * 2 + boldPaint.measureText(label) + extra
+        reusableRectF.set(left, top, pillRight, top + 26f * density)
+        paint.style = Paint.Style.FILL
+        paint.color = palette.background
+        canvas.drawRoundRect(reusableRectF, 13f * density, 13f * density, paint)
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = density
+        paint.color = palette.divider
+        canvas.drawRoundRect(reusableRectF, 13f * density, 13f * density, paint)
+        paint.style = Paint.Style.FILL
+        boldPaint.color = palette.accent
+        canvas.drawText(label, left + padding, top + 17.5f * density, boldPaint)
+        if (chevron) {
+            iconPainter.draw(canvas, Y2Icon.CHEVRON, pillRight - padding - 3f * density, top + 13f * density, 10f * density, palette.accent)
+            paint.style = Paint.Style.FILL
+        }
+    }
+
+    private fun drawThinBar(canvas: Canvas, left: Float, right: Float, top: Float, height: Float, fraction: Float, color: Int) {
+        if (right <= left) return
+        paint.style = Paint.Style.FILL
+        paint.color = palette.track
+        reusableRectF.set(left, top, right, top + height)
+        canvas.drawRoundRect(reusableRectF, height * .5f, height * .5f, paint)
+        val fill = fraction.coerceIn(0f, 1f)
+        if (fill <= 0f) return
+        paint.color = color
+        reusableRectF.set(left, top, left + (right - left) * fill, top + height)
+        canvas.drawRoundRect(reusableRectF, height * .5f, height * .5f, paint)
+    }
+
+    /** Square cover with rounded corners; a quiet placeholder until the bitmap loads. */
+    private fun drawCover(canvas: Canvas, left: Float, top: Float, size: Float, bitmap: Bitmap?, radius: Float, fallback: Y2Icon = Y2Icon.SONG) {
+        reusableRectF.set(left, top, left + size, top + size)
+        if (bitmap == null) {
+            paint.style = Paint.Style.FILL
+            paint.color = palette.surfaceRaised
+            if (palette.surfaceRaised == palette.surface) paint.color = palette.divider
+            canvas.drawRoundRect(reusableRectF, radius, radius, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = density
+            paint.color = palette.divider
+            canvas.drawRoundRect(reusableRectF, radius, radius, paint)
+            iconPainter.draw(canvas, fallback, left + size * .5f, top + size * .5f, size * .32f, palette.mutedText)
+            paint.style = Paint.Style.FILL
+            return
+        }
+        val save = canvas.save()
+        reusablePath.reset()
+        reusablePath.addRoundRect(reusableRectF, radius, radius, android.graphics.Path.Direction.CW)
+        canvas.clipPath(reusablePath)
+        reusableRect.set(left.toInt(), top.toInt(), (left + size).toInt(), (top + size).toInt())
+        canvas.drawBitmap(bitmap, null, reusableRect, bitmapPaint)
+        canvas.restoreToCount(save)
+    }
+
+    /** Up to [maxLines] lines broken at spaces, the last one ellipsized. */
+    private fun wrap(text: String, maxWidth: Float, target: Paint, maxLines: Int): List<String> {
+        if (target.measureText(text) <= maxWidth || maxLines <= 1) return listOf(ellipsize(text, maxWidth, target))
+        val lines = ArrayList<String>(maxLines)
+        var rest = text
+        while (rest.isNotEmpty() && lines.size < maxLines - 1) {
+            val fit = Y2UiLogic.truncationEnd(rest.length, maxWidth, 0f) { end -> target.measureText(rest, 0, end) }
+            if (fit >= rest.length) break
+            val breakAt = rest.lastIndexOf(' ', fit).takeIf { it > 0 } ?: fit
+            lines += rest.substring(0, breakAt).trimEnd()
+            rest = rest.substring(breakAt).trimStart()
+        }
+        if (rest.isNotEmpty()) lines += ellipsize(rest, maxWidth, target)
+        return lines
+    }
+
+    // Home's pane: what it shows and the covers it needs, kept in step with the focused row.
+    private var homePane: HomePane? = null
+    private val paneArtworks = HashMap<String, Bitmap?>()
+    private var paneArtworkGeneration = 0L
+
+    private fun paneArtwork(trackId: Long?, path: String?): Bitmap? {
+        val key = paneArtworkKey(trackId, path) ?: return null
+        return if (key == "t${state.playback.currentTrackId}") paneArtworks[key] ?: artwork else paneArtworks[key]
+    }
+
+    private fun paneArtworkKey(trackId: Long?, path: String?): String? = when {
+        trackId != null -> "t$trackId"
+        path != null -> "p$path"
+        else -> null
+    }
+
+    private fun updateHomePane() {
+        val pane = if (isSplitHome()) HomePane.of(state, rows.getOrNull(state.selectedIndex)) else null
+        homePane = pane
+        val wanted = LinkedHashMap<String, Pair<String, Long>>()
+        fun want(trackId: Long?, path: String?) {
+            val key = paneArtworkKey(trackId, path) ?: return
+            val track = trackId?.let(state.library.byId::get)
+            val source = track?.absolutePath ?: path ?: return
+            wanted[key] = source to (track?.modifiedAt ?: 0L)
+        }
+        when (pane) {
+            is HomePane.Continue -> want(pane.first.artTrackId, pane.first.artPath)
+            is HomePane.Collection -> pane.artTrackIds.take(4).forEach { want(it, null) }
+            else -> Unit
+        }
+        if (state.currentScreen.isCardMenu()) cardHeader()?.trackId?.let { want(it, null) }
+        paneArtworks.keys.retainAll(wanted.keys)
+        val generation = ++paneArtworkGeneration
+        wanted.forEach { (key, source) ->
+            if (paneArtworks.containsKey(key)) return@forEach
+            paneArtworks[key] = null
+            artworkLoader.load(source.first, source.second, state.library.tracksRevision, PANE_ARTWORK_SIZE_PX) { _, bitmap ->
+                if (generation != paneArtworkGeneration && !paneArtworks.containsKey(key)) return@load
+                if (!paneArtworks.containsKey(key)) return@load
+                paneArtworks[key] = bitmap
+                if (isSplitHome()) invalidate(rowAreaRight().toInt(), headerHeight.toInt(), width, height)
+                else if (state.currentScreen.isCardMenu()) invalidate()
+            }
+        }
     }
 
     private fun drawNowPlayingTall(canvas: Canvas) {
@@ -1735,38 +2125,7 @@ class Y2PlayerView(
         size: Float,
         source: Bitmap? = artwork,
         fallbackIcon: Y2Icon = Y2Icon.SONG
-    ) {
-        reusableRectF.set(left, top, left + size, top + size)
-        paint.style = Paint.Style.FILL
-        paint.color = palette.surfaceRaised
-        canvas.drawRoundRect(reusableRectF, Y2UiTheme.PANEL_RADIUS_DP * density, Y2UiTheme.PANEL_RADIUS_DP * density, paint)
-        val bitmap = source
-        if (Y2UiLogic.artworkVisual(bitmap != null) == ArtworkVisual.EMBEDDED && bitmap != null) {
-            reusableRect.set(
-                (left + 3f * density).toInt(),
-                (top + 3f * density).toInt(),
-                (left + size - 3f * density).toInt(),
-                (top + size - 3f * density).toInt()
-            )
-            canvas.drawBitmap(bitmap, null, reusableRect, paint)
-        } else {
-            val centerX = left + size * .5f
-            val centerY = top + size * .5f
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = density
-            paint.color = palette.divider
-            canvas.drawCircle(centerX, centerY, size * .29f, paint)
-            canvas.drawCircle(centerX, centerY, size * .17f, paint)
-            paint.style = Paint.Style.FILL
-            iconPainter.draw(canvas, fallbackIcon, centerX, centerY, size * .28f, palette.accent)
-        }
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = density
-        paint.color = palette.divider
-        reusableRectF.set(left, top, left + size, top + size)
-        canvas.drawRoundRect(reusableRectF, Y2UiTheme.PANEL_RADIUS_DP * density, Y2UiTheme.PANEL_RADIUS_DP * density, paint)
-        paint.style = Paint.Style.FILL
-    }
+    ) = drawCover(canvas, left, top, size, source, Y2UiTheme.PANEL_RADIUS_DP * density, fallbackIcon)
 
     private fun drawStateBadges(canvas: Canvas, startX: Float, centerY: Float, step: Float) {
         var x = startX
@@ -1834,157 +2193,42 @@ class Y2PlayerView(
         canvas.drawRoundRect(reusableRectF, barHeight * .5f, barHeight * .5f, paint)
     }
 
-    private fun drawFooter(canvas: Canvas) {
-        if (isSplitHome() || state.currentScreen is Screen.Search) return
-
-        if (
-            state.playback.currentTrackId != null &&
-            !isNowPlayingSurface()
-        ) {
-            drawMiniPlayer(canvas)
-        } else {
-            drawCompactFooter(canvas)
-        }
-    }
-
-    private fun drawMiniPlayer(canvas: Canvas) {
-        val top = height - footerHeight
-        paint.style = Paint.Style.FILL
-        paint.color = palette.surfaceRaised
-        canvas.drawRect(0f, top, width.toFloat(), height.toFloat(), paint)
-        paint.color = palette.accent
-        val progress = Y2UiLogic.miniPlayerProgressFraction(
-            state.playback.status,
-            state.playback.positionMs,
-            state.playback.durationMs
-        )
-        canvas.drawRect(0f, top, width * progress, top + 2f * density, paint)
-
-        val artSize = Y2UiTheme.MINI_ART_SIZE_DP * density
-        drawArtwork(canvas, 8f * density, top + 8f * density, artSize)
-        val textLeft = 8f * density + artSize + 10f * density
-        boldPaint.textAlign = Paint.Align.LEFT
-        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
-        boldPaint.color = palette.primaryText
-        canvas.drawText(cachedMiniTitle, textLeft, top + 25f * density, boldPaint)
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.LEFT
-        paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-        paint.color = palette.secondaryText
-        canvas.drawText(cachedMiniArtist, textLeft, top + 45f * density, paint)
-
-        val controlX = width - 29f * density
-        val controlY = top + footerHeight * .5f
-        paint.color = palette.surface
-        canvas.drawCircle(controlX, controlY, 20f * density, paint)
-        val playbackIcon = when (state.playback.status) {
-            PlaybackStatus.PLAYING -> Y2Icon.PAUSE
-            PlaybackStatus.PREPARING -> Y2Icon.PREPARING
-            PlaybackStatus.ERROR -> Y2Icon.WARNING
-            else -> Y2Icon.PLAY
-        }
-        iconPainter.draw(canvas, playbackIcon, controlX, controlY, 24f * density,
-            if (state.playback.status == PlaybackStatus.ERROR) palette.warning else palette.accent)
-    }
-
-    private fun drawCompactFooter(canvas: Canvas) {
-        val top = height - footerHeight
-        paint.style = Paint.Style.FILL
-        paint.color = palette.surface
-        canvas.drawRect(0f, top, width.toFloat(), height.toFloat(), paint)
-        paint.textAlign = Paint.Align.RIGHT
-        paint.textSize = Y2UiTheme.BADGE_SP * density
-        paint.color = palette.secondaryText
-        canvas.drawText(cachedFooterPosition, width - 10f * density, top + 20f * density, paint)
-        if (isNowPlayingSurface()) {
-            drawNowPlayingFooterStatuses(canvas, top)
-            return
-        }
-        paint.textAlign = Paint.Align.LEFT
-        paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-        paint.color = palette.mutedText
-        canvas.drawText(cachedFooterHint, 10f * density, top + 20f * density, paint)
-    }
-
-    private fun drawNowPlayingFooterStatuses(canvas: Canvas, top: Float) {
-        var x = 10f * density
-        x = drawFooterStatus(
-            canvas,
-            x,
-            top,
-            Y2Icon.SHUFFLE,
-            "Shuffle",
-            Y2UiLogic.shuffleStatusLabel(state.playback.shuffleEnabled),
-            state.playback.shuffleEnabled
-        )
-        paint.style = Paint.Style.FILL
-        paint.color = palette.divider
-        canvas.drawRect(x + 8f * density, top + 7f * density, x + 9f * density, top + 23f * density, paint)
-        drawFooterStatus(
-            canvas,
-            x + 18f * density,
-            top,
-            Y2Icon.REPEAT,
-            "Repeat",
-            Y2UiLogic.repeatStatusLabel(state.playback.repeatMode),
-            state.playback.repeatMode != RepeatMode.OFF
-        )
-    }
-
-    private fun drawFooterStatus(
-        canvas: Canvas,
-        startX: Float,
-        top: Float,
-        icon: Y2Icon,
-        label: String,
-        value: String,
-        active: Boolean
-    ): Float {
-        val centerY = top + footerHeight * .5f
-        val color = if (active) palette.accent else palette.mutedText
-        iconPainter.draw(canvas, icon, startX + 7f * density, centerY, 14f * density, color)
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.LEFT
-        paint.textSize = Y2UiTheme.BADGE_SP * density
-        paint.color = color
-        val text = "$label  $value"
-        val textX = startX + 19f * density
-        canvas.drawText(text, textX, top + 19f * density, paint)
-        val endX = textX + paint.measureText(text)
-        if (active) {
-            paint.color = palette.accent
-            reusableRectF.set(
-                startX,
-                height - 2f * density,
-                endX,
-                height.toFloat()
-            )
-            canvas.drawRoundRect(reusableRectF, density, density, paint)
-        }
-        return endX
-    }
-
     private fun drawStatusMessage(canvas: Canvas) {
         if (cachedMessageSource == null) return
-        val bottom = height - footerHeight - 8f * density
+        val warning = state.playback.pauseReason == PauseReason.OUTPUT_DISCONNECTED || state.playback.errorMessage != null
+        if (cachedMessageTitle == "Status") {
+            // A short confirmation: one dark pill near the bottom, like a HUD.
+            boldPaint.textAlign = Paint.Align.CENTER
+            boldPaint.textSize = Y2UiTheme.BODY_SP * density
+            val text = ellipsize(cachedMessageBody, width - 64f * density, boldPaint)
+            val pillWidth = boldPaint.measureText(text) + 36f * density
+            val bottom = height - 14f * density
+            reusableRectF.set((width - pillWidth) * .5f, bottom - 40f * density, (width + pillWidth) * .5f, bottom)
+            paint.style = Paint.Style.FILL
+            paint.color = colorAtAlpha(MESSAGE_HUD, .94f)
+            canvas.drawRoundRect(reusableRectF, 20f * density, 20f * density, paint)
+            boldPaint.color = 0xFFFFFFFF.toInt()
+            canvas.drawText(text, width * .5f, bottom - 14.5f * density, boldPaint)
+            boldPaint.textAlign = Paint.Align.LEFT
+            return
+        }
+        val bottom = height - 12f * density
         val top = bottom - 58f * density
-        reusableRectF.set(9f * density, top, width - 9f * density, bottom)
+        reusableRectF.set(12f * density, top, width - 12f * density, bottom)
         paint.style = Paint.Style.FILL
-        paint.color = palette.surfaceRaised
-        canvas.drawRoundRect(reusableRectF, Y2UiTheme.PANEL_RADIUS_DP * density, Y2UiTheme.PANEL_RADIUS_DP * density, paint)
-        paint.color = if (state.playback.pauseReason == PauseReason.OUTPUT_DISCONNECTED) palette.warning else palette.accent
-        reusableRectF.set(9f * density, top + 9f * density, 12f * density, bottom - 9f * density)
-        canvas.drawRoundRect(reusableRectF, 1.5f * density, 1.5f * density, paint)
-        iconPainter.draw(canvas, if (state.playback.pauseReason == PauseReason.OUTPUT_DISCONNECTED) Y2Icon.DISCONNECTED else Y2Icon.INFO, 29f * density, top + 29f * density, 19f * density, paint.color)
+        paint.color = colorAtAlpha(MESSAGE_HUD, .94f)
+        canvas.drawRoundRect(reusableRectF, 14f * density, 14f * density, paint)
+        iconPainter.draw(canvas, if (state.playback.pauseReason == PauseReason.OUTPUT_DISCONNECTED) Y2Icon.DISCONNECTED else Y2Icon.INFO,
+            34f * density, top + 29f * density, 19f * density, if (warning) MESSAGE_WARNING else 0xFFFFFFFF.toInt())
         boldPaint.textAlign = Paint.Align.LEFT
         boldPaint.textSize = Y2UiTheme.BODY_SP * density
-        boldPaint.color = palette.primaryText
-        canvas.drawText(cachedMessageTitle, 46f * density, top + 24f * density, boldPaint)
+        boldPaint.color = 0xFFFFFFFF.toInt()
+        canvas.drawText(cachedMessageTitle, 54f * density, top + 25f * density, boldPaint)
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = Y2UiTheme.META_SP * density
-        paint.color = palette.secondaryText
-        canvas.drawText(cachedMessageBody, 46f * density, top + 42f * density, paint)
+        paint.color = 0xFFD1D1D6.toInt()
+        canvas.drawText(cachedMessageBody, 54f * density, top + 44f * density, paint)
     }
 
     private fun drawAlphabetScrubOverlay(canvas: Canvas) {
@@ -2025,7 +2269,6 @@ class Y2PlayerView(
         }
         cachedBatteryPercent = state.device.batteryPercent
         cachedBatteryText = state.device.batteryPercent?.let { "$it%" } ?: ""
-        updateFooterPosition()
         val track = state.playback.currentTrackId?.let(state.library.byId::get)
         cachedNowFavorite = track?.favorite == true
         val nowWidth = nowPlayingTextWidth()
@@ -2085,16 +2328,11 @@ class Y2PlayerView(
         paint.textSize = Y2UiTheme.META_SP * density
         cachedNowSecondary = ellipsize(secondary, nowWidth, paint)
         cachedStatusTag = when (state.playback.status) {
-            PlaybackStatus.PAUSED -> "PAUSED"
-            PlaybackStatus.PREPARING -> "LOADING"
-            PlaybackStatus.ERROR -> "ERROR"
+            PlaybackStatus.PAUSED -> "Paused"
+            PlaybackStatus.PREPARING -> "Loading"
+            PlaybackStatus.ERROR -> "Can't play this track"
             else -> ""
         }
-        val miniTextWidth = (fallbackWidth() - 128f * density).coerceAtLeast(60f * density)
-        boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
-        cachedMiniTitle = if (track == null) "" else ellipsize(track.title, miniTextWidth, boldPaint)
-        paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-        cachedMiniArtist = if (track == null) "" else ellipsize(track.displayArtist, miniTextWidth, paint)
         val paneTextWidth = (fallbackWidth() * .45f - 40f * density).coerceAtLeast(40f * density)
         boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
         cachedPaneTitle = if (track == null) "" else ellipsize(track.title, paneTextWidth, boldPaint)
@@ -2127,6 +2365,30 @@ class Y2PlayerView(
         cachedHomeHint = ellipsize(homeHint, paneTextWidth, paint)
         cachedElapsed = TimeFormat.duration(state.playback.positionMs)
         cachedDuration = TimeFormat.duration(state.playback.durationMs)
+        cachedRemaining = remainingLabel(state.playback.positionMs, state.playback.durationMs)
+        nowPlayingPane = HomePane.nowPlaying(state)
+        val columnWidth = fallbackWidth() - (16f + NOW_ART_DP + 16f + 16f) * density
+        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        val series = track?.audiobookFolderKey?.let { ScreenContent.audiobookEntry(state, it) }
+        val sourceText = when {
+            track == null -> ""
+            series != null && series.chapterCount > 1 -> {
+                val number = series.chapterIds.indexOf(track.id) + 1
+                if (number > 0) "${series.name} · Episode $number of ${series.chapterCount}" else series.name
+            }
+            else -> state.playSource.orEmpty()
+        }
+        cachedNowSource = ellipsize(sourceText, columnWidth, boldPaint)
+        boldPaint.textSize = Y2UiTheme.NOW_TITLE_SP * density
+        cachedNowTitleLines = wrap(track?.title ?: "Nothing playing", columnWidth, boldPaint, 2)
+        paint.textSize = Y2UiTheme.NOW_ARTIST_SP * density
+        // A talk's series is already named above the title, so only the speaker follows it.
+        val nowArtistText = when {
+            track == null -> "Choose something to play"
+            series != null && series.chapterCount > 1 -> track.artist?.trim()?.takeIf { it.isNotEmpty() } ?: series.name
+            else -> HomePane.artistLine(state, track)
+        }
+        cachedNowArtistLines = wrap(nowArtistText, columnWidth, paint, if (cachedNowTitleLines.size > 1) 1 else 2)
         // Room for the battery and route icon, plus the clock when it is shown.
         val availableWidth = fallbackWidth() - (if (state.preferences.showStatusClock) 190f else 130f) * density
         boldPaint.textSize = Y2UiTheme.SCREEN_TITLE_SP * density
@@ -2135,8 +2397,9 @@ class Y2PlayerView(
             else -> ScreenContent.title(state)
         }
         cachedHeaderTitle = ellipsize(headerTitle, availableWidth, boldPaint)
+        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        cachedScreenNote = ScreenContent.note(state)?.let { ellipsize(it, fallbackWidth() - 32f * density, paint) }
         updateDetailCache()
-        updateFooterHint()
         updateMessageCache()
     }
 
@@ -2196,6 +2459,9 @@ class Y2PlayerView(
         cachedDetailTitle2 = ellipsize(title.substring(breakAt).trimStart(), maxWidth, boldPaint)
     }
 
+    private fun remainingLabel(positionMs: Long, durationMs: Long): String =
+        "−" + TimeFormat.duration((durationMs - positionMs).coerceAtLeast(0L))
+
     private fun fallbackWidth(): Float = (width.takeIf { it > 0 } ?: (Y2UiTheme.TARGET_WIDTH_PX * density).toInt()).toFloat()
 
     private fun fallbackHeight(): Float = (height.takeIf { it > 0 } ?: (Y2UiTheme.TARGET_HEIGHT_PX * density).toInt()).toFloat()
@@ -2211,39 +2477,6 @@ class Y2PlayerView(
         } else {
             w - 24f * density
         }
-    }
-
-    private fun updateFooterPosition() {
-        cachedFooterPosition = when {
-            state.currentScreen is Screen.Search && !(state.currentScreen as Screen.Search).resultsFocused ->
-                if ((state.currentScreen as Screen.Search).query.isEmpty()) "" else "${rows.size} found"
-            !isNowPlayingSurface() && rows.isNotEmpty() ->
-                "${state.selectedIndex + 1}/${rows.size}"
-            isNowPlayingSurface() && state.playback.queue.isNotEmpty() ->
-                "${(state.playback.queue.size - 1).coerceAtLeast(0)} next"
-            else -> ""
-        }
-    }
-
-    private fun updateFooterHint() {
-        val hint = when {
-            isNowPlayingSurface() -> ""
-            state.currentScreen is Screen.Search -> if ((state.currentScreen as Screen.Search).resultsFocused) {
-                "WHEEL RESULTS · CENTER OPEN · BACK KEYBOARD"
-            } else {
-                "WHEEL KEYS · CENTER TYPE · TOP DELETE"
-            }
-            state.currentScreen is Screen.QueueMove -> "WHEEL MOVE · CENTER CONFIRM · BACK CANCEL"
-            state.currentScreen == Screen.EqualizerBands -> "WHEEL BAND · CENTER CHOOSE · L/R TRACK"
-            state.currentScreen == Screen.Brightness || state.currentScreen == Screen.ScreenTimeout ||
-                state.currentScreen == Screen.SortOrder -> "WHEEL CHOOSE · CENTER APPLY · L/R TRACK"
-            else -> "WHEEL NAVIGATE · CENTER SELECT · L/R TRACK"
-        }
-        paint.textSize = Y2UiTheme.NAV_LABEL_SP * density
-        paint.textAlign = Paint.Align.RIGHT
-        val positionWidth = if (cachedFooterPosition.isEmpty()) 0f else paint.measureText(cachedFooterPosition) + 20f * density
-        paint.textAlign = Paint.Align.LEFT
-        cachedFooterHint = ellipsize(hint, fallbackWidth() - 20f * density - positionWidth, paint)
     }
 
     private fun updateMessageCache() {
@@ -2278,7 +2511,7 @@ class Y2PlayerView(
             }
         }
         paint.textSize = Y2UiTheme.META_SP * density
-        cachedMessageBody = ellipsize(cachedMessageBody, fallbackWidth() - 64f * density, paint)
+        cachedMessageBody = ellipsize(cachedMessageBody, fallbackWidth() - 74f * density, paint)
     }
 
     private fun friendlyMessage(message: String, fallback: String): String {
@@ -2418,33 +2651,80 @@ class Y2PlayerView(
         return Y2UiLogic.visibleRowCount(availableHeight, rowHeight).coerceAtMost(MAX_VISIBLE_ROWS)
     }
 
+    /** Chooses one row shape for the whole list: one line with values on the right, or two lines. */
+    private fun updateListLayout() {
+        val home = isSplitHome()
+        listLeadingColumn = !home && rows.any { (it as? ScreenRow.Action)?.leading != null }
+        listArtColumn = !home && !listLeadingColumn &&
+            rows.any { it is ScreenRow.TrackRow || it.artworkTrackId != null || it.artworkPath != null }
+        listTwoLine = !home && (listArtColumn || rows.any { row ->
+            val subtitle = row.subtitle ?: return@any false
+            subtitle.length > TRAILING_SUBTITLE_MAX_CHARS && !isChoiceMarker(subtitle)
+        })
+        rowHeight = when {
+            home -> Y2UiTheme.HOME_ROW_HEIGHT_DP
+            listTwoLine -> Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP
+            else -> Y2UiTheme.ROW_HEIGHT_DP
+        } * density
+    }
+
+    private fun isChoiceMarker(subtitle: String): Boolean = subtitle in CHOICE_MARKERS
+
+    private fun isSwitchWord(subtitle: String): Boolean =
+        subtitle == "On" || subtitle == "Off" || subtitle.startsWith("On ·") || subtitle.startsWith("Off ·") ||
+            subtitle == "Shown" || subtitle == "Hidden" || subtitle == "Yes" || subtitle == "No"
+
     private fun refreshVisibleRowCache() {
         val end = (visibleStart + visibleRowCount()).coerceAtMost(rows.size)
         if (cachedRowStart == visibleStart && cachedRowEnd == end) return
         cachedRowStart = visibleStart
         cachedRowEnd = end
-        boldPaint.textSize = Y2UiTheme.ROW_TITLE_SP * density
-        paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        val home = isSplitHome()
+        val textLeft = rowTextLeft()
+        val surfaceRight = rowSurfaceRight()
         for (slot in cachedTitles.indices) {
             if (visibleStart + slot < end) {
                 val row = rows[visibleStart + slot]
                 val active = isActive(row)
-                val trailingText = (row as? ScreenRow.TrackRow)?.track?.durationMs
-                    ?.takeIf { it > 0L }?.let(TimeFormat::duration)
-                val trailingIcon = if (trailingText == null) trailingIconFor(row, active) else null
-                val trailingWidth = when {
-                    trailingText != null -> paint.measureText(trailingText) + 18f * density
-                    trailingIcon != null -> 38f * density
-                    else -> 14f * density
+                val navigation = trailingIconFor(row, active) == Y2Icon.CHEVRON
+                val rawSubtitle = if (home) null else rowSubtitle(row)
+                // A chosen option gets a tick; a switch already says On or Off in words.
+                val choiceMarked = (active || rawSubtitle?.let(::isChoiceMarker) == true) && !navigation && row !is ScreenRow.TrackRow &&
+                    (row as? ScreenRow.Action)?.progress == null && rawSubtitle?.let(::isSwitchWord) != true
+                val subtitle = rawSubtitle?.takeUnless { choiceMarked && isChoiceMarker(it) }
+                val progress = (row as? ScreenRow.Action)?.progress
+                val trailingIcon = when {
+                    progress != null -> null
+                    row is ScreenRow.TrackRow -> if (active) Y2Icon.PLAYING else null
+                    navigation && !home -> Y2Icon.CHEVRON
+                    choiceMarked -> Y2Icon.CHECK
+                    else -> null
                 }
-                val maxWidth = (rowSurfaceRight() - 44f * density - trailingWidth).coerceAtLeast(36f * density)
-                cachedTitleWidths[slot] = boldPaint.measureText(row.title)
+                val trailingText = if (!listTwoLine && subtitle != null) subtitle else null
+                paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                val trailingIconWidth = if (trailingIcon != null || progress != null) 28f * density else 0f
+                val trailingTextWidth = trailingText?.let {
+                    paint.measureText(it).coerceAtMost((surfaceRight - textLeft) * .48f) + 12f * density
+                } ?: 0f
+                val maxWidth = (surfaceRight - 10f * density - trailingIconWidth - trailingTextWidth - textLeft)
+                    .coerceAtLeast(36f * density)
+                val titlePaint = boldOrRegular(listTwoLine)
+                titlePaint.textSize = (if (listTwoLine) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
+                cachedTitleWidths[slot] = titlePaint.measureText(row.title)
                 cachedTitleAvailableWidths[slot] = maxWidth
-                cachedTitles[slot] = ellipsize(row.title, maxWidth, boldPaint)
-                cachedSubtitles[slot] = rowSubtitle(row)?.let { ellipsize(it, maxWidth, paint) }
+                cachedTitles[slot] = ellipsize(row.title, maxWidth, titlePaint)
+                paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                cachedSubtitles[slot] = subtitle?.let {
+                    ellipsize(it, surfaceRight - 10f * density - trailingIconWidth - textLeft, paint)
+                }
+                paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                cachedTrailingText[slot] = trailingText?.let { ellipsize(it, (surfaceRight - textLeft) * .48f, paint) }
+                cachedTrailingAccent[slot] = trailingText != null && choiceMarked
                 cachedIcons[slot] = iconFor(row, active)
-                cachedTrailingText[slot] = trailingText
+                cachedLeadingIcons[slot] = false
                 cachedTrailingIcons[slot] = trailingIcon
+                cachedProgress[slot] = progress
+                cachedLeading[slot] = (row as? ScreenRow.Action)?.leading
                 cachedTrackNumbers[slot] = if (state.currentScreen is Screen.AlbumSongs && row is ScreenRow.TrackRow) {
                     (row.track.trackNumber ?: (visibleStart + slot)).takeIf { it > 0 }?.toString()
                 } else null
@@ -2455,7 +2735,11 @@ class Y2PlayerView(
                 cachedSubtitles[slot] = null
                 cachedIcons[slot] = Y2Icon.INFO
                 cachedTrailingText[slot] = null
+                cachedTrailingAccent[slot] = false
+                cachedLeadingIcons[slot] = false
                 cachedTrailingIcons[slot] = null
+                cachedProgress[slot] = null
+                cachedLeading[slot] = null
                 cachedTrackNumbers[slot] = null
                 cachedTitleWidths[slot] = 0f
                 cachedTitleAvailableWidths[slot] = 0f
@@ -2475,6 +2759,7 @@ class Y2PlayerView(
 
     private fun rowSubtitle(row: ScreenRow): String? = when {
         row !is ScreenRow.TrackRow -> row.subtitle
+        state.currentScreen == Screen.Favorites -> row.track.displayArtist
         state.currentScreen is Screen.AlbumSongs -> null
         state.currentScreen is Screen.ArtistSongs -> row.track.displayAlbum
         (state.currentScreen as? Screen.FacetTracks)?.artist != null -> row.track.displayAlbum
@@ -2554,20 +2839,29 @@ class Y2PlayerView(
         private const val MARQUEE_SPEED_DP_PER_SECOND = 28f
         private const val MARQUEE_FRAME_MS = 100L
         private const val SLEEP_TIMER_REFRESH_MS = 1_000L
-        private const val ROW_ARTWORK_LEFT_DP = 8f
-        private const val ROW_ARTWORK_SIZE_DP = 40f
+        private const val ROW_ARTWORK_SIZE_DP = 38f
+        private const val TRAILING_SUBTITLE_MAX_CHARS = 24
+        private const val HOME_LIST_WIDTH_DP = 252f
+        private val CHOICE_MARKERS = setOf("Active", "Selected", "Current")
         private const val ROW_ARTWORK_SIZE_PX = 64
+        private const val NOW_ART_DP = 184f
+        private const val VOLUME_HOLD_MS = 1_000L
+        private const val MESSAGE_HUD = 0xFF1C1C1E.toInt()
+        private const val MESSAGE_WARNING = 0xFFFF9F0A.toInt()
+        private const val VOLUME_FADE_MS = 300L
         private const val RADIAL_OPEN_MS = 160f
         private const val RADIAL_CLOSE_MS = 120f
         private const val SEARCH_QUERY_HEIGHT_DP = 36f
+        private const val SCREEN_NOTE_HEIGHT_DP = 30f
         // Four 29 dp key rows leave room for two 58 dp search results on the
         // physical 480x360 panel instead of reducing discovery to one row.
         private const val SEARCH_KEYBOARD_HEIGHT_DP = 116f
 
         private const val BATTERY_TEXT_REFERENCE = "100%"
         const val SHARED_ARTWORK_SIZE_PX = 256
+        private const val PANE_ARTWORK_SIZE_PX = 128
         private val NAVIGATION_KEYS = setOf(
-            "now_playing", "main_sleep_timer", "date_time", "clock_set_time", "clock_set_date", "clock_time_zone",
+            "now_playing", "main_sleep_timer", "date_time", "theme", "bedtime", "continue", "clock_set_time", "clock_set_date", "clock_time_zone",
             "music", "audiobooks", "videos", "search", "songs", "albums", "artists", "playlists",
             "folders", "favorites", "recent", "audio", "settings", "output", "sort", "bluetooth",
             "sound_effects", "reset", "extra_track_info",

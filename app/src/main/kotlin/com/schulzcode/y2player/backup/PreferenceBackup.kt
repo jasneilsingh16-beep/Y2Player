@@ -50,7 +50,8 @@ object PreferenceBackup {
         "eq_bands" to value.equalizerBandLevelsMb.joinToString(","),
         "bass_strength" to value.bassStrength.toString(),
         "loudness_gain_mb" to value.loudnessGainMb.toString(),
-        "balance" to value.balance.toString()
+        "balance" to value.balance.toString(),
+        "bedtime_start_hour" to value.bedtimeStartHour.toString()
     )
 
     fun decode(values: Map<String, String>): PlayerPreferencesState {
@@ -137,7 +138,9 @@ object PreferenceBackup {
             equalizerBandLevelsMb = bands,
             bassStrength = member("bass_strength", AppPreferences.BASS_LEVELS),
             loudnessGainMb = member("loudness_gain_mb", AppPreferences.LOUDNESS_LEVELS),
-            balance = integer("balance").also { require(it in -AudioBalance.RANGE..AudioBalance.RANGE) { "Invalid balance" } }
+            balance = integer("balance").also { require(it in -AudioBalance.RANGE..AudioBalance.RANGE) { "Invalid balance" } },
+            bedtimeStartHour = values["bedtime_start_hour"]?.toIntOrNull()
+                ?.also { require(it in AppPreferences.BEDTIME_LEVELS) { "Invalid bedtime_start_hour" } } ?: -1
         )
     }
 
@@ -153,7 +156,7 @@ object PreferenceBackup {
 
     private val OPTIONAL_KEYS = setOf(
         "album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked", "skin_id",
-        "use_24_hour_clock", "show_status_clock"
+        "use_24_hour_clock", "show_status_clock", "bedtime_start_hour"
     )
     private val REQUIRED_KEYS = encode(PlayerPreferencesState()).keys - OPTIONAL_KEYS
 }

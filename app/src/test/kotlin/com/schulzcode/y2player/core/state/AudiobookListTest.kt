@@ -71,7 +71,7 @@ class AudiobookListTest {
         val rows = rows(state(tracks))
         assertEquals(1, rows.size)
         assertEquals("Neuromancer", rows.single().title)
-        assertTrue(rows.single().subtitle!!.startsWith("3 chapters"))
+        assertTrue(rows.single().subtitle!!.contains("3 episodes"))
     }
 
     @Test fun `an author folder shows the book, not the author`() {
@@ -83,7 +83,7 @@ class AudiobookListTest {
         val tracks = listOf(chapter("AUDIOBOOKS/single-file-book.mp3", title = "The Hobbit"))
         val row = rows(state(tracks)).single()
         assertEquals("The Hobbit", row.title)
-        assertEquals("1 chapter · 10 min", row.subtitle)
+        assertEquals("Narrator · 10 min", row.subtitle)
     }
 
     @Test fun `music outside AUDIOBOOKS never appears`() {
@@ -125,58 +125,71 @@ class AudiobookListTest {
 
     // ---- subtitle correctness ----------------------------------------------------
 
-    @Test fun `an unstarted book shows chapter count and total duration`() {
+    @Test fun `an unstarted series shows its episodes and total length`() {
         val tracks = (1..24).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
-        assertEquals("24 chapters · 4 h", rows(state(tracks)).single().subtitle)
+        assertEquals("Narrator · 24 episodes · 4 h", rows(state(tracks)).single().subtitle)
+        assertEquals(RowProgress.UNPLAYED, rows(state(tracks)).single().progress)
     }
 
-    @Test fun `a started book shows chapter position and percent`() {
+    @Test fun `a started series counts the episodes before the current one as played`() {
         val tracks = (1..24).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[7].id, 300_000, 99))
-        assertEquals("Chapter 8 of 24 · 31%", rows(state(tracks, progress)).single().subtitle)
+        val row = rows(state(tracks, progress)).single()
+        assertEquals("Narrator · 7 of 24 played", row.subtitle)
+        assertEquals(0.3125f, row.progress!!.fraction, 0.001f)
     }
 
-    @Test fun `chapter one at zero reads as zero percent`() {
+    @Test fun `episode one at zero still shows a sliver of progress`() {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[0].id, 0, 99))
-        assertEquals("Chapter 1 of 10 · 0%", rows(state(tracks, progress)).single().subtitle)
+        val row = rows(state(tracks, progress)).single()
+        assertEquals("Narrator · 0 of 10 played", row.subtitle)
+        assertTrue("an in-progress ring is never empty", row.progress!!.fraction > 0f)
     }
 
-    @Test fun `the final chapter near its end never exceeds one hundred percent`() {
+    @Test fun `the final episode near its end never exceeds a full ring`() {
         val tracks = (1..3).map { chapter("AUDIOBOOKS/Dune/0$it.mp3") }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[2].id, 599_999, 99))
-        val subtitle = rows(state(tracks, progress)).single().subtitle!!
-        assertTrue(subtitle.endsWith("99%") || subtitle.endsWith("100%"))
+        assertTrue(rows(state(tracks, progress)).single().progress!!.fraction <= 1f)
     }
 
-    @Test fun `a position past the total is clamped, never negative or over one hundred`() {
+    @Test fun `a position past the total is clamped to a full ring`() {
         val tracks = listOf(chapter("AUDIOBOOKS/Dune/01.mp3", durationMs = 1_000))
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[0].id, 9_999_999, 99))
-        assertEquals("Chapter 1 of 1 · 100%", rows(state(tracks, progress)).single().subtitle)
+        val row = rows(state(tracks, progress)).single()
+        assertEquals("Narrator · In progress", row.subtitle)
+        assertEquals(1f, row.progress!!.fraction, 0f)
     }
 
-    @Test fun `an unknown duration drops the percent instead of dividing by zero`() {
+    @Test fun `an unknown duration drops the length instead of dividing by zero`() {
         val tracks = (1..4).map { chapter("AUDIOBOOKS/Dune/0$it.mp3", durationMs = 0) }
-        assertEquals("4 chapters", rows(state(tracks)).single().subtitle)
+        assertEquals("Narrator · 4 episodes", rows(state(tracks)).single().subtitle)
 
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[1].id, 5_000, 99))
-        assertEquals("Chapter 2 of 4", rows(state(tracks, progress)).single().subtitle)
+        val row = rows(state(tracks, progress)).single()
+        assertEquals("Narrator · 1 of 4 played", row.subtitle)
+        assertEquals(0.25f, row.progress!!.fraction, 0.001f)
     }
 
-    @Test fun `one unknown chapter duration suppresses the whole total`() {
+    @Test fun `one unknown episode length suppresses the whole total`() {
         val tracks = listOf(
             chapter("AUDIOBOOKS/Dune/01.mp3", durationMs = 600_000),
             chapter("AUDIOBOOKS/Dune/02.mp3", durationMs = 0)
         )
-        assertEquals("2 chapters", rows(state(tracks)).single().subtitle)
+        assertEquals("Narrator · 2 episodes", rows(state(tracks)).single().subtitle)
     }
 
-    @Test fun `progress naming a deleted chapter falls back to unstarted`() {
+    @Test fun `progress naming a deleted episode falls back to unstarted`() {
         val tracks = (1..5).map { chapter("AUDIOBOOKS/Dune/0$it.mp3") }
         val progress = mapOf(key("Dune") to AudiobookProgress(9_999L, 300_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("5 chapters · 50 min", row.subtitle)
-        assertFalse(row.subtitle!!.contains("Chapter"))
+        assertEquals("Narrator · 5 episodes · 50 min", row.subtitle)
+        assertEquals(RowProgress.UNPLAYED, row.progress)
+    }
+
+    @Test fun `a speaker named like the series is not repeated`() {
+        val tracks = (1..2).map { chapter("Podcasts/Narrator/0$it.mp3") }
+        assertEquals("2 episodes · 20 min", rows(state(tracks)).single().subtitle)
     }
 
     // ---- ordering ----------------------------------------------------------------
@@ -205,35 +218,51 @@ class AudiobookListTest {
 
     // ---- actions -----------------------------------------------------------------
 
-    @Test fun `Confirm resumes at the saved chapter`() {
+    private fun openSeries(state: AppState): Reduction = AppReducer.reduce(state, AppAction.Confirm)
+
+    @Test fun `Confirm opens the series page`() {
+        val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
+        val result = openSeries(state(tracks))
+        assertEquals(Screen.AudiobookChapters(key("Dune")), result.state.currentScreen)
+        assertTrue(result.effects.isEmpty())
+    }
+
+    @Test fun `Continue on the series page resumes at the saved episode`() {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[6].id, 120_000, 99))
-        val result = AppReducer.reduce(state(tracks, progress), AppAction.Confirm)
+        val page = openSeries(state(tracks, progress)).state
+        assertTrue(ScreenContent.rows(page).first().title.startsWith("Continue · "))
+        val result = AppReducer.reduce(page, AppAction.Confirm)
         val effect = result.effects.single() as AppEffect.PlayCollection
         assertEquals(10, effect.trackIds.size)
-        assertEquals("resumes at chapter 7", 6, effect.startIndex)
-        assertFalse("an audiobook must never start shuffled", effect.shuffled)
+        assertEquals("resumes at episode 7", 6, effect.startIndex)
+        assertFalse("a series must never start shuffled", effect.shuffled)
+        assertFalse("it carries on rather than restarting", effect.fromStart)
         assertEquals(Screen.NowPlaying, result.state.currentScreen)
     }
 
-    @Test fun `Confirm on an untouched book starts at chapter one`() {
+    @Test fun `an untouched series starts at episode one`() {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
-        val effect = AppReducer.reduce(state(tracks), AppAction.Confirm).effects.single() as AppEffect.PlayCollection
+        val page = openSeries(state(tracks)).state
+        assertEquals("Play from Episode 1", ScreenContent.rows(page).first().title)
+        val effect = AppReducer.reduce(page, AppAction.Confirm).effects.single() as AppEffect.PlayCollection
         assertEquals(0, effect.startIndex)
     }
 
-    @Test fun `Confirm queues every chapter of that book only`() {
+    @Test fun `playing queues every episode of that series only`() {
         val tracks = (1..3).map { chapter("AUDIOBOOKS/Dune/0$it.mp3") } +
             (1..4).map { chapter("AUDIOBOOKS/Neuromancer/0$it.mp3") }
         val duneRow = rows(state(tracks)).indexOfFirst { it.title == "Dune" }
         val selected = state(tracks).copy(screenStack = listOf(ScreenEntry(Screen.Audiobooks, duneRow)))
-        val effect = AppReducer.reduce(selected, AppAction.Confirm).effects.single() as AppEffect.PlayCollection
+        val page = openSeries(selected).state
+        val effect = AppReducer.reduce(page, AppAction.Confirm).effects.single() as AppEffect.PlayCollection
         assertEquals(3, effect.trackIds.size)
     }
 
-    @Test fun `opening Audiobooks reloads progress once`() {
+    @Test fun `opening Talks and Podcasts reloads progress once`() {
         val home = AppState(library = LibraryState(tracks = listOf(chapter("AUDIOBOOKS/Dune/01.mp3"))))
-        val selected = home.copy(screenStack = listOf(ScreenEntry(Screen.MainMenu, 1)))
+        val talks = ScreenContent.rows(home).indexOfFirst { (it as? ScreenRow.Action)?.key == "audiobooks" }
+        val selected = home.copy(screenStack = listOf(ScreenEntry(Screen.MainMenu, talks)))
         val result = AppReducer.reduce(selected, AppAction.Confirm)
         assertEquals(Screen.Audiobooks, result.state.currentScreen)
         assertEquals(AppEffect.RefreshAudiobooks, result.effects.single())
@@ -254,7 +283,7 @@ class AudiobookListTest {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[4].id, 60_000, 99))
         val before = state(tracks, progress)
-        assertTrue(rows(before).single().subtitle!!.contains("Chapter 5 of 10"))
+        assertTrue(rows(before).single().subtitle!!.contains("4 of 10 played"))
 
         // What a scan produces: a new index and bumped revisions, everything else carried.
         val rescanned = before.copy(
@@ -265,8 +294,8 @@ class AudiobookListTest {
             )
         )
         assertTrue(
-            "a rescan must not reset the book to unstarted",
-            rows(rescanned).single().subtitle!!.contains("Chapter 5 of 10")
+            "a rescan must not reset the series to unstarted",
+            rows(rescanned).single().subtitle!!.contains("4 of 10 played")
         )
     }
 
@@ -279,8 +308,9 @@ class AudiobookListTest {
                 index = com.schulzcode.y2player.core.model.LibraryIndex.of(tracks)
             ))
         }
-        val effect = AppReducer.reduce(rescanned, AppAction.Confirm).effects.single() as AppEffect.PlayCollection
-        assertEquals("must still resume at chapter 5", 4, effect.startIndex)
+        val page = openSeries(rescanned).state
+        val effect = AppReducer.reduce(page, AppAction.Confirm).effects.single() as AppEffect.PlayCollection
+        assertEquals("must still resume at episode 5", 4, effect.startIndex)
     }
 
     // ---- cost --------------------------------------------------------------------
@@ -324,14 +354,14 @@ class AudiobookListTest {
         val tracks = (1..4).map { chapter("AUDIOBOOKS/Dune/0$it.mp3") }
         val before = state(tracks)
         assertFalse(
-            "an untouched book must not claim a chapter position",
-            (ScreenContent.rows(before).single() as ScreenRow.Action).subtitle!!.contains("Chapter")
+            "an untouched series must not claim progress",
+            (ScreenContent.rows(before).single() as ScreenRow.Action).subtitle!!.contains("played")
         )
 
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[2].id, 0, 5))
         val after = before.copy(library = before.library.copy(revision = 1, audiobookProgress = progress))
         val row = ScreenContent.rows(after).single() as ScreenRow.Action
         assertNotNull(row.subtitle)
-        assertTrue("progress must invalidate the cached rows", row.subtitle!!.contains("Chapter 3 of 4"))
+        assertTrue("progress must invalidate the cached rows", row.subtitle!!.contains("2 of 4 played"))
     }
 }

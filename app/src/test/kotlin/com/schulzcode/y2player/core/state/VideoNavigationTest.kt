@@ -27,7 +27,7 @@ class VideoNavigationTest {
         val index = ScreenContent.rows(menu).indexOfFirst { (it as ScreenRow.Action).key == "videos" }
         val result = AppReducer.reduce(select(menu, index), AppAction.Confirm)
         assertEquals(Screen.Videos(), result.state.currentScreen)
-        assertEquals(listOf<AppEffect>(AppEffect.LoadVideos(null)), result.effects)
+        assertEquals(listOf(AppEffect.LoadVideos(null), AppEffect.RefreshVideoProgress), result.effects)
         return result.state
     }
 

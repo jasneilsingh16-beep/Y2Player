@@ -118,17 +118,33 @@ class NavigationCorrectnessTest {
         assertEquals(1, state.screenStack.count { it.screen == Screen.NowPlaying })
     }
 
-    @Test fun `short Confirm on Now Playing only keeps the display active`() {
+    @Test fun `Centre on Now Playing steps into the tiles and Back steps out`() {
         val state = AppState(
             screenStack = listOf(ScreenEntry(Screen.MainMenu), ScreenEntry(Screen.NowPlaying)),
             library = library,
             playback = playing
         )
 
-        val result = AppReducer.reduce(state, AppAction.Confirm)
+        val volume = AppReducer.reduce(state, AppAction.WheelMoved(1))
+        assertEquals("the wheel is volume until Centre", AppEffect.AdjustVolume(1), volume.effects.single())
 
-        assertEquals(state, result.state)
-        assertTrue(result.effects.isEmpty())
+        val tiles = AppReducer.reduce(state, AppAction.Confirm)
+        assertEquals(1, tiles.state.selectedIndex)
+        assertTrue(tiles.effects.isEmpty())
+
+        val moved = AppReducer.reduce(tiles.state, AppAction.WheelMoved(1))
+        assertEquals("then it moves between tiles", 2, moved.state.selectedIndex)
+        assertTrue(moved.effects.isEmpty())
+        assertEquals("a fast spin still moves one tile at a time", 3,
+            AppReducer.reduce(moved.state, AppAction.WheelMoved(9)).state.selectedIndex)
+        assertEquals(1, AppReducer.reduce(tiles.state, AppAction.WheelMoved(-1)).state.selectedIndex)
+
+        val repeat = AppReducer.reduce(moved.state, AppAction.Confirm)
+        assertEquals(AppEffect.CycleRepeat, repeat.effects.single())
+
+        val back = AppReducer.reduce(moved.state, AppAction.Back)
+        assertEquals(Screen.NowPlaying, back.state.currentScreen)
+        assertEquals("Back first returns the wheel to volume", 0, back.state.selectedIndex)
     }
 
     @Test fun `media Play Pause still controls playback from Now Playing`() {

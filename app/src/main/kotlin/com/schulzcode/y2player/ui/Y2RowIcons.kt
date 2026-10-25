@@ -61,6 +61,9 @@ object Y2RowIcons {
         "videos" -> Y2Icon.VIDEO
         "fm_radio", "show_fm_radio" -> Y2Icon.SPEAKER
         "now_playing" -> Y2Icon.PLAYING
+        "continue" -> Y2Icon.PLAY
+        "np_volume" -> Y2Icon.VOLUME
+        "bedtime" -> Y2Icon.MOON
         "settings" -> Y2Icon.SETTINGS
 
         "songs", "artist_all_songs" -> Y2Icon.SONG
@@ -174,6 +177,15 @@ object Y2RowIcons {
         key.startsWith("clock_zone:") -> Y2Icon.SYSTEM
         key.startsWith("clock_") -> Y2Icon.TIMER
         key.startsWith("video_continue:") -> Y2Icon.PLAYING
+        key.startsWith("nitnem:") -> Y2Icon.PLAYLIST
+        key.startsWith("bedtime:") -> Y2Icon.MOON
+        key.startsWith("talk_collection:") -> Y2Icon.FOLDER
+        key.startsWith("talk_resume:") -> Y2Icon.PLAY
+        key.startsWith("talk_episode:") -> Y2Icon.SONG
+        key.startsWith("talk_restart:") -> Y2Icon.REFRESH
+        key.startsWith("talk_clear:") -> Y2Icon.REMOVE
+        key.startsWith("continue_talk:") -> Y2Icon.BOOK
+        key.startsWith("continue_video:") -> Y2Icon.VIDEO
         key.startsWith("eq_band:") || key.startsWith("eq_preset:") || key.startsWith("eq_level:") -> Y2Icon.EQUALIZER
         key.startsWith("search_track:") -> Y2Icon.MUSIC
         key.startsWith("search_album:") -> Y2Icon.ALBUM

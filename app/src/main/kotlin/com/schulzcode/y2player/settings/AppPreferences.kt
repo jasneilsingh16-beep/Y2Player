@@ -60,7 +60,8 @@ class AppPreferences(context: Context) {
         equalizerBandLevelsMb = decodeLevels(string(KEY_EQ_BANDS, null)),
         bassStrength = integer(KEY_BASS_STRENGTH, 0).coerceIn(0, 1_000),
         loudnessGainMb = integer(KEY_LOUDNESS_GAIN, 0).coerceIn(0, 300),
-        balance = AudioBalance.clamp(integer(KEY_BALANCE, AudioBalance.CENTRE))
+        balance = AudioBalance.clamp(integer(KEY_BALANCE, AudioBalance.CENTRE)),
+        bedtimeStartHour = integer(KEY_BEDTIME_START, -1).takeIf { it in BEDTIME_LEVELS } ?: -1
     )
 
     fun toggleUiSoundEffects() = updateBoolean(KEY_UI_SOUND_EFFECTS, !snapshot().uiSoundEffectsEnabled)
@@ -70,6 +71,7 @@ class AppPreferences(context: Context) {
     fun toggleShowFmRadio() = updateBoolean(KEY_SHOW_FM_RADIO, !snapshot().showFmRadio)
     fun toggle24HourClock() = updateBoolean(KEY_24_HOUR_CLOCK, !snapshot().use24HourClock)
     fun toggleStatusClock() = updateBoolean(KEY_STATUS_CLOCK, !snapshot().showStatusClock)
+    fun setBedtime(startHour: Int) = commit { putInt(KEY_BEDTIME_START, startHour.takeIf { it in BEDTIME_LEVELS } ?: -1) }
     fun setSkin(id: String) = commit {
         require(com.schulzcode.y2player.skin.SkinIds.valid(id))
         putString(KEY_SKIN_ID, id)
@@ -198,6 +200,7 @@ class AppPreferences(context: Context) {
             putInt(KEY_BASS_STRENGTH, value.bassStrength)
             putInt(KEY_LOUDNESS_GAIN, value.loudnessGainMb)
             putInt(KEY_BALANCE, value.balance)
+            putInt(KEY_BEDTIME_START, value.bedtimeStartHour)
         }.commit()
         if (committed) cached = value
         return committed
@@ -247,6 +250,9 @@ class AppPreferences(context: Context) {
         private const val KEY_SHOW_FM_RADIO = "show_fm_radio"
         private const val KEY_24_HOUR_CLOCK = "use_24_hour_clock"
         private const val KEY_STATUS_CLOCK = "show_status_clock"
+        private const val KEY_BEDTIME_START = "bedtime_start_hour"
+        /** Off, then 8, 9, 10 or 11 pm, each running to 6 am. */
+        val BEDTIME_LEVELS = listOf(-1, 20, 21, 22, 23)
         private const val KEY_SKIN_ID = "skin_id"
         private const val KEY_LIGHT_THEME = "light_theme"
         private const val KEY_SCREEN_OFF_KEYS = "screen_off_keys"

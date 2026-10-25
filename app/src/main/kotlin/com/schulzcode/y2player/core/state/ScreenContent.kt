@@ -39,7 +39,11 @@ sealed interface ScreenRow {
         override val subtitle: String? = null,
         val key: String,
         override val artworkTrackId: Long? = null,
-        override val artworkPath: String? = null
+        override val artworkPath: String? = null,
+        /** Drawn as a ring on the right: how far through, or a tick once played. */
+        val progress: RowProgress? = null,
+        /** A short label in its own column on the left, such as an episode number. */
+        val leading: String? = null
     ) : ScreenRow
     data class TrackRow(
         val track: Track,
@@ -68,7 +72,6 @@ sealed interface ScreenRow {
             ) {
                 append(" · not playable")
             }
-            if (track.favorite) append(" · ★")
         }
     }
     data class Group(
@@ -83,6 +86,13 @@ sealed interface ScreenRow {
     }
 }
 
+data class RowProgress(val fraction: Float, val played: Boolean = false) {
+    companion object {
+        val UNPLAYED = RowProgress(0f)
+        val PLAYED = RowProgress(1f, played = true)
+    }
+}
+
 sealed interface ScreenGroupTarget {
     data class Album(val key: AlbumKey) : ScreenGroupTarget
     data class Artist(val name: String) : ScreenGroupTarget
@@ -91,23 +101,25 @@ sealed interface ScreenGroupTarget {
 
 object ScreenContent {
     fun title(state: AppState): String = when (val screen = state.currentScreen) {
-        Screen.MainMenu -> "Y2 Player"
+        Screen.MainMenu -> "Home"
         is Screen.Videos -> screen.path?.let { java.io.File(it).name } ?: "Videos"
         is Screen.Search -> "Search"
         Screen.Music -> "Music"
         Screen.FmRadio -> "FM Radio"
-        Screen.Audiobooks -> "Audiobooks"
-        is Screen.AudiobookOptions -> audiobookName(state, screen.folderKey) ?: "Book"
-        is Screen.AudiobookChapters -> "Chapters"
+        Screen.Audiobooks -> "Talks & Podcasts"
+        is Screen.AudiobookOptions -> audiobookName(state, screen.folderKey) ?: "Series"
+        is Screen.AudiobookChapters -> audiobookName(state, screen.folderKey) ?: "Episodes"
+        is Screen.TalkCollection -> screen.path.substringAfterLast('/').substringAfter('|')
+        Screen.Continue -> "Continue"
         Screen.Songs -> "Songs"
         Screen.Favorites -> "Favourites"
         Screen.RecentlyPlayed -> "Recently Played"
         Screen.Albums -> "Albums"
         is Screen.AlbumSongs -> "Album"
-        Screen.Artists -> "Artists"
+        Screen.Artists -> "Ragis & Speakers"
         is Screen.ArtistAlbums -> screen.artist
         is Screen.ArtistSongs -> "Artist"
-        Screen.Genres -> "Genres"
+        Screen.Genres -> "Categories"
         Screen.Years -> "Years"
         is Screen.FacetMenu -> screen.scope.label
         is Screen.FacetArtists -> "${screen.scope.label} Artists"
@@ -132,7 +144,7 @@ object ScreenContent {
         Screen.NowPlayingOptions -> "Playback Options"
         Screen.SleepTimer -> "Sleep Timer"
         Screen.Queue -> "Queue"
-        Screen.Audio -> "Audio"
+        Screen.Audio -> "Sound"
         Screen.Settings -> "Settings"
         Screen.PlaybackTransitions -> "Transitions"
         Screen.PlaybackSeeking -> "Seeking"
@@ -161,6 +173,7 @@ object ScreenContent {
         Screen.Brightness -> "Brightness"
         Screen.ScreenTimeout -> "Screen Timeout"
         Screen.DateTime -> "Date & Time"
+        Screen.Bedtime -> "Bedtime"
         Screen.ClockHour -> "Set Time"
         is Screen.ClockMinute -> ClockPresentation.hourLabel(screen.hour, state.preferences.use24HourClock)
         Screen.ClockYear -> "Set Date"
@@ -201,8 +214,8 @@ object ScreenContent {
 
     private fun contentRevision(state: AppState): Long = when (state.currentScreen) {
         is Screen.Search -> state.library.revision
-        Screen.RecentlyPlayed, Screen.Playlists, is Screen.PlaylistTracks,
-        Screen.Audiobooks -> state.library.revision
+        Screen.RecentlyPlayed, Screen.Playlists, is Screen.PlaylistTracks, Screen.Favorites,
+        Screen.Audiobooks, is Screen.AudiobookChapters, is Screen.TalkCollection -> state.library.revision
         else -> state.library.tracksRevision
     }
 
@@ -212,10 +225,12 @@ object ScreenContent {
         Screen.FmRadio -> emptyList()
         is Screen.Search -> searchRows(state)
         Screen.Music -> musicRows(state)
-        Screen.Audiobooks -> audiobookRows(state)
+        Screen.Audiobooks -> TalksContent.rows(state)
+        is Screen.TalkCollection -> TalksContent.rows(state, screen.path)
+        Screen.Continue -> TalksContent.continueRows(state)
         is Screen.Videos -> videoRows(state, screen)
         is Screen.AudiobookOptions -> audiobookOptionRows(state, screen.folderKey)
-        is Screen.AudiobookChapters -> audiobookChapterRows(state, screen.folderKey)
+        is Screen.AudiobookChapters -> TalksContent.episodeRows(state, screen.folderKey)
         Screen.Songs -> collectionRows(state.library.index.organization.sortTracks(
             state.library.musicTracks, state.preferences.sortOrder
         ))
@@ -246,7 +261,7 @@ object ScreenContent {
         is Screen.QueueMove -> queueMoveRows(state, screen)
         Screen.QueueManagement -> queueManagementRows(state)
         Screen.Queue -> queueRows(state)
-        Screen.NowPlaying -> emptyList()
+        Screen.NowPlaying -> nowPlayingTiles(state)
         Screen.NowPlayingOptions -> nowPlayingOptionsRows(state)
         Screen.SleepTimer -> sleepTimerRows(state)
         Screen.Audio -> audioRows(state)
@@ -277,6 +292,7 @@ object ScreenContent {
         Screen.Brightness -> brightnessRows(state)
         Screen.ScreenTimeout -> timeoutRows(state)
         Screen.DateTime -> dateTimeRows(state)
+        Screen.Bedtime -> bedtimeRows(state)
         Screen.ClockHour -> clockHourRows(state)
         is Screen.ClockMinute -> clockMinuteRows(state, screen.hour)
         Screen.ClockYear -> clockYearRows()
@@ -333,38 +349,46 @@ object ScreenContent {
         else -> false
     }
 
-    // While something is loaded, Now Playing leads, as on an iPod, so the wheel can
-    // always get back to it (before, only holding Play/Pause could), and Sleep Timer
-    // joins the list. Idle, the five destinations still fit the split home without scrolling.
+    // Now Playing leads while something is loaded, so the wheel can always get back
+    // to it, then Continue for anything left part-way. Favourites and Nitnem sit
+    // at the top because they are what is played most.
     private fun mainMenuRows(state: AppState): List<ScreenRow> = buildList {
         val track = state.playback.currentTrackId?.let(state.library.byId::get)
         if (track != null) {
             add(ScreenRow.Action("Now Playing", "${track.title} · ${track.displayArtist}", NOW_PLAYING_KEY, track.id))
         }
-        add(ScreenRow.Action("Music", "Songs, albums, artists and playlists", "music"))
-        add(ScreenRow.Action("Audiobooks", audiobookMenuSubtitle(state), "audiobooks"))
-        add(ScreenRow.Action("Videos", "Films and shows", "videos"))
-        if (state.preferences.showFmRadio) {
-            add(ScreenRow.Action("FM Radio", "Tune the built-in tuner", "fm_radio"))
+        val continuing = TalksContent.continueItems(state)
+        if (continuing.isNotEmpty()) {
+            add(ScreenRow.Action("Continue", "${continuing.size} in progress", CONTINUE_KEY))
         }
-        add(ScreenRow.Action("Search", "Find anything on this device", "search"))
+        add(ScreenRow.Action("Favourites", trackCountLabel(state.library.favoriteMusicTracks.size), "favorites"))
+        nitnemPlaylist(state)?.let { playlist ->
+            add(ScreenRow.Action(playlist.name, null, NITNEM_KEY + playlist.id))
+        }
+        add(ScreenRow.Action("Music", null, "music"))
+        add(ScreenRow.Action("Talks & Podcasts", audiobookMenuSubtitle(state), "audiobooks"))
+        add(ScreenRow.Action("Videos", null, "videos"))
+        if (state.preferences.showFmRadio) {
+            add(ScreenRow.Action("FM Radio", null, "fm_radio"))
+        }
         if (track != null || state.playback.sleepTimerMode != SleepTimerMode.OFF) {
             add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), MAIN_SLEEP_TIMER_KEY))
         }
-        add(ScreenRow.Action(
-            "Settings",
-            if (state.safeMode) "SAFE MODE" else "Bluetooth, audio, display and more",
-            "settings"
-        ))
+        add(ScreenRow.Action("Search", null, "search"))
+        add(ScreenRow.Action("Settings", if (state.safeMode) "SAFE MODE" else null, "settings"))
     }
 
+    /** The playlist named Nitnem, which Home offers by name. */
+    internal fun nitnemPlaylist(state: AppState): com.schulzcode.y2player.core.model.PlaylistSummary? =
+        state.library.playlists.firstOrNull { it.name.trim().equals("Nitnem", ignoreCase = true) }
+
     private fun audiobookMenuSubtitle(state: AppState): String {
-        val books = audiobookEntries(state)
-        books.firstOrNull { it.chapterNumber != null }?.let { return "Continue ${it.name}" }
-        return when (books.size) {
-            0 -> "Put books in an AUDIOBOOKS folder"
-            1 -> "1 book"
-            else -> "${books.size} books"
+        val series = audiobookEntries(state)
+        val active = series.count { it.inProgress }
+        return when {
+            series.isEmpty() -> "Nothing yet"
+            active > 0 -> "$active in progress"
+            else -> "${series.size} series"
         }
     }
 
@@ -378,20 +402,32 @@ object ScreenContent {
                     item.title, videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
                     artworkPath = item.artworkPath
                 )
-                VideoItemKind.CONTINUE -> ScreenRow.Action(
-                    "Continue Watching",
-                    "${item.title} · ${TimeFormat.duration(item.resumeMs)}",
-                    VIDEO_CONTINUE_KEY + item.path
-                )
-                VideoItemKind.VIDEO -> ScreenRow.Action(
-                    item.title,
-                    when {
-                        item.resumeMs > 0 -> "Resume at ${TimeFormat.duration(item.resumeMs)}"
-                        item.watched -> "Watched"
-                        else -> videoSizeLabel(item.sizeBytes)
-                    },
-                    VIDEO_KEY + item.path
-                )
+                VideoItemKind.CONTINUE -> {
+                    val progress = state.videos.inProgress.firstOrNull { it.path == item.path }
+                    ScreenRow.Action(
+                        "Continue Watching",
+                        listOfNotNull(item.title, progress?.let(TalksContent::videoLeft)).joinToString(" · "),
+                        VIDEO_CONTINUE_KEY + item.path,
+                        progress = progress?.let { RowProgress(it.fraction.coerceAtLeast(.03f)) } ?: RowProgress(.03f)
+                    )
+                }
+                VideoItemKind.VIDEO -> {
+                    val progress = state.videos.inProgress.firstOrNull { it.path == item.path }
+                    ScreenRow.Action(
+                        item.title,
+                        when {
+                            item.resumeMs > 0 -> progress?.let(TalksContent::videoLeft) ?: "Resume at ${TimeFormat.duration(item.resumeMs)}"
+                            item.watched -> "Watched"
+                            else -> videoSizeLabel(item.sizeBytes)
+                        },
+                        VIDEO_KEY + item.path,
+                        progress = when {
+                            item.resumeMs > 0 -> RowProgress((progress?.fraction ?: 0f).coerceAtLeast(.03f))
+                            item.watched -> RowProgress.PLAYED
+                            else -> null
+                        }
+                    )
+                }
             }
         }
 
@@ -412,7 +448,7 @@ object ScreenContent {
         when (result) {
             is DeviceSearchResult.TrackResult -> ScreenRow.Action(
                 result.title,
-                if (result.track.isAudiobookChapter) "Audiobook chapter · ${result.track.displayArtist}"
+                if (result.track.isAudiobookChapter) "Talk · ${result.track.displayArtist}"
                 else "Song · ${result.track.displayArtist}",
                 "search_track:$index",
                 result.track.id
@@ -427,7 +463,7 @@ object ScreenContent {
                 result.title, "Playlist · ${trackCountLabel(result.trackCount)}", "search_playlist:$index"
             )
             is DeviceSearchResult.AudiobookResult -> ScreenRow.Action(
-                result.title, "Audiobook", "search_audiobook:$index", result.artworkTrackId
+                result.title, "Talks & Podcasts", "search_audiobook:$index", result.artworkTrackId
             )
         }
     }
@@ -468,7 +504,6 @@ object ScreenContent {
             Screen.Playlists -> (row as? ScreenRow.Action)?.key?.takeIf { it.startsWith("playlist:") }
                 ?.substringAfter(':')?.toLongOrNull()?.let { playlistId ->
                     row.title to state.library.playlistTrackIds[playlistId].orEmpty().mapNotNull(state.library.byId::get)
-                        .filterNot(Track::isAudiobookChapter)
                 }
             is Screen.Folders -> (row as? ScreenRow.Folder)?.let { folder ->
                 val prefix = folder.relativePath.trim('/').let { if (it.isEmpty()) "" else "$it/" }
@@ -483,17 +518,29 @@ object ScreenContent {
     }
 
     private fun musicRows(state: AppState): List<ScreenRow> = listOf(
-        ScreenRow.Action("Shuffle All", "Every track in random order", "shuffle_all"),
+        ScreenRow.Action("Shuffle All", trackCountLabel(state.library.musicTracks.size), "shuffle_all"),
         ScreenRow.Action("Songs", null, "songs"),
+        ScreenRow.Action("Ragis & Speakers", null, "artists"),
+        ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Albums", null, "albums"),
-        ScreenRow.Action("Artists", null, "artists"),
-        ScreenRow.Action("Genres", null, "genres"),
-        ScreenRow.Action("Years", null, "years"),
-        ScreenRow.Action("Playlists", null, "playlists"),
-        ScreenRow.Action("Favourites", trackCountLabel(state.library.favoriteMusicTracks.size), "favorites"),
-        ScreenRow.Action("Recently Played", trackCountLabel(state.library.recentlyPlayedMusic.size), "recent"),
+        ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
+        ScreenRow.Action("Recently Played", null, "recent"),
         ScreenRow.Action("Folders", null, "folders")
     )
+
+    /** "Nitnem, Kirtan, Katha…": the categories with the most tracks. */
+    private fun categoriesSummary(state: AppState): String? {
+        val genres = state.library.index.organization.genres().filter { it.key != "" && it.label != "Unknown Genre" }
+        if (genres.isEmpty()) return null
+        val names = genres.sortedByDescending { it.tracks.size }.map { it.label }
+        val shown = ArrayList<String>(3)
+        for (name in names) {
+            if (shown.size == 3 || (shown + name).joinToString(", ").length > 20) break
+            shown += name
+        }
+        if (shown.isEmpty()) return "${genres.size}"
+        return shown.joinToString(", ") + if (shown.size < names.size) "…" else ""
+    }
 
     private fun audiobookRows(state: AppState): List<ScreenRow> =
         audiobookEntries(state).map {
@@ -510,18 +557,13 @@ object ScreenContent {
 
     private fun audiobookOptionRows(state: AppState, folderKey: String): List<ScreenRow> {
         val entry = audiobookEntry(state, folderKey)
-            ?: return listOf(ScreenRow.Group("Book unavailable", "Its files are no longer on the card", "missing"))
+            ?: return listOf(ScreenRow.Group("Series unavailable", "Its files are no longer on the card", "missing"))
         return buildList {
-            add(ScreenRow.Action("Chapters", audiobookSubtitle(entry), "$AUDIOBOOK_CHAPTERS_KEY$folderKey"))
-            add(ScreenRow.Action("Start from Beginning", "Chapter 1", "$AUDIOBOOK_RESTART_KEY$folderKey"))
-            if (entry.chapterNumber != null) {
-                add(
-                    ScreenRow.Action(
-                        "Clear Progress",
-                        "Forget chapter ${entry.chapterNumber}",
-                        "$AUDIOBOOK_CLEAR_KEY$folderKey"
-                    )
-                )
+            add(ScreenRow.Action("Episodes", TalksContent.seriesDetail(entry), "$AUDIOBOOK_CHAPTERS_KEY$folderKey"))
+            add(ScreenRow.Action("Start Over", if (entry.chapterCount > 1) "Episode 1" else "From the beginning",
+                "$AUDIOBOOK_RESTART_KEY$folderKey"))
+            if (entry.inProgress) {
+                add(ScreenRow.Action("Mark All Unplayed", "Forget where you are", "$AUDIOBOOK_CLEAR_KEY$folderKey"))
             }
         }
     }
@@ -539,16 +581,19 @@ object ScreenContent {
     internal fun audiobookEntries(state: AppState): List<AudiobookEntry> {
         val revision = state.library.revision
         val identity = System.identityHashCode(state.library.index)
-        if (cachedBookRevision == revision && cachedBookIdentity == identity) return cachedBooks
+        val progress = state.library.audiobookProgress
+        if (cachedBookRevision == revision && cachedBookIdentity == identity && cachedBookProgress === progress) return cachedBooks
         val entries = buildAudiobookEntries(state)
         cachedBookRevision = revision
         cachedBookIdentity = identity
+        cachedBookProgress = progress
         cachedBooks = entries
         return entries
     }
 
     private var cachedBookRevision = Long.MIN_VALUE
     private var cachedBookIdentity = 0
+    private var cachedBookProgress: Map<String, com.schulzcode.y2player.core.model.AudiobookProgress>? = null
     private var cachedBooks: List<AudiobookEntry> = emptyList()
 
     private fun buildAudiobookEntries(state: AppState): List<AudiobookEntry> {
@@ -576,9 +621,13 @@ object ScreenContent {
             }
             // A book directly under AUDIOBOOKS keys on its own filename, so it is named
             // from the tag. A folder holding one chapter is still named after the folder.
-            val lastSegment = key.substringAfterLast('/')
+            val lastSegment = key.substringAfterLast('/').substringAfter('|')
             val looseFile = ordered.size == 1 &&
                 ordered.first().relativePath.substringAfterLast('/') == lastSegment
+            val firstArtist = ordered.first().artist?.trim()?.takeIf { it.isNotEmpty() }
+            val sharedArtist = firstArtist?.takeIf { artist -> ordered.all { it.artist?.trim() == artist } }
+                // "Basics of Sikhi" inside the Basics of Sikhi folder says nothing new.
+                ?.takeUnless { artist -> key.split('/', '|').any { it.equals(artist, ignoreCase = true) } }
             entries.add(
                 AudiobookEntry(
                     folderKey = key,
@@ -589,7 +638,9 @@ object ScreenContent {
                     chapterNumber = if (index >= 0) index + 1 else null,
                     startIndex = index.coerceAtLeast(0),
                     listenedMs = listened,
-                    updatedAt = if (index >= 0) progress?.updatedAt ?: 0L else 0L
+                    updatedAt = if (index >= 0) progress?.updatedAt ?: 0L else 0L,
+                    positionMs = if (index >= 0) progress?.positionMs ?: 0L else 0L,
+                    artist = sharedArtist?.takeUnless { it.equals(lastSegment, ignoreCase = true) }
                 )
             )
         }
@@ -624,7 +675,7 @@ object ScreenContent {
             var visibleCount = 0
             var artworkTrackId: Long? = null
             storedIds.orEmpty().forEach { id ->
-                if (state.library.byId[id]?.isAudiobookChapter != true) {
+                if (state.library.byId[id] != null) {
                     visibleCount += 1
                     if (artworkTrackId == null) artworkTrackId = id
                 }
@@ -642,8 +693,8 @@ object ScreenContent {
     private fun playlistTrackRows(state: AppState, screen: Screen.PlaylistTracks): List<ScreenRow> = buildList {
         val tracks = state.library.playlistTrackIds[screen.playlistId].orEmpty()
             .mapNotNull(state.library.byId::get)
-            .filterNot(Track::isAudiobookChapter)
-        if (tracks.isEmpty()) add(ScreenRow.Group("Playlist is empty", "Add tracks from Track Options", "playlist_empty"))
+        if (tracks.isEmpty()) add(ScreenRow.Group("Playlist is empty", "Hold Centre on a track, then Add to Playlist", "playlist_empty"))
+        else if (screen.name.trim().equals("Nitnem", ignoreCase = true)) tracks.forEach { add(ScreenRow.TrackRow(it)) }
         else collectionRows(tracks).forEach(::add)
         add(ScreenRow.Action("Delete Playlist", "Removes this playlist, not its music", "playlist_delete:${screen.playlistId}"))
     }
@@ -670,18 +721,21 @@ object ScreenContent {
         val trackId = screen.trackId
         val track = state.library.byId[trackId] ?: return listOf(ScreenRow.Group("Track unavailable", null, "missing"))
         return buildList {
-            if (!screen.fromNowPlaying && !track.isAudiobookChapter) {
+            if (!screen.fromNowPlaying) {
                 add(ScreenRow.Action("Play Next", null, "track_next:$trackId"))
-                add(ScreenRow.Action("Add to Queue", null, "track_queue:$trackId"))
-                add(ScreenRow.Action("Favourite", onOff(track.favorite), "track_favorite:$trackId"))
-                add(ScreenRow.Action("Add to Playlist", null, "track_playlist:$trackId"))
-                add(ScreenRow.Action("Select Multiple", "Build a batch with Centre", "track_multi:$trackId"))
+                add(ScreenRow.Action("Add to Up Next", null, "track_queue:$trackId"))
             }
+            add(ScreenRow.Action("Favourite", onOff(track.favorite), "track_favorite:$trackId"))
+            add(ScreenRow.Action("Add to Playlist", null, "track_playlist:$trackId"))
             screen.sourcePlaylistId?.let { playlistId ->
-                add(ScreenRow.Action("Remove from Playlist", "The music file is kept", "track_remove_playlist:$playlistId:$trackId"))
+                add(ScreenRow.Action("Remove from Playlist", null, "track_remove_playlist:$playlistId:$trackId"))
             }
-            add(ScreenRow.Action("Browse Track", "Album and artist", "track_browse:$trackId"))
-            add(ScreenRow.Action("Track Details", "Format and location", "track_details:$trackId"))
+            if (!track.isAudiobookChapter) {
+                add(ScreenRow.Action("Go to ${track.primaryArtist}", null, "track_artist:$trackId"))
+                add(ScreenRow.Action("Go to Album", track.displayAlbum, "track_album:$trackId"))
+            }
+            if (!screen.fromNowPlaying) add(ScreenRow.Action("Select Several", null, "track_multi:$trackId"))
+            add(ScreenRow.Action("Details", null, "track_details:$trackId"))
         }
     }
 
@@ -709,7 +763,7 @@ object ScreenContent {
         add(ScreenRow.Action("New Playlist", null, "playlist_create_and_add"))
         state.library.playlists.forEach { playlist ->
             val artworkTrackId = state.library.playlistTrackIds[playlist.id].orEmpty().firstOrNull { id ->
-                state.library.byId[id]?.isAudiobookChapter != true
+                state.library.byId[id] != null
             }
             add(ScreenRow.Action(
                 playlist.name,
@@ -832,32 +886,79 @@ object ScreenContent {
         }
     }
 
+    /**
+     * Now Playing's four tiles, after a first row that stands for "no tile": the
+     * wheel changes volume there, and Centre steps down into the tiles.
+     */
+    internal fun nowPlayingTiles(state: AppState): List<ScreenRow> {
+        val track = state.playback.currentTrackId?.let(state.library.byId::get)
+        val series = track?.audiobookFolderKey?.let { audiobookEntry(state, it) }
+        return listOf(
+            ScreenRow.Action("Volume", null, NP_VOLUME_KEY),
+            if (series != null && series.chapterCount > 1) {
+                val number = series.chapterIds.indexOf(track.id).takeIf { it >= 0 }?.plus(1)
+                ScreenRow.Action("Episodes", number?.let { "$it of ${series.chapterCount}" } ?: "${series.chapterCount}",
+                    "np_audiobook_chapters:${series.folderKey}")
+            } else {
+                ScreenRow.Action("Shuffle", onOff(state.playback.shuffleEnabled), "shuffle")
+            },
+            ScreenRow.Action("Repeat", when (state.playback.repeatMode) {
+                RepeatMode.OFF -> "Off"
+                RepeatMode.ALL -> "All"
+                RepeatMode.ONE -> "One"
+            }, "repeat"),
+            ScreenRow.Action("Sleep", sleepTileValue(state), "sleep_timer"),
+            ScreenRow.Action("Favourite", if (track?.favorite == true) "Yes" else "No",
+                if (track != null) "np_favorite:${track.id}" else "np_favorite:")
+        )
+    }
+
+    private fun sleepTileValue(state: AppState): String = when (state.playback.sleepTimerMode) {
+        SleepTimerMode.OFF -> "Off"
+        SleepTimerMode.MINUTES -> state.playback.sleepTimerRemainingMs?.let { SleepTimerPresentation.compact(it) } ?: "On"
+        SleepTimerMode.END_TRACK -> "End of track"
+        SleepTimerMode.END_ALBUM -> "End of album"
+        SleepTimerMode.END_QUEUE -> "End of queue"
+    }
+
     // Presets rather than every minute from 1 to 60: a short list the wheel crosses
     // in a flick, like the timer lengths on an iPhone.
     private fun sleepTimerRows(state: AppState): List<ScreenRow> = buildList {
-        fun addChoice(title: String, key: String, active: Boolean) {
-            add(ScreenRow.Action(title, if (active) "Active" else null, key))
-        }
         val playback = state.playback
         val audiobook = playback.currentTrackId?.let(state.library.byId::get)?.isAudiobookChapter == true
-        addChoice("Off", "sleep_timer_off", playback.sleepTimerMode == SleepTimerMode.OFF)
+        // The running choice says so; a running countdown shows the time left instead.
+        fun addChoice(title: String, key: String, active: Boolean, running: String? = null) {
+            add(ScreenRow.Action(title, if (active) running ?: "Active" else null, key))
+        }
+        addChoice("Off", "sleep_timer_off", false)
         addChoice(
-            if (audiobook) "End of chapter" else "End of track",
+            if (audiobook) "End of episode" else "End of track",
             "sleep_timer_end_track", playback.sleepTimerMode == SleepTimerMode.END_TRACK
         )
         addChoice(
-            if (audiobook) "End of book" else "End of album",
+            if (audiobook) "End of series" else "End of album",
             "sleep_timer_end_album", playback.sleepTimerMode == SleepTimerMode.END_ALBUM
         )
         addChoice("End of queue", "sleep_timer_end_queue", playback.sleepTimerMode == SleepTimerMode.END_QUEUE)
         SleepTimerPresentation.PRESET_MINUTES.forEach { minutes ->
+            val active = playback.sleepTimerMode == SleepTimerMode.MINUTES &&
+                playback.sleepTimerConfiguredMinutes == minutes
             addChoice(
                 SleepTimerPresentation.durationLabel(minutes),
                 "sleep_timer_minutes:$minutes",
-                playback.sleepTimerMode == SleepTimerMode.MINUTES &&
-                    playback.sleepTimerConfiguredMinutes == minutes
+                active,
+                playback.sleepTimerRemainingMs?.let { "${SleepTimerPresentation.countdown(it)} left" }
             )
         }
+    }
+
+    /** One line of help under a screen's title, for screens whose rows need it. */
+    fun note(state: AppState): String? = when (state.currentScreen) {
+        Screen.SleepTimer -> if (state.playback.sleepTimerMode == SleepTimerMode.OFF)
+            "Playback fades out, then pauses." else "Choose Off to cancel. Playback fades out, then pauses."
+        Screen.Continue -> "Centre picks up where you left off."
+        Screen.Bedtime -> "Warm, softer colours until 6 am, for the night and Amrit Vela."
+        else -> null
     }
 
     fun sleepTimerSelectionIndex(state: AppState): Int = when (state.playback.sleepTimerMode) {
@@ -935,14 +1036,57 @@ object ScreenContent {
         if (state.preferences.resumePosition) add("resume on start")
     }.joinToString(" · ")
 
+    // Each row says what it is set to now, in words, rather than what is inside it.
     private fun settingsRows(state: AppState): List<ScreenRow> = listOf(
-        ScreenRow.Action("Bluetooth", bluetoothSummary(state), "bluetooth"),
-        ScreenRow.Action("Audio", playbackSummary(state), "audio"),
-        ScreenRow.Action("Interface", "Display, controls and FM Radio", "interface"),
+        ScreenRow.Action("Sound", soundSummary(state), "audio"),
+        ScreenRow.Action("Display", "Brightness ${state.display.brightnessPercent}% · screen off after " +
+            timeoutLabel(state.display.screenTimeoutMs).lowercase(Locale.US), "display"),
+        ScreenRow.Action("Bedtime", bedtimeSummary(state), "bedtime"),
+        ScreenRow.Action("Controls", controlsSummary(state), "controls"),
         ScreenRow.Action("Date & Time", dateTimeSummary(state), "date_time"),
-        ScreenRow.Action("Library", "Storage, sorting and history", "library_settings"),
-        ScreenRow.Action("System", "Backup, diagnostics, reset and about", "system")
+        ScreenRow.Action("Bluetooth", bluetoothSummary(state), "bluetooth"),
+        ScreenRow.Action("Library & Backup", "${trackCountLabel(state.library.availableTracks.size)} · playlists, backup", "library_settings"),
+        ScreenRow.Action("System", "Diagnostics, reset and about", "system")
     )
+
+    private fun soundSummary(state: AppState): String {
+        val volume = when (state.preferences.volumeMode) {
+            VolumeMode.SYSTEM -> "System volume"
+            VolumeMode.PERCEPTUAL -> "Volume ${VolumeCurve.percentForLevel(state.preferences.volumeLevel)}%"
+        }
+        val effects = state.playback.audioEffects
+        val equaliser = when {
+            !effects.available || !state.preferences.audioEffectsEnabled -> "equaliser off"
+            else -> "equaliser ${equalizerSummary(state).lowercase(Locale.US)}"
+        }
+        return "$volume · $equaliser"
+    }
+
+    internal fun bedtimeSummary(state: AppState): String {
+        val start = state.preferences.bedtimeStartHour
+        if (start < 0) return "Off"
+        val range = "${ClockPresentation.hourLabel(start, state.preferences.use24HourClock)} to " +
+            ClockPresentation.hourLabel(BEDTIME_END_HOUR, state.preferences.use24HourClock)
+        return if (ClockPresentation.isSet(state.clock)) "Warm colours, $range" else "$range · set the clock first"
+    }
+
+    private fun bedtimeRows(state: AppState): List<ScreenRow> = BEDTIME_STARTS.map { hour ->
+        val title = if (hour < 0) "Off" else "From ${ClockPresentation.hourLabel(hour, state.preferences.use24HourClock)}"
+        ScreenRow.Action(title, if (hour == state.preferences.bedtimeStartHour) "Active" else null, "$BEDTIME_KEY$hour")
+    }
+
+    const val BEDTIME_KEY = "bedtime:"
+    val BEDTIME_STARTS = listOf(-1, 20, 21, 22, 23)
+
+    /** Bedtime's warm colours apply from its start hour until 6 am, and only once the clock is set. */
+    fun isBedtime(state: AppState): Boolean {
+        val start = state.preferences.bedtimeStartHour
+        if (start < 0 || !ClockPresentation.isSet(state.clock)) return false
+        val hour = ClockPresentation.fields(state.clock).hour
+        return hour >= start || hour < BEDTIME_END_HOUR
+    }
+
+    const val BEDTIME_END_HOUR = 6
 
     private fun interfaceRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Display", "${state.display.brightnessPercent}% · ${timeoutLabel(state.display.screenTimeoutMs)}", "display"),
@@ -956,6 +1100,7 @@ object ScreenContent {
 
     private fun librarySettingsRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Storage & Scan", scanSubtitle(state), "storage"),
+        ScreenRow.Action("Backup & Restore", "Favourites, playlists and settings, on the card", "backup_restore"),
         ScreenRow.Action("Sorting", sortingSummary(state), "sort"),
         ScreenRow.Action("Listening History", historySummaryLabel(state), "playback_history"),
         ScreenRow.Action("Import Playlists", "Find M3U/M3U8 files on music storage", "playlist_import_m3u"),
@@ -963,7 +1108,6 @@ object ScreenContent {
     )
 
     private fun systemRows(state: AppState): List<ScreenRow> = listOf(
-        ScreenRow.Action("Backup & Restore", "Portable user data on the card", "backup_restore"),
         ScreenRow.Action("Android Settings", "System configuration and recovery", "android_settings"),
         ScreenRow.Action("Diagnostics", "Logs and engine capabilities", "diagnostics"),
         ScreenRow.Action("Reset", if (state.safeMode) "SAFE MODE · queue and library" else "Queue, library and safe mode", "reset"),
@@ -1190,8 +1334,7 @@ object ScreenContent {
 
     private fun sortOrderRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Tracks", sortLabel(state.preferences.sortOrder), "sort_tracks"),
-        ScreenRow.Action("Albums", albumSortLabel(state.preferences.albumSortOrder), "sort_albums"),
-        ScreenRow.Action("Year Lists", yearSortLabel(state.preferences.yearSortOrder), "sort_years")
+        ScreenRow.Action("Albums", albumSortLabel(state.preferences.albumSortOrder), "sort_albums")
     )
 
     private fun trackSortRows(): List<ScreenRow> = TrackSortOrder.entries.map { order ->
@@ -1269,16 +1412,10 @@ object ScreenContent {
 
     private fun displayRows(state: AppState): List<ScreenRow> = buildList {
         add(ScreenRow.Action("Brightness", "${state.display.brightnessPercent}%", "brightness"))
-        add(ScreenRow.Action("Skin", state.skins.name(state.preferences.skinId), "theme"))
-        add(ScreenRow.Action("Screen Timeout", timeoutLabel(state.display.screenTimeoutMs), "timeout"))
-        add(ScreenRow.Action("Keep Display On", if (state.preferences.keepScreenOnWhilePlaying) "While playing" else "Off", "keep_screen_on"))
-        add(
-            ScreenRow.Action(
-                "Extra Track Info",
-                if (state.preferences.extraTrackInfo) "On · year, bitrate and genre" else "Off",
-                "extra_track_info"
-            )
-        )
+        add(ScreenRow.Action("Screen Off After", timeoutLabel(state.display.screenTimeoutMs), "timeout"))
+        add(ScreenRow.Action("Look", state.skins.name(state.preferences.skinId), "theme"))
+        add(ScreenRow.Action("Bedtime", bedtimeSummary(state), "bedtime"))
+        add(ScreenRow.Action("Stay On While Playing", onOff(state.preferences.keepScreenOnWhilePlaying), "keep_screen_on"))
     }
 
     private fun skinRows(state: AppState): List<ScreenRow> = buildList {
@@ -1293,45 +1430,44 @@ object ScreenContent {
 
     private fun controlsRows(state: AppState): List<ScreenRow> = buildList {
         add(ScreenRow.Action("Seeking", seekingSummary(state), "playback_seeking"))
+        add(ScreenRow.Action("FM Radio on Home", if (state.preferences.showFmRadio) "Shown" else "Hidden", "show_fm_radio"))
         if (state.device.hapticsAvailable) {
             add(ScreenRow.Action("Haptics", hapticLabel(state.preferences.hapticLevel), "haptics"))
         }
         add(
             ScreenRow.Action(
                 "Wrap Lists",
-                if (state.preferences.wrapLists) "Continue from bottom to top"
-                else "Stop at the first and last item",
+                if (state.preferences.wrapLists) "On · the end of a list leads back to the top"
+                else "Off · lists stop at the first and last item",
                 "wrap_lists"
             )
         )
         add(
             ScreenRow.Action(
-                "Wheel When Screen Off",
-                if (state.preferences.localKeysWhileScreenOff) "Active · can act in a pocket"
-                else "Off · stem controls only",
+                "Wheel With Screen Off",
+                if (state.preferences.localKeysWhileScreenOff) "On · it can change things in a pocket"
+                else "Off · only the headphone remote works",
                 "screen_off_keys"
             )
         )
         add(
             ScreenRow.Action(
-                "System UI Sounds",
-                if (state.preferences.uiSoundEffectsEnabled) "On" else "Off · recommended",
+                "Click Sounds",
+                if (state.preferences.uiSoundEffectsEnabled) "On · Android clicks as you scroll" else "Off",
                 "ui_sounds"
             )
         )
     }
 
     private fun seekingSummary(state: AppState): String =
-        "${state.preferences.seekStepMs / 1000}s step · hold ${state.preferences.longSeekStepMs / 1000}s"
+        "${state.preferences.seekStepMs / 1000} s per press · ${state.preferences.longSeekStepMs / 1000} s when held"
 
     private fun controlsSummary(state: AppState): String = buildList {
-        if (state.device.hapticsAvailable) {
-            add("Haptics ${if (state.preferences.hapticLevel == HapticLevel.OFF) "off" else state.preferences.hapticLevel.label.lowercase(Locale.US)}")
-        }
-        if (!state.preferences.wrapLists) add("bounded lists")
-        add("Sounds ${if (state.preferences.uiSoundEffectsEnabled) "on" else "off"}")
-        if (state.preferences.localKeysWhileScreenOff) add("screen-off wheel")
-    }.joinToString(" · ")
+        add("Skip ${state.preferences.seekStepMs / 1000} s")
+        add(if (state.preferences.wrapLists) "lists wrap" else "lists stop at the ends")
+        if (state.device.hapticsAvailable && state.preferences.hapticLevel != HapticLevel.OFF) add("haptics")
+        if (state.preferences.localKeysWhileScreenOff) add("wheel works with screen off")
+    }.joinToString(" · ").replaceFirstChar { it.titlecase(Locale.US) }
 
     private fun hapticLabel(level: HapticLevel): String =
         if (level == HapticLevel.OFF) "Off" else "${level.label} · ${level.durationMs} ms pulse"
@@ -1735,11 +1871,11 @@ object ScreenContent {
     private fun secondsLabel(value: Int): String = "${value / 1_000} seconds"
     private fun thresholdLabel(value: Int): String =
         if (value <= 0) "Always goes to the previous track" else "Restarts the track after ${value / 1_000} seconds"
-    private fun sleepTimerSubtitle(state: AppState): String =
+    internal fun sleepTimerSubtitle(state: AppState): String =
         SleepTimerPresentation.label(state.playback.sleepTimerMode, state.playback.sleepTimerRemainingMs)
     private fun volumeModeLabel(state: AppState): String = when (state.preferences.volumeMode) {
-        VolumeMode.SYSTEM -> "System · hardware keys"
-        VolumeMode.PERCEPTUAL -> "In-app · ${VolumeCurve.percentForLevel(state.preferences.volumeLevel)}%"
+        VolumeMode.SYSTEM -> "System volume"
+        VolumeMode.PERCEPTUAL -> "Fine steps · ${VolumeCurve.percentForLevel(state.preferences.volumeLevel)}%"
     }
 
     private fun percent(value: Int, maximum: Int): String = "${(value * 100 / maximum.coerceAtLeast(1)).coerceIn(0, 100)}%"
@@ -1752,7 +1888,7 @@ object ScreenContent {
     fun trackCountLabel(count: Int): String = when (count) {
         0 -> "Empty"
         1 -> "1 track"
-        else -> "$count tracks"
+        else -> String.format(Locale.US, "%,d tracks", count)
     }
     fun volumeName(volumeId: String): String = when (volumeId) { "internal" -> "Internal Storage"; "sdcard" -> "SD Card"; else -> volumeId.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } }
     fun parentFolder(screen: Screen.Folders): Screen.Folders? {
@@ -1804,7 +1940,7 @@ object ScreenContent {
         is Screen.AlbumSongs, is Screen.ArtistAlbums, is Screen.ArtistSongs,
         is Screen.FacetMenu, is Screen.FacetArtists, is Screen.FacetAlbums,
         is Screen.FacetArtistAlbums, is Screen.FacetTracks,
-        is Screen.Folders, is Screen.PlaylistTracks, is Screen.AudiobookChapters,
+        is Screen.Folders, is Screen.PlaylistTracks, is Screen.AudiobookChapters, is Screen.TalkCollection,
         is Screen.MultiSelect, is Screen.QueueMove -> true
         else -> false
     }
@@ -1817,6 +1953,9 @@ object ScreenContent {
     const val VIDEO_KEY = "video:"
     const val VIDEO_CONTINUE_KEY = "video_continue:"
     const val NOW_PLAYING_KEY = "now_playing"
+    const val CONTINUE_KEY = "continue"
+    const val NP_VOLUME_KEY = "np_volume"
+    const val NITNEM_KEY = "nitnem:"
     const val MAIN_SLEEP_TIMER_KEY = "main_sleep_timer"
     const val CLOCK_HOUR_KEY = "clock_hour:"
     const val CLOCK_MINUTE_KEY = "clock_minute:"
@@ -1846,8 +1985,15 @@ internal data class AudiobookEntry(
     val chapterNumber: Int?,
     val startIndex: Int,
     val listenedMs: Long,
-    val updatedAt: Long
-)
+    val updatedAt: Long,
+    /** Where the current episode was left; 0 when nothing has been played. */
+    val positionMs: Long = 0L,
+    /** The speaker or podcast when every episode shares one. */
+    val artist: String? = null
+) {
+    val inProgress: Boolean get() = chapterNumber != null
+    val currentChapterId: Long? get() = chapterIds.getOrNull(startIndex)
+}
 
 internal data class ConfirmPrompt(val title: String, val detail: String, val confirmLabel: String)
 
@@ -1873,11 +2019,11 @@ internal object ConfirmPrompts {
         }
         key.startsWith(CLEAR_AUDIOBOOK) -> {
             val folderKey = key.substringAfter(':')
-            val name = ScreenContent.audiobookEntry(state, folderKey)?.name ?: "this book"
+            val name = ScreenContent.audiobookEntry(state, folderKey)?.name ?: "this series"
             ConfirmPrompt(
-                "Clear progress for $name?",
-                "It starts from chapter 1 next time. The files are kept.",
-                "Clear Progress"
+                "Mark all of $name unplayed?",
+                "It starts from the first episode next time. No files are deleted.",
+                "Mark Unplayed"
             )
         }
         key == CLEAR_QUEUE -> ConfirmPrompt(
@@ -1911,7 +2057,7 @@ internal object ConfirmPrompts {
         }
         key == RESET_LIBRARY -> ConfirmPrompt(
             "Reset the library?",
-            "Playlists, favourites, history and audiobook positions are deleted. " +
+            "Playlists, favourites, history and places in talks are deleted. " +
                 "Music files are kept and scanning restarts unless Safe Mode is active.",
             "Reset Library"
         )

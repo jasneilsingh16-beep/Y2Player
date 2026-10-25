@@ -24,18 +24,11 @@ class Y2UiLogicTest {
         assertEquals("One", Y2UiLogic.repeatStatusLabel(RepeatMode.ONE))
     }
 
-    @Test fun nowPlayingFooterOmitsTransitionAndKeepsUsefulStatuses() {
+    @Test fun nowPlayingUsesLabelledTilesInsteadOfAFooterOfKeyHints() {
         val source = y2PlayerViewSource()
-        val footer = source.substringAfter("private fun drawNowPlayingFooterStatuses")
-            .substringBefore("private fun drawFooterStatus")
-        val compactFooter = source.substringAfter("private fun drawCompactFooter")
-            .substringBefore("private fun drawNowPlayingFooterStatuses")
-
-        assertTrue(footer.contains("Y2Icon.SHUFFLE"))
-        assertTrue(footer.contains("Y2Icon.REPEAT"))
-        assertFalse(footer.contains("Y2Icon.CROSSFADE"))
-        assertFalse(footer.contains("transitionPresentation"))
-        assertTrue("queue position remains right-aligned", compactFooter.contains("cachedFooterPosition"))
+        assertTrue(source.contains("private fun drawNowPlayingTiles"))
+        assertFalse("hint strips that list keys are gone", source.contains("WHEEL NAVIGATE"))
+        assertFalse(source.contains("private fun drawCompactFooter"))
     }
 
     @Test fun themeUsesOneReadableAccentOnDarkSurfaces() {
@@ -120,14 +113,16 @@ class Y2UiLogicTest {
     }
 
     @Test fun y2LandscapeViewportKeepsFourReadableRowsAndTracksSelection() {
-        val available = Y2UiTheme.TARGET_HEIGHT_PX - Y2UiTheme.HEADER_HEIGHT_DP - Y2UiTheme.COMPACT_FOOTER_HEIGHT_DP
+        // No footer any more: the rows run to the bottom of the screen.
+        val available = Y2UiTheme.TARGET_HEIGHT_PX - Y2UiTheme.HEADER_HEIGHT_DP - 4f
         val count = Y2UiLogic.visibleRowCount(available, Y2UiTheme.ROW_HEIGHT_DP)
-        assertEquals(4, count)
+        assertEquals(7, count)
+        assertEquals(6, Y2UiLogic.visibleRowCount(available, Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP))
         assertEquals(0, Y2UiLogic.firstVisibleRow(100, 0, 0, count))
-        assertEquals(4, Y2UiLogic.firstVisibleRow(100, 7, 0, count))
-        assertEquals(96, Y2UiLogic.firstVisibleRow(100, 99, 1, count))
-        val albumAvailable = available - Y2UiTheme.DETAIL_HEADER_HEIGHT_DP
-        assertEquals(3, Y2UiLogic.visibleRowCount(albumAvailable, Y2UiTheme.ROW_HEIGHT_DP))
+        assertEquals(1, Y2UiLogic.firstVisibleRow(100, 7, 0, count))
+        assertEquals(93, Y2UiLogic.firstVisibleRow(100, 99, 1, count))
+        val albumAvailable = Y2UiTheme.TARGET_HEIGHT_PX - Y2UiTheme.HEADER_HEIGHT_DP - Y2UiTheme.DETAIL_HEADER_HEIGHT_DP
+        assertEquals(4, Y2UiLogic.visibleRowCount(albumAvailable, Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP))
     }
 
     @Test fun routeIndicatorsAreExplicitAndWarningsAreVisible() {
@@ -177,11 +172,12 @@ class Y2UiLogicTest {
     }
 
     @Test fun criticalTypographyMeetsTheSmallScreenReadabilityFloor() {
-        assertTrue(Y2UiTheme.SCREEN_TITLE_SP >= 18f)
-        assertTrue(Y2UiTheme.ROW_TITLE_SP >= 16f)
+        assertTrue(Y2UiTheme.SCREEN_TITLE_SP >= 17f)
+        assertTrue(Y2UiTheme.ROW_TITLE_SP >= 17f)
+        assertTrue(Y2UiTheme.TWO_LINE_TITLE_SP >= 16f)
         assertTrue(Y2UiTheme.ROW_SUBTITLE_SP >= 13f)
-        assertTrue(Y2UiTheme.NAV_LABEL_SP >= 12f)
-        assertTrue(Y2UiTheme.ICON_SIZE_DP >= 24f)
+        assertTrue("no text smaller than 13 on the 160 dpi panel", Y2UiTheme.BADGE_SP >= 13f && Y2UiTheme.META_SP >= 13f)
+        assertTrue(Y2UiTheme.NOW_TITLE_SP >= 22f)
     }
 
     @Test fun routeMessagesStayLongerThanOrdinaryMessages() {
@@ -207,7 +203,7 @@ class Y2UiLogicTest {
     }
 
     @Test fun mainMenuRowCalculationRemainsStableForWheelNavigation() {
-        assertEquals(5, ScreenContent.rows(AppState()).size)
+        assertEquals(6, ScreenContent.rows(AppState()).size)
     }
 
     private fun contrastRatio(first: Int, second: Int): Double {

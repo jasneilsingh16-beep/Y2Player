@@ -51,10 +51,14 @@ class Y2PaletteTest {
     }
 
     @Test fun theFocusedRowIsDistinguishableFromTheBackground() {
-        listOf("DARK" to Y2Palette.DARK, "LIGHT" to Y2Palette.LIGHT).forEach { (name, p) ->
+        listOf("DARK" to Y2Palette.DARK, "LIGHT" to Y2Palette.LIGHT, "BEDTIME" to Y2Palette.BEDTIME).forEach { (name, p) ->
             assertTrue(
-                "$name focus fill is ${contrast(p.focusSurface, p.background)}:1 against the page",
-                contrast(p.focusSurface, p.background) >= 1.35
+                "$name focus fill is ${contrast(p.focusFill, p.background)}:1 against the page",
+                contrast(p.focusFill, p.background) >= 3.0
+            )
+            assertTrue(
+                "$name text on the focused row is ${contrast(p.onFocus, p.focusFill)}:1",
+                contrast(p.onFocus, p.focusFill) >= 4.5
             )
         }
     }

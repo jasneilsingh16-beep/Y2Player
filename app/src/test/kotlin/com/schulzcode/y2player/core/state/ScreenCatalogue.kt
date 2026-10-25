@@ -79,6 +79,9 @@ object ScreenCatalogue {
         put(Screen.Brightness)
         put(Screen.ScreenTimeout)
         put(Screen.DateTime)
+        put(Screen.Bedtime)
+        put(Screen.Continue)
+        put(Screen.TalkCollection("sdcard|Talks/Basics of Sikhi"))
         put(Screen.ClockHour)
         put(Screen.ClockMinute(7))
         put(Screen.ClockYear)
@@ -114,6 +117,7 @@ object ScreenCatalogue {
         Screen.Queue.code, Screen.AlbumSongs("").code, Screen.ArtistAlbums("").code,
         Screen.ArtistSongs("").code, Screen.Folders().code, Screen.PlaylistTracks(0, "").code,
         Screen.AudiobookChapters("").code, Screen.MultiSelect(emptyList(), emptySet()).code,
+        Screen.Continue.code, Screen.TalkCollection("").code,
         Screen.QueueOptions(0).code, Screen.QueueMove(0, 0).code, Screen.QueueManagement.code,
         Screen.FacetArtists(LibraryScope.Year(2000)).code,
         Screen.FacetAlbums(LibraryScope.Year(2000)).code,

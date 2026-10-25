@@ -11,7 +11,7 @@ enum class Y2Icon {
     ACTION, REFRESH, HEADPHONES, SPEAKER, DISCONNECTED, UNKNOWN, CHEVRON, PLAY, PAUSE,
     PREVIOUS, NEXT, CHECK, PREPARING, WARNING, SHUFFLE, REPEAT, TIMER, DAC,
     MUSIC, BOOK, LIBRARY, SLIDERS, VOLUME, EQUALIZER, CROSSFADE, HISTORY, REMOVE, SYSTEM, WHEEL,
-    CHAPTERS, SEARCH, VIDEO
+    CHAPTERS, SEARCH, VIDEO, MOON
 }
 
 class Y2IconPainter(private val paint: Paint, density: Float) {
@@ -54,6 +54,7 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
             Y2Icon.WHEEL -> drawWheel(canvas, centerX, centerY, size)
             Y2Icon.CHAPTERS -> drawChapters(canvas, left, top, size)
             Y2Icon.VIDEO -> drawVideo(canvas, left, top, size)
+            Y2Icon.MOON -> drawMoon(canvas, centerX, centerY, size)
             Y2Icon.SEARCH -> {
                 canvas.drawCircle(centerX - size * .1f, centerY - size * .1f, size * .27f, paint)
                 canvas.drawLine(centerX + size * .1f, centerY + size * .1f, centerX + size * .35f, centerY + size * .35f, paint)
@@ -515,5 +516,18 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
         path.lineTo(x + s * .53f, y + s * .61f)
         path.lineTo(x + s * .70f, y + s * .38f)
         canvas.drawPath(path, paint)
+    }
+
+    // A crescent: the disc less an offset disc, filled so it reads at 13 px.
+    private fun drawMoon(canvas: Canvas, centerX: Float, centerY: Float, size: Float) {
+        val radius = size * .42f
+        path.reset()
+        path.addCircle(centerX, centerY, radius, Path.Direction.CW)
+        val cut = Path()
+        cut.addCircle(centerX + radius * .62f, centerY - radius * .5f, radius * .86f, Path.Direction.CW)
+        path.op(cut, Path.Op.DIFFERENCE)
+        paint.style = Paint.Style.FILL
+        canvas.drawPath(path, paint)
+        paint.style = Paint.Style.STROKE
     }
 }

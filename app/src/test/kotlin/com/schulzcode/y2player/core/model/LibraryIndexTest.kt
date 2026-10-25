@@ -69,7 +69,7 @@ class LibraryIndexTest {
 
         assertEquals(listOf(song, chapter), state.availableTracks)
         assertEquals(listOf(song), state.musicTracks)
-        assertEquals(listOf(song), state.favoriteMusicTracks)
+        assertEquals("a favourite talk stays a favourite", listOf(song, chapter), state.favoriteMusicTracks)
         assertEquals(listOf(song), state.recentlyPlayedMusic)
         assertEquals(setOf(1L, 2L), state.availableTrackIds)
     }

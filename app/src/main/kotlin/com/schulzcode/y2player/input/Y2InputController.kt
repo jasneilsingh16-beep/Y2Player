@@ -36,7 +36,7 @@ class Y2InputController(
                     KeyEvent.KEYCODE_DPAD_RIGHT -> dispatch(AppAction.SeekForwardLong)
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> dispatch(AppAction.ConfirmLong)
                     KeyEvent.KEYCODE_BACK -> dispatch(AppAction.NavigateHome)
-                    in InputPressClassifier.PLAY_PAUSE_KEYS -> dispatch(AppAction.ShowNowPlaying)
+                    in InputPressClassifier.PLAY_PAUSE_KEYS -> dispatch(AppAction.ShowSleepTimer)
                 }
             } else if (longPress && event.repeatCount > 0 &&
                 event.repeatCount % InputPressClassifier.SCRUB_REPEAT_PERIOD == 0
@@ -61,7 +61,7 @@ class Y2InputController(
         if (InputPressClassifier.releaseOpensNowPlaying(keyCode, heldForMs) &&
             HardwareKeyGate.isLocalKeypad(event.deviceId)
         ) {
-            dispatch(AppAction.ShowNowPlaying)
+            dispatch(AppAction.ShowSleepTimer)
             return true
         }
 

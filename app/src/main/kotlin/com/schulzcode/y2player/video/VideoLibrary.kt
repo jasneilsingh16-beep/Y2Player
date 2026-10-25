@@ -4,6 +4,7 @@ import android.content.Context
 import com.schulzcode.y2player.core.model.NaturalTextOrder
 import com.schulzcode.y2player.core.state.VideoItem
 import com.schulzcode.y2player.core.state.VideoItemKind
+import com.schulzcode.y2player.core.state.VideoProgress
 import com.schulzcode.y2player.storage.StorageRoot
 import java.io.File
 import java.util.Locale
@@ -66,17 +67,22 @@ object VideoLibrary {
     private fun continueWatching(path: String?, resumeMs: (String) -> Long): VideoItem? {
         val file = path?.let(::File)?.takeIf { it.isFile } ?: return null
         val position = resumeMs(file.absolutePath).takeIf { it > 0 } ?: return null
-        val siblings = file.parentFile?.listFiles().orEmpty()
-            .filter { it.isFile && isVideoFile(it.name) }
-            .sortedWith { first, second ->
-                NaturalTextOrder.compare(first.name.lowercase(Locale.US), second.name.lowercase(Locale.US))
-            }
-            .map { it.absolutePath }
+        val siblings = siblings(file)
         return VideoItem(
             VideoItemKind.CONTINUE, displayTitle(file.name), file.absolutePath,
             resumeMs = position, playlist = siblings
         )
     }
+
+    /** The videos beside [file], in natural order, so the next episode follows. */
+    fun siblings(file: File): List<String> = file.parentFile?.listFiles().orEmpty()
+        .filter { it.isFile && isVideoFile(it.name) }
+        .sortedWith { first, second ->
+            NaturalTextOrder.compare(first.name.lowercase(Locale.US), second.name.lowercase(Locale.US))
+        }
+        .map { it.absolutePath }
+
+    fun artworkFor(folder: File): String? = artworkProbe(folder)
 
     fun list(
         directory: File,
@@ -163,9 +169,11 @@ class VideoResumeStore(context: Context) {
             if (keep == null) {
                 remove(path)
                 remove(TIME_PREFIX + path)
+                remove(DURATION_PREFIX + path)
             } else {
                 putLong(path, keep)
                 putLong(TIME_PREFIX + path, System.currentTimeMillis())
+                if (durationMs > 0) putLong(DURATION_PREFIX + path, durationMs)
                 remove(WATCHED_PREFIX + path)
             }
             if (finished) putBoolean(WATCHED_PREFIX + path, true)
@@ -176,6 +184,7 @@ class VideoResumeStore(context: Context) {
     fun markWatched(path: String) = preferences.edit()
         .remove(path)
         .remove(TIME_PREFIX + path)
+        .remove(DURATION_PREFIX + path)
         .putBoolean(WATCHED_PREFIX + path, true)
         .apply()
 
@@ -188,9 +197,37 @@ class VideoResumeStore(context: Context) {
             .firstOrNull { get(it) > 0 }
     }.getOrNull()
 
+    /** Every video left part-way that is still on the card, most recent first. */
+    fun inProgress(limit: Int = 12): List<VideoProgress> = runCatching {
+        preferences.all.entries
+            .filter { it.key.startsWith(TIME_PREFIX) && it.value is Long }
+            .sortedByDescending { it.value as Long }
+            .mapNotNull { entry ->
+                val path = entry.key.removePrefix(TIME_PREFIX)
+                val position = get(path).takeIf { it > 0 } ?: return@mapNotNull null
+                val file = File(path).takeIf { it.isFile } ?: return@mapNotNull null
+                val folder = file.parentFile
+                val folderName = folder?.name?.takeUnless { name ->
+                    VideoLibrary.ROOT_FOLDER_NAMES.any { it.equals(name, ignoreCase = true) }
+                }
+                VideoProgress(
+                    path = path,
+                    title = VideoLibrary.displayTitle(file.name),
+                    positionMs = position,
+                    durationMs = runCatching { preferences.getLong(DURATION_PREFIX + path, 0L) }.getOrDefault(0L),
+                    updatedAt = entry.value as Long,
+                    folderName = folderName,
+                    artworkPath = folder?.let(VideoLibrary::artworkFor),
+                    playlist = VideoLibrary.siblings(file)
+                )
+            }
+            .take(limit)
+    }.getOrDefault(emptyList())
+
     private companion object {
         const val TIME_PREFIX = "t:"
         const val WATCHED_PREFIX = "w:"
+        const val DURATION_PREFIX = "d:"
     }
 }
 

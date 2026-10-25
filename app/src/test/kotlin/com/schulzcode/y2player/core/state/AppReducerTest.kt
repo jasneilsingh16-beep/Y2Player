@@ -79,7 +79,7 @@ class AppReducerTest {
     }
 
     @Test fun confirmingMusicThenSongsNavigatesToSongs() {
-        val music = AppReducer.reduce(AppState(), AppAction.Confirm).state
+        val music = AppReducer.reduce(selectKey(AppState(), "music"), AppAction.Confirm).state
         assertEquals(Screen.Music, music.currentScreen)
         assertEquals(Screen.Songs, AppReducer.reduce(selectKey(music, "songs"), AppAction.Confirm).state.currentScreen)
     }
@@ -287,14 +287,8 @@ class AppReducerTest {
         )
         assertEquals(Screen.AlbumSongs("Album", "Artist"), AppReducer.reduce(albums, AppAction.Confirm).state.currentScreen)
 
-        val music = AppState(
-            screenStack = listOf(ScreenEntry(Screen.Music)),
-            library = LibraryState(tracks = listOf(track)),
-            playback = loaded
-        )
-        val favouritesIndex = ScreenContent.rows(music).indexOfFirst { (it as? ScreenRow.Action)?.key == "favorites" }
-        val onFavourites = music.copy(screenStack = listOf(ScreenEntry(Screen.Music, favouritesIndex)))
-        assertEquals(Screen.Favorites, AppReducer.reduce(onFavourites, AppAction.Confirm).state.currentScreen)
+        val home = AppState(library = LibraryState(tracks = listOf(track)), playback = loaded)
+        assertEquals(Screen.Favorites, AppReducer.reduce(selectKey(home, "favorites"), AppAction.Confirm).state.currentScreen)
 
         val settings = selectKey(
             AppState(screenStack = listOf(ScreenEntry(Screen.Audio)), playback = loaded),
@@ -504,7 +498,7 @@ class AppReducerTest {
 
         val library = AppState(screenStack = listOf(ScreenEntry(Screen.LibrarySettings)))
         assertEquals(
-            listOf("storage", "sort", "playback_history", "playlist_import_m3u", "playlist_export_m3u"),
+            listOf("storage", "backup_restore", "sort", "playback_history", "playlist_import_m3u", "playlist_export_m3u"),
             ScreenContent.rows(library).map { (it as ScreenRow.Action).key }
         )
         assertEquals(
@@ -802,7 +796,7 @@ class AppReducerTest {
                 volumeLevel = com.schulzcode.y2player.playback.VolumeCurve.STEPS / 2
             )
         )
-        assertEquals("In-app · 50%", subtitleOf(perceptual))
+        assertEquals("Fine steps · 50%", subtitleOf(perceptual))
     }
 
     @Test fun soundSettingsNavigateToDeviceEqualizerBands() {
@@ -937,8 +931,8 @@ class AppReducerTest {
     @Test fun theThemeRowReportsWhichThemeIsActive() {
         val dark = AppState(screenStack = listOf(ScreenEntry(Screen.Display)))
         val light = dark.copy(preferences = dark.preferences.copy(skinId = "classic-light", lightTheme = true))
-        assertEquals("Classic", themeRowSubtitle(dark))
-        assertEquals("Classic Light", themeRowSubtitle(light))
+        assertEquals("Classic Dark", themeRowSubtitle(dark))
+        assertEquals("Porcelain", themeRowSubtitle(light))
     }
 
     private fun themeRowSubtitle(state: AppState): String? =
@@ -946,11 +940,11 @@ class AppReducerTest {
             .first { it.key == "theme" }.subtitle
 
     @Test fun controlsScreenOwnsHapticsAndUiSounds() {
-        val interfaceSettings = selectKey(
-            AppState(screenStack = listOf(ScreenEntry(Screen.InterfaceSettings))),
+        val settings = selectKey(
+            AppState(screenStack = listOf(ScreenEntry(Screen.Settings))),
             "controls"
         )
-        val controls = AppReducer.reduce(interfaceSettings, AppAction.Confirm).state
+        val controls = AppReducer.reduce(settings, AppAction.Confirm).state
         assertEquals(Screen.Controls, controls.currentScreen)
 
         val withMotor = controls.copy(device = controls.device.copy(hapticsAvailable = true))
@@ -1143,7 +1137,7 @@ class AppReducerTest {
         val controls = AppState(screenStack = listOf(ScreenEntry(Screen.Controls)))
         val row = ScreenContent.rows(controls).filterIsInstance<ScreenRow.Action>()
             .single { it.key == "wrap_lists" }
-        assertEquals("Continue from bottom to top", row.subtitle)
+        assertEquals("On · the end of a list leads back to the top", row.subtitle)
         assertEquals(
             listOf(AppEffect.ToggleWrapLists),
             AppReducer.reduce(selectKey(controls, "wrap_lists"), AppAction.Confirm).effects
@@ -1151,7 +1145,7 @@ class AppReducerTest {
 
         val bounded = controls.copy(preferences = controls.preferences.copy(wrapLists = false))
         assertEquals(
-            "Stop at the first and last item",
+            "Off · lists stop at the first and last item",
             ScreenContent.rows(bounded).filterIsInstance<ScreenRow.Action>()
                 .single { it.key == "wrap_lists" }.subtitle
         )
@@ -1161,20 +1155,20 @@ class AppReducerTest {
         val controls = AppState(screenStack = listOf(ScreenEntry(Screen.Controls)))
         fun subtitle(state: AppState) = ScreenContent.rows(state)
             .filterIsInstance<ScreenRow.Action>().first { it.key == "screen_off_keys" }.subtitle
-        assertEquals("Off · stem controls only", subtitle(controls))
+        assertEquals("Off · only the headphone remote works", subtitle(controls))
         assertEquals(
-            "Active · can act in a pocket",
+            "On · it can change things in a pocket",
             subtitle(controls.copy(preferences = controls.preferences.copy(localKeysWhileScreenOff = true)))
         )
     }
 
     @Test fun theControlsSummaryMentionsTheScreenOffWheelOnlyWhenEnabled() {
-        val base = AppState(screenStack = listOf(ScreenEntry(Screen.InterfaceSettings)))
-        assertFalse(controlsSubtitle(base)!!.contains("screen-off"))
+        val base = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
+        assertFalse(controlsSubtitle(base)!!.contains("screen off"))
         assertTrue(
             controlsSubtitle(
                 base.copy(preferences = base.preferences.copy(localKeysWhileScreenOff = true))
-            )!!.endsWith("screen-off wheel")
+            )!!.endsWith("wheel works with screen off")
         )
     }
 
@@ -1184,44 +1178,51 @@ class AppReducerTest {
             device = DeviceState(hapticsAvailable = true)
         )
         val keys = ScreenContent.rows(display).filterIsInstance<ScreenRow.Action>().map { it.key }
-        assertEquals(listOf("brightness", "theme", "timeout", "keep_screen_on", "extra_track_info"), keys)
+        assertEquals(listOf("brightness", "timeout", "theme", "bedtime", "keep_screen_on"), keys)
         assertFalse("haptics" in keys)
         assertFalse("ui_sounds" in keys)
     }
 
-    @Test fun extraTrackInfoIsOffByDefaultAndTogglesFromDisplay() {
-        val display = AppState(screenStack = listOf(ScreenEntry(Screen.Display)))
-        val row = ScreenContent.rows(display)
-            .filterIsInstance<ScreenRow.Action>().single { it.key == "extra_track_info" }
-        assertEquals("Off", row.subtitle)
-
-        val effect = AppReducer.reduce(selectKey(display, "extra_track_info"), AppAction.Confirm).effects.single()
-        assertEquals(AppEffect.ToggleExtraTrackInfo, effect)
-
-        val on = display.copy(preferences = display.preferences.copy(extraTrackInfo = true))
-        assertEquals(
-            "On · year, bitrate and genre",
-            ScreenContent.rows(on).filterIsInstance<ScreenRow.Action>().single { it.key == "extra_track_info" }.subtitle
-        )
+    @Test fun noSettingIsOfferedThatNoLongerDoesAnything() {
+        // Now Playing no longer shows year, bitrate or genre, so the switch for them is gone.
+        val keys = listOf(Screen.Settings, Screen.Display, Screen.Controls).flatMap { screen ->
+            ScreenContent.rows(AppState(screenStack = listOf(ScreenEntry(screen))))
+                .filterIsInstance<ScreenRow.Action>().map { it.key }
+        }
+        assertFalse("extra_track_info" in keys)
+        assertFalse("interface" in keys)
     }
 
-    @Test fun extraTrackInfoHasOneCanonicalControlUnderDisplay() {
-        val interfaceKeys = ScreenContent.rows(
-            AppState(screenStack = listOf(ScreenEntry(Screen.InterfaceSettings)))
-        ).filterIsInstance<ScreenRow.Action>().map { it.key }
-        assertEquals(listOf("display", "controls", "show_fm_radio"), interfaceKeys)
-        assertFalse("extra_track_info" in interfaceKeys)
-    }
-
-    @Test fun fmRadioVisibilityTogglesFromInterfaceSettings() {
-        val interfaceSettings = AppState(screenStack = listOf(ScreenEntry(Screen.InterfaceSettings)))
-        val row = ScreenContent.rows(interfaceSettings)
+    @Test fun fmRadioVisibilityTogglesFromControls() {
+        val controls = AppState(screenStack = listOf(ScreenEntry(Screen.Controls)))
+        val row = ScreenContent.rows(controls)
             .filterIsInstance<ScreenRow.Action>().single { it.key == "show_fm_radio" }
-        assertEquals("Hidden from main menu", row.subtitle)
+        assertEquals("FM Radio on Home", row.title)
+        assertEquals("Hidden", row.subtitle)
         assertEquals(
             AppEffect.ToggleShowFmRadio,
-            AppReducer.reduce(selectKey(interfaceSettings, "show_fm_radio"), AppAction.Confirm).effects.single()
+            AppReducer.reduce(selectKey(controls, "show_fm_radio"), AppAction.Confirm).effects.single()
         )
+    }
+
+    @Test fun bedtimeIsChosenFromAListAndSaysWhenItRuns() {
+        val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
+        assertEquals("Off", ScreenContent.rows(settings).filterIsInstance<ScreenRow.Action>().single { it.key == "bedtime" }.subtitle)
+        val list = AppReducer.reduce(selectKey(settings, "bedtime"), AppAction.Confirm).state
+        assertEquals(Screen.Bedtime, list.currentScreen)
+        val chosen = AppReducer.reduce(selectKey(list, "bedtime:21"), AppAction.Confirm)
+        assertEquals(AppEffect.SetBedtime(21), chosen.effects.single())
+        assertEquals(Screen.Settings, chosen.state.currentScreen)
+        val on = settings.copy(
+            preferences = settings.preferences.copy(bedtimeStartHour = 21),
+            clock = ClockState(1_793_050_200_000L, "UTC")
+        )
+        assertEquals("Warm colours, 9 pm to 6 am",
+            ScreenContent.rows(on).filterIsInstance<ScreenRow.Action>().single { it.key == "bedtime" }.subtitle)
+        assertTrue("9:30 pm is bedtime", ScreenContent.isBedtime(on))
+        assertFalse("noon is not", ScreenContent.isBedtime(on.copy(clock = ClockState(1_793_016_000_000L, "UTC"))))
+        assertFalse("an unset clock never turns it on",
+            ScreenContent.isBedtime(on.copy(clock = ClockState(0L, "UTC"))))
     }
 
     @Test fun keepScreenOnLivesOnlyOnTheDisplayScreen() {
@@ -1231,28 +1232,26 @@ class AppReducerTest {
         assertFalse("keep_screen_on" in keys(Screen.PlaybackTransitions))
     }
 
-    @Test fun theControlsRowSummarisesBothSettings() {
+    @Test fun theControlsRowSaysHowTheControlsBehave() {
         val base = AppState(
-            screenStack = listOf(ScreenEntry(Screen.InterfaceSettings)),
+            screenStack = listOf(ScreenEntry(Screen.Settings)),
             device = DeviceState(hapticsAvailable = true)
         )
-        assertEquals("Haptics off · Sounds off", controlsSubtitle(base))
+        assertEquals("Skip 10 s · lists wrap", controlsSubtitle(base))
         assertEquals(
-            "Haptics medium · Sounds on",
+            "Skip 10 s · lists stop at the ends · haptics",
             controlsSubtitle(
-                base.copy(
-                    preferences = base.preferences.copy(
-                        hapticLevel = HapticLevel.MEDIUM,
-                        uiSoundEffectsEnabled = true
-                    )
-                )
+                base.copy(preferences = base.preferences.copy(hapticLevel = HapticLevel.MEDIUM, wrapLists = false))
             )
         )
     }
 
     @Test fun theControlsRowOmitsHapticsWithoutAMotor() {
-        val noMotor = AppState(screenStack = listOf(ScreenEntry(Screen.InterfaceSettings)))
-        assertEquals("Sounds off", controlsSubtitle(noMotor))
+        val noMotor = AppState(
+            screenStack = listOf(ScreenEntry(Screen.Settings)),
+            preferences = PlayerPreferencesState(hapticLevel = HapticLevel.MEDIUM)
+        )
+        assertEquals("Skip 10 s · lists wrap", controlsSubtitle(noMotor))
     }
 
     @Test fun clearDiagnosticsRequiresExplicitConfirmation() {
