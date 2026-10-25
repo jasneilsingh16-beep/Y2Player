@@ -71,10 +71,25 @@ class ClockTest {
         assertEquals(AppEffect.SetDateTime(2026, 10, 25, 22, 15), applied.effects.single())
     }
 
+    @Test fun settingTheTimeOnAnUnsetClockAsksForTheDateFirst() {
+        val dateTime = AppState(
+            screenStack = listOf(ScreenEntry(Screen.Settings), ScreenEntry(Screen.DateTime)),
+            clock = at(2012, 1, 1, 0, 3)
+        )
+        val years = choose(dateTime, "clock_set_time").state
+        assertEquals(Screen.ClockYear, years.currentScreen)
+        val days = choose(choose(years, "clock_year:2026").state, "clock_month:10").state
+
+        val dated = choose(days, "clock_day:25")
+        assertEquals(Screen.ClockHour, dated.state.currentScreen)
+        assertEquals(AppEffect.SetDateTime(2026, 10, 25, 0, 3), dated.effects.single())
+        assertEquals(listOf(Screen.Settings, Screen.DateTime, Screen.ClockHour), dated.state.screenStack.map { it.screen })
+    }
+
     @Test fun settingTheDatePicksYearMonthThenDayAndKeepsTheTime() {
         val dateTime = AppState(
             screenStack = listOf(ScreenEntry(Screen.Settings), ScreenEntry(Screen.DateTime)),
-            clock = at(2022, 1, 31, 6, 30)
+            clock = at(2027, 1, 31, 6, 30)
         )
         val years = choose(dateTime, "clock_set_date").state
         assertEquals(Screen.ClockYear, years.currentScreen)

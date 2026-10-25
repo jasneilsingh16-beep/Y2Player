@@ -936,17 +936,28 @@ class MainActivity : Activity() {
     /**
      * Y2Player ships in priv-app, so KitKat grants it SET_TIME and SET_TIME_ZONE.
      * The Y2 has no network time, which leaves this the only way to set the clock.
+     *
+     * AlarmManager sets the time from system_server. SystemClock.setCurrentTimeMillis
+     * writes /dev/alarm from this process, which only system and radio may open, so
+     * on KitKat it fails even with the permission. It is kept only as a fallback.
      */
     private fun setDateTime(effect: AppEffect.SetDateTime) {
         val calendar = java.util.GregorianCalendar(java.util.TimeZone.getDefault())
         calendar.set(effect.year, effect.month - 1, effect.day, effect.hour, effect.minute, 0)
         calendar.set(java.util.Calendar.MILLISECOND, 0)
-        val applied = runCatching { SystemClock.setCurrentTimeMillis(calendar.timeInMillis) }
-            .onFailure { logger.warn("Clock", "set time failed: ${it.javaClass.simpleName}") }
-            .getOrDefault(false)
+        val target = calendar.timeInMillis
+        runCatching { (getSystemService(Context.ALARM_SERVICE) as AlarmManager).setTime(target) }
+            .onFailure { logger.warn("Clock", "alarm set time failed: ${it.javaClass.simpleName}") }
+        if (!clockNear(target)) {
+            runCatching { SystemClock.setCurrentTimeMillis(target) }
+                .onFailure { logger.warn("Clock", "set time failed: ${it.javaClass.simpleName}") }
+        }
+        val applied = clockNear(target)
         publishClock()
         showMessage(if (applied) "Time set" else "The time could not be set")
     }
+
+    private fun clockNear(target: Long): Boolean = kotlin.math.abs(System.currentTimeMillis() - target) < 60_000L
 
     private fun setTimeZone(id: String) {
         val applied = runCatching {

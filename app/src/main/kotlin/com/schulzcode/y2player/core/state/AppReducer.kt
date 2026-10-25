@@ -1062,7 +1062,10 @@ object AppReducer {
         val key = (row as? Action)?.key ?: return Reduction(state)
         val now = ClockPresentation.fields(state.clock)
         return when (key) {
-            "clock_set_time" -> push(state, Screen.ClockHour, selectedIndex = now.hour)
+            // A clock that was never set has the wrong date too, so the date comes first.
+            "clock_set_time" ->
+                if (ClockPresentation.isSet(state.clock)) push(state, Screen.ClockHour, selectedIndex = now.hour)
+                else confirmDateTime(state, Action("Set Date", null, "clock_set_date"))
             "clock_set_date" -> push(
                 state,
                 Screen.ClockYear,
@@ -1105,7 +1108,10 @@ object AppReducer {
             }
             key.startsWith(ScreenContent.CLOCK_DAY_KEY) && number != null -> {
                 val screen = state.currentScreen as? Screen.ClockDay ?: return Reduction(state)
-                Reduction(pop(state, 3), listOf(SetDateTime(screen.year, screen.month, number, now.hour, now.minute)))
+                val setDate = SetDateTime(screen.year, screen.month, number, now.hour, now.minute)
+                // Dating a clock that was never set goes straight on to the time.
+                if (ClockPresentation.isSet(state.clock)) Reduction(pop(state, 3), listOf(setDate))
+                else Reduction(pushState(pop(state, 3), Screen.ClockHour, selectedIndex = now.hour), listOf(setDate))
             }
             key.startsWith(ScreenContent.CLOCK_ZONE_KEY) -> Reduction(pop(state), listOf(SetTimeZone(value)))
             else -> Reduction(state)
