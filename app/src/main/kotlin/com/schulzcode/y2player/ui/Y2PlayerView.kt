@@ -20,6 +20,7 @@ import com.schulzcode.y2player.core.model.RepeatMode
 import com.schulzcode.y2player.core.model.SleepTimerMode
 import com.schulzcode.y2player.core.state.AppAction
 import com.schulzcode.y2player.core.state.AppState
+import com.schulzcode.y2player.core.state.ClockState
 import com.schulzcode.y2player.fm.FmState
 import com.schulzcode.y2player.core.state.Screen
 import com.schulzcode.y2player.core.state.ScreenContent
@@ -381,7 +382,7 @@ class Y2PlayerView(
     }
 
     private fun rowsForState(value: AppState): List<ScreenRow> {
-        if (value.currentScreen != Screen.NowPlayingOptions) return ScreenContent.rows(value)
+        if (!SleepTimerPresentation.showsCountdown(value.currentScreen)) return ScreenContent.rows(value)
         val remaining = SleepTimerPresentation.remainingMs(value.playback, SystemClock.elapsedRealtime())
             ?: return ScreenContent.rows(value)
         return ScreenContent.rows(value.copy(
@@ -758,6 +759,7 @@ class Y2PlayerView(
         var rightEdge = width - 10f * density
         rightEdge = drawBattery(canvas, rightEdge)
 
+        val clockRight = if (cachedHeaderRouteIcon != null) rightEdge - 22f * density else rightEdge
         cachedHeaderRouteIcon?.let { icon ->
             val color =
                 if (cachedRoute.warning) {
@@ -778,7 +780,37 @@ class Y2PlayerView(
             paint.style = Paint.Style.FILL
         }
 
+        if (state.preferences.showStatusClock) {
+            paint.style = Paint.Style.FILL
+            paint.textAlign = Paint.Align.RIGHT
+            paint.textSize = Y2UiTheme.BADGE_SP * density
+            paint.color = palette.primaryText
+            canvas.drawText(statusClockText(), clockRight, 28f * density, paint)
+            paint.textAlign = Paint.Align.LEFT
+        }
+
         canvas.restoreToCount(headerSave)
+    }
+
+    private var statusClockMinute = Long.MIN_VALUE
+    private var statusClock24Hour = false
+    private var statusClockZone = ""
+    private var statusClockLabel = ""
+
+    // Read from the system at draw time so it is never a minute behind the tick;
+    // formatted once per minute.
+    private fun statusClockText(): String {
+        val now = System.currentTimeMillis()
+        val zone = java.util.TimeZone.getDefault().id
+        val minute = now / 60_000L
+        val use24 = state.preferences.use24HourClock
+        if (minute != statusClockMinute || use24 != statusClock24Hour || zone != statusClockZone) {
+            statusClockMinute = minute
+            statusClock24Hour = use24
+            statusClockZone = zone
+            statusClockLabel = com.schulzcode.y2player.core.state.ClockPresentation.time(ClockState(now, zone), use24)
+        }
+        return statusClockLabel
     }
 
     private fun drawBattery(canvas: Canvas, rightEdge: Float): Float {
@@ -1143,8 +1175,8 @@ class Y2PlayerView(
                 icon = Y2Icon.QUEUE
             }
             EmptyStateKind.EMPTY_FAVORITES -> {
-                title = "No favorites yet"
-                detail = "Press Right on any song to favorite it"
+                title = "No favourites yet"
+                detail = "Hold Centre on a song, then choose Favourite"
                 icon = Y2Icon.FAVORITE
             }
             EmptyStateKind.EMPTY_RECENT -> {
@@ -1154,7 +1186,7 @@ class Y2PlayerView(
             }
             EmptyStateKind.EMPTY_PLAYLIST -> {
                 title = "Playlist is empty"
-                detail = "Press Right on any song to add it"
+                detail = "Hold Centre on a song, then Add to Playlist"
                 icon = Y2Icon.PLAYLIST
             }
             EmptyStateKind.NO_MUSIC -> {
@@ -1392,7 +1424,7 @@ class Y2PlayerView(
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = Y2UiTheme.BADGE_SP * density
         paint.color = colorAtAlpha(if (selectedActive) palette.accent else palette.secondaryText, progress)
-        val value = selectedRow.subtitle?.takeIf { it.isNotBlank() } ?: "Center to open"
+        val value = selectedRow.subtitle?.takeIf { it.isNotBlank() } ?: "Centre to open"
         canvas.drawText(
             ellipsize(value, centerTextWidth, paint),
             centerX,
@@ -1741,6 +1773,18 @@ class Y2PlayerView(
         if (state.playback.sleepTimerMode != SleepTimerMode.OFF) {
             iconPainter.draw(canvas, Y2Icon.TIMER, x, centerY, 14f * density, palette.accent)
             x += step
+            // Minutes left beside the moon, so the timer can be read without opening it.
+            SleepTimerPresentation.remainingMs(state.playback, SystemClock.elapsedRealtime())
+                ?.takeIf { state.playback.sleepTimerMode == SleepTimerMode.MINUTES }
+                ?.let { remaining ->
+                    val label = SleepTimerPresentation.compact(remaining)
+                    paint.style = Paint.Style.FILL
+                    paint.textAlign = Paint.Align.LEFT
+                    paint.textSize = Y2UiTheme.BADGE_SP * density
+                    paint.color = palette.accent
+                    canvas.drawText(label, x - step * .45f, centerY - (paint.ascent() + paint.descent()) * .5f, paint)
+                    x += paint.measureText(label) + step * .2f
+                }
         }
         if (cachedNowFavorite) {
             iconPainter.draw(canvas, Y2Icon.FAVORITE_FILLED, x, centerY, 14f * density, palette.accent)
@@ -2083,7 +2127,8 @@ class Y2PlayerView(
         cachedHomeHint = ellipsize(homeHint, paneTextWidth, paint)
         cachedElapsed = TimeFormat.duration(state.playback.positionMs)
         cachedDuration = TimeFormat.duration(state.playback.durationMs)
-        val availableWidth = fallbackWidth() - 130f * density
+        // Room for the battery and route icon, plus the clock when it is shown.
+        val availableWidth = fallbackWidth() - (if (state.preferences.showStatusClock) 190f else 130f) * density
         boldPaint.textSize = Y2UiTheme.SCREEN_TITLE_SP * density
         val headerTitle = when (state.currentScreen) {
             Screen.NowPlayingOptions -> "Now Playing"
@@ -2522,6 +2567,7 @@ class Y2PlayerView(
         private const val BATTERY_TEXT_REFERENCE = "100%"
         const val SHARED_ARTWORK_SIZE_PX = 256
         private val NAVIGATION_KEYS = setOf(
+            "now_playing", "main_sleep_timer", "date_time", "clock_set_time", "clock_set_date", "clock_time_zone",
             "music", "audiobooks", "videos", "search", "songs", "albums", "artists", "playlists",
             "folders", "favorites", "recent", "audio", "settings", "output", "sort", "bluetooth",
             "sound_effects", "reset", "extra_track_info",

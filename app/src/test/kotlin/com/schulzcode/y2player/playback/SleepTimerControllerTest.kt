@@ -19,7 +19,11 @@ class SleepTimerControllerTest {
 
         val expiry = playbackServiceSource().substringAfter("SleepTimerTick.Expired ->")
             .substringBefore("is SleepTimerTick.Waiting")
-        assertTrue(expiry.indexOf("syncSleepTimerSnapshot()") < expiry.indexOf("pauseInternal(PauseReason.SLEEP_TIMER)"))
+        assertTrue(expiry.indexOf("syncSleepTimerSnapshot()") < expiry.indexOf("fadeOutForSleep()"))
+        // The fade ends in the same sleep-timer pause.
+        val fade = playbackServiceSource().substringAfter("private fun fadeOutForSleep()")
+            .substringBefore("private fun cancelSleepFade()")
+        assertTrue(fade.contains("pauseInternal(PauseReason.SLEEP_TIMER)"))
     }
 
     @Test fun snapshotPublishesTheConfiguredMinutesAndDeadline() {
@@ -39,8 +43,11 @@ class SleepTimerControllerTest {
         assertEquals(60_000L, timer.deadlineElapsedMs)
 
         timer.set(SleepTimerMode.MINUTES, 99, 0L)
-        assertEquals(60, timer.configuredMinutes)
-        assertEquals(3_600_000L, timer.deadlineElapsedMs)
+        assertEquals(99, timer.configuredMinutes)
+
+        timer.set(SleepTimerMode.MINUTES, 500, 0L)
+        assertEquals(120, timer.configuredMinutes)
+        assertEquals(7_200_000L, timer.deadlineElapsedMs)
     }
 
     @Test fun boundaryModesDoNotScheduleCallbacksAndClearNormally() {

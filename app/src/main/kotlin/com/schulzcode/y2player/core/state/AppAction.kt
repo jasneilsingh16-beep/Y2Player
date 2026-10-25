@@ -46,6 +46,7 @@ sealed interface AppAction {
     data class SelectIndex(val index: Int) : AppAction
     data class PressSearchKey(val key: String) : AppAction
     data class VideosLoaded(val path: String?, val items: List<VideoItem>) : AppAction
+    data class ClockChanged(val clock: ClockState) : AppAction
 }
 
 sealed interface AppEffect {
@@ -104,6 +105,11 @@ sealed interface AppEffect {
     data object ToggleKeepScreenOn : AppEffect
     data object ToggleExtraTrackInfo : AppEffect
     data object ToggleShowFmRadio : AppEffect
+    data object Toggle24HourClock : AppEffect
+    data object ToggleStatusClock : AppEffect
+    /** Month is 1–12. Applied in the device's current time zone. */
+    data class SetDateTime(val year: Int, val month: Int, val day: Int, val hour: Int, val minute: Int) : AppEffect
+    data class SetTimeZone(val id: String) : AppEffect
     data class SetSkin(val id: String) : AppEffect
     data object ReloadSkins : AppEffect
     data object ToggleLocalKeysWhileScreenOff : AppEffect
@@ -195,4 +201,5 @@ val AppAction.code: String get() = when (this) {
     is AppAction.SelectIndex -> "select_index"
     is AppAction.PressSearchKey -> "search_key"
     is AppAction.VideosLoaded -> "videos_loaded"
+    is AppAction.ClockChanged -> "clock_changed"
 }

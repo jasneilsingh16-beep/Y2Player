@@ -78,6 +78,7 @@ object AppReducer {
         is AppAction.ShowMessage -> Reduction(state.copy(transientMessage = action.message))
         is AppAction.SelectIndex -> if (state.currentScreen is Screen.Search) focusSearchResult(state, action.index) else Reduction(normalizeSelection(setSelected(clearAlphabetScrub(state), action.index.coerceAtLeast(0))))
         is AppAction.PressSearchKey -> pressSearchKey(state, action.key)
+        is AppAction.ClockChanged -> Reduction(state.copy(clock = action.clock))
         is AppAction.VideosLoaded -> {
             val key = action.path ?: VideoBrowseState.TOP_LEVEL
             val updated = state.copy(videos = VideoBrowseState(state.videos.listings + (key to action.items)))
@@ -98,6 +99,9 @@ object AppReducer {
         val progressOnly = isProgressOnlyUpdate(state.playback, playback)
         val updated = state.copy(playback = playback)
         if (progressOnly) return updated
+        // Now Playing and Sleep Timer come and go with the session, so the focused
+        // destination is kept by identity rather than by position.
+        if (updated.currentScreen == Screen.MainMenu) return preserveSelection(state, updated)
 
         val queueEntryId = when (val screen = updated.currentScreen) {
             is Screen.QueueOptions -> screen.entryId
@@ -302,6 +306,9 @@ object AppReducer {
             Screen.Balance -> confirmBalance(state, row)
             Screen.Brightness -> confirmBrightness(state, row)
             Screen.ScreenTimeout -> confirmTimeout(state, row)
+            Screen.DateTime -> confirmDateTime(state, row)
+            Screen.ClockHour, is Screen.ClockMinute, Screen.ClockYear,
+            is Screen.ClockMonth, is Screen.ClockDay, Screen.TimeZone -> confirmClockPicker(state, row)
             Screen.Storage -> confirmStorage(state, row)
             Screen.PlaybackHistory -> confirmPlaybackHistory(state, row)
             Screen.System -> confirmSystem(state, row)
@@ -316,6 +323,12 @@ object AppReducer {
     private fun confirmMainMenu(state: AppState, row: ScreenRow): Reduction {
         val key = (row as? Action)?.key ?: return Reduction(state)
         return when (key) {
+            ScreenContent.NOW_PLAYING_KEY -> showNowPlaying(state)
+            ScreenContent.MAIN_SLEEP_TIMER_KEY -> push(
+                state,
+                Screen.SleepTimer,
+                selectedIndex = ScreenContent.sleepTimerSelectionIndex(state)
+            )
             "music" -> push(state, Screen.Music)
             "audiobooks" -> Reduction(pushState(state, Screen.Audiobooks), listOf(RefreshAudiobooks))
             "videos" -> Reduction(pushState(state, Screen.Videos()), listOf(LoadVideos(null)))
@@ -461,6 +474,7 @@ object AppReducer {
             "audio" -> push(state, Screen.Audio)
             "bluetooth" -> push(state, Screen.Bluetooth)
             "interface" -> push(state, Screen.InterfaceSettings)
+            "date_time" -> push(state, Screen.DateTime)
             // The Listening History subtitle is read here, so the count has to be
             // fetched on the way in rather than when that row is pressed.
             "library_settings" -> Reduction(pushState(state, Screen.LibrarySettings), listOf(RefreshPlaybackHistory))
@@ -1029,12 +1043,71 @@ object AppReducer {
         return when {
             key.startsWith(ScreenContent.VIDEO_FOLDER_KEY) || key.startsWith(ScreenContent.VIDEO_VOLUME_KEY) ->
                 Reduction(pushState(state, Screen.Videos(path)), listOf(LoadVideos(path)))
+            key.startsWith(ScreenContent.VIDEO_CONTINUE_KEY) -> {
+                val item = state.videos.listing(screen.path).orEmpty()
+                    .firstOrNull { it.kind == VideoItemKind.CONTINUE } ?: return Reduction(state)
+                Reduction(state, listOf(PlayVideo(item.path, item.playlist)))
+            }
             key.startsWith(ScreenContent.VIDEO_KEY) -> {
                 val folderVideos = state.videos.listing(screen.path).orEmpty()
                     .filter { it.kind == VideoItemKind.VIDEO }
                     .map { it.path }
                 Reduction(state, listOf(PlayVideo(path, folderVideos)))
             }
+            else -> Reduction(state)
+        }
+    }
+
+    private fun confirmDateTime(state: AppState, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        val now = ClockPresentation.fields(state.clock)
+        return when (key) {
+            "clock_set_time" -> push(state, Screen.ClockHour, selectedIndex = now.hour)
+            "clock_set_date" -> push(
+                state,
+                Screen.ClockYear,
+                selectedIndex = (now.year - ClockPresentation.FIRST_YEAR)
+                    .coerceIn(0, ClockPresentation.LAST_YEAR - ClockPresentation.FIRST_YEAR)
+            )
+            "clock_time_zone" -> push(
+                state,
+                Screen.TimeZone,
+                selectedIndex = ScreenContent.timeZoneIds(state).indexOf(state.clock.timeZoneId).coerceAtLeast(0)
+            )
+            "clock_24_hour" -> Reduction(state, listOf(Toggle24HourClock))
+            "clock_status_bar" -> Reduction(state, listOf(ToggleStatusClock))
+            else -> Reduction(state)
+        }
+    }
+
+    /**
+     * Time is picked hour then minute, and a date year, month then day, each as a
+     * plain list like Brightness. The last pick applies it and returns to Date & Time.
+     */
+    private fun confirmClockPicker(state: AppState, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        val value = key.substringAfter(':')
+        val number = value.toIntOrNull()
+        val now = ClockPresentation.fields(state.clock)
+        return when {
+            key.startsWith(ScreenContent.CLOCK_HOUR_KEY) && number != null ->
+                push(state, Screen.ClockMinute(number), selectedIndex = now.minute)
+            key.startsWith(ScreenContent.CLOCK_MINUTE_KEY) && number != null -> {
+                val hour = (state.currentScreen as? Screen.ClockMinute)?.hour ?: return Reduction(state)
+                Reduction(pop(state, 2), listOf(SetDateTime(now.year, now.month, now.day, hour, number)))
+            }
+            key.startsWith(ScreenContent.CLOCK_YEAR_KEY) && number != null ->
+                push(state, Screen.ClockMonth(number), selectedIndex = now.month - 1)
+            key.startsWith(ScreenContent.CLOCK_MONTH_KEY) && number != null -> {
+                val year = (state.currentScreen as? Screen.ClockMonth)?.year ?: return Reduction(state)
+                val days = ClockPresentation.daysInMonth(year, number)
+                push(state, Screen.ClockDay(year, number), selectedIndex = (now.day - 1).coerceIn(0, days - 1))
+            }
+            key.startsWith(ScreenContent.CLOCK_DAY_KEY) && number != null -> {
+                val screen = state.currentScreen as? Screen.ClockDay ?: return Reduction(state)
+                Reduction(pop(state, 3), listOf(SetDateTime(screen.year, screen.month, number, now.hour, now.minute)))
+            }
+            key.startsWith(ScreenContent.CLOCK_ZONE_KEY) -> Reduction(pop(state), listOf(SetTimeZone(value)))
             else -> Reduction(state)
         }
     }

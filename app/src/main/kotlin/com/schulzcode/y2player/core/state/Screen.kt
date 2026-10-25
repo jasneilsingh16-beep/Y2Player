@@ -87,6 +87,13 @@ sealed interface Screen {
     data object Balance : Screen
     data object Brightness : Screen
     data object ScreenTimeout : Screen
+    data object DateTime : Screen
+    data object ClockHour : Screen
+    data class ClockMinute(val hour: Int) : Screen
+    data object ClockYear : Screen
+    data class ClockMonth(val year: Int) : Screen
+    data class ClockDay(val year: Int, val month: Int) : Screen
+    data object TimeZone : Screen
     data object Storage : Screen
     data object PlaybackHistory : Screen
 
@@ -172,6 +179,13 @@ val Screen.code: String get() = when (this) {
     Screen.Balance -> "balance"
     Screen.Brightness -> "brightness"
     Screen.ScreenTimeout -> "screen_timeout"
+    Screen.DateTime -> "date_time"
+    Screen.ClockHour -> "clock_hour"
+    is Screen.ClockMinute -> "clock_minute"
+    Screen.ClockYear -> "clock_year"
+    is Screen.ClockMonth -> "clock_month"
+    is Screen.ClockDay -> "clock_day"
+    Screen.TimeZone -> "time_zone"
     Screen.Storage -> "storage"
     Screen.PlaybackHistory -> "playback_history"
     Screen.FmRadio -> "fm_radio"

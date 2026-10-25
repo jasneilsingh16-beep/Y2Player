@@ -112,4 +112,42 @@ class VideoLibraryTest {
     @Test fun `display title drops the extension`() {
         assertEquals("My Film", VideoLibrary.displayTitle("My_Film.mp4"))
     }
+
+    @Test fun `the last part-watched video leads the top level as Continue Watching`() {
+        val sd = temp.newFolder("sd")
+        val videos = File(sd, "Videos")
+        val first = touch(videos, "Shows/The Middle/Episode 1.mp4")
+        val second = touch(videos, "Shows/The Middle/Episode 2.mp4")
+        touch(videos, "Movies/Soul (2020).mp4")
+
+        val top = VideoLibrary.load(
+            null,
+            listOf(StorageRoot("sdcard", sd)),
+            resumeMs = { if (it == second.absolutePath) 125_000L else 0L },
+            lastWatched = { second.absolutePath }
+        )
+        val continuing = top.first()
+        assertEquals(VideoItemKind.CONTINUE, continuing.kind)
+        assertEquals("Episode 2", continuing.title)
+        assertEquals(125_000L, continuing.resumeMs)
+        assertEquals(listOf(first.absolutePath, second.absolutePath), continuing.playlist)
+        assertEquals(listOf("Movies", "Shows"), top.drop(1).map { it.title })
+    }
+
+    @Test fun `no Continue Watching row once nothing is left part-way`() {
+        val sd = temp.newFolder("sd")
+        val film = touch(File(sd, "Videos"), "Soul (2020).mp4")
+        val top = VideoLibrary.load(null, listOf(StorageRoot("sdcard", sd)), lastWatched = { film.absolutePath })
+        assertTrue(top.none { it.kind == VideoItemKind.CONTINUE })
+    }
+
+    @Test fun `finished videos are marked watched`() {
+        val videos = temp.newFolder("Videos")
+        val film = touch(videos, "Soul (2020).mp4")
+        val items = VideoLibrary.list(videos, watched = { it == film.absolutePath })
+        assertTrue(items.single().watched)
+        assertTrue(VideoResumePolicy.isFinished(5_900_000L, 6_000_000L))
+        assertFalse(VideoResumePolicy.isFinished(600_000L, 6_000_000L))
+        assertFalse(VideoResumePolicy.isFinished(1_000L, 6_000_000L))
+    }
 }

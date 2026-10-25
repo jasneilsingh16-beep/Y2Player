@@ -16,7 +16,8 @@ import com.schulzcode.y2player.util.TimeFormat
 /**
  * Overlay shown over a playing video: title and status message at the top,
  * play state, elapsed/remaining time and a progress bar at the bottom, and a
- * transient volume bar on the right while the wheel turns.
+ * transient volume bar on the right while the wheel turns. Holding Centre adds
+ * an options panel in the middle, and a running sleep timer shows top right.
  */
 class VideoOsdView(context: Context, private val palette: Y2Palette) : View(context) {
     private val density = resources.displayMetrics.density
@@ -43,6 +44,25 @@ class VideoOsdView(context: Context, private val palette: Y2Palette) : View(cont
     private var playing = false
     private var volumePercent = -1
     private var volumeShownAt = 0L
+    private var sleepLabel: String? = null
+    private var menuItems: List<MenuItem>? = null
+    private var menuSelected = 0
+
+    data class MenuItem(val title: String, val value: String)
+
+    val menuOpen: Boolean get() = menuItems != null
+
+    fun setSleepLabel(value: String?) {
+        if (value == sleepLabel) return
+        sleepLabel = value
+        invalidate()
+    }
+
+    fun setMenu(items: List<MenuItem>?, selected: Int = 0) {
+        menuItems = items
+        menuSelected = selected.coerceIn(0, ((items?.size ?: 1) - 1).coerceAtLeast(0))
+        invalidate()
+    }
 
     fun setTitle(value: String) { title = value; invalidate() }
 
@@ -70,7 +90,11 @@ class VideoOsdView(context: Context, private val palette: Y2Palette) : View(cont
         // Top band: title and message.
         fill.color = SCRIM
         canvas.drawRect(0f, 0f, w, bandHeight, fill)
-        val titleText = TextUtils.ellipsize(title, text, w - padding * 2, TextUtils.TruncateAt.END)
+        val sleepWidth = sleepLabel?.let { small.measureText(it) + padding } ?: 0f
+        sleepLabel?.let {
+            canvas.drawText(it, w - padding - small.measureText(it), bandHeight * 0.45f, small)
+        }
+        val titleText = TextUtils.ellipsize(title, text, w - padding * 2 - sleepWidth, TextUtils.TruncateAt.END)
         canvas.drawText(titleText, 0, titleText.length, padding, bandHeight * 0.45f, text)
         message?.let {
             val line = TextUtils.ellipsize(it, small, w - padding * 2, TextUtils.TruncateAt.END)
@@ -104,6 +128,37 @@ class VideoOsdView(context: Context, private val palette: Y2Palette) : View(cont
         if (volumePercent >= 0 && SystemClock.uptimeMillis() - volumeShownAt < VOLUME_VISIBLE_MS) {
             drawVolume(canvas, w, h)
             postInvalidateDelayed(VOLUME_VISIBLE_MS)
+        }
+        menuItems?.let { drawMenu(canvas, it, w, h) }
+    }
+
+    private fun drawMenu(canvas: Canvas, items: List<MenuItem>, w: Float, h: Float) {
+        val rowHeight = 36f * density
+        val panelWidth = (w * 0.62f).coerceAtMost(320f * density)
+        val panelHeight = rowHeight * items.size + padding
+        val left = (w - panelWidth) / 2f
+        val top = (h - panelHeight) / 2f
+        fill.color = PANEL
+        rect.set(left, top, left + panelWidth, top + panelHeight)
+        canvas.drawRoundRect(rect, 12f * density, 12f * density, fill)
+        items.forEachIndexed { index, item ->
+            val rowTop = top + padding / 2f + rowHeight * index
+            if (index == menuSelected) {
+                fill.color = palette.accent
+                rect.set(left + 6f * density, rowTop, left + panelWidth - 6f * density, rowTop + rowHeight)
+                canvas.drawRoundRect(rect, 8f * density, 8f * density, fill)
+            }
+            val baseline = rowTop + rowHeight / 2f - (text.ascent() + text.descent()) / 2f
+            canvas.drawText(item.title, left + padding, baseline, text)
+            if (item.value.isNotEmpty()) {
+                val valueWidth = panelWidth / 2f - padding
+                val value = TextUtils.ellipsize(item.value, small, valueWidth, TextUtils.TruncateAt.END)
+                val valueBaseline = rowTop + rowHeight / 2f - (small.ascent() + small.descent()) / 2f
+                canvas.drawText(
+                    value, 0, value.length,
+                    left + panelWidth - padding - small.measureText(value, 0, value.length), valueBaseline, small
+                )
+            }
         }
     }
 
@@ -142,6 +197,7 @@ class VideoOsdView(context: Context, private val palette: Y2Palette) : View(cont
 
     private companion object {
         val SCRIM: Int = 0xB3000000.toInt()
+        val PANEL: Int = 0xE6202020.toInt()
         const val VOLUME_VISIBLE_MS = 1_500L
     }
 }

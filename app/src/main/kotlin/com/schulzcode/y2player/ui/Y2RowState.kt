@@ -22,15 +22,17 @@ object Y2RowState {
         return when {
             key == "shuffle" -> state.playback.shuffleEnabled
             key == "repeat" -> state.playback.repeatMode != RepeatMode.OFF
-            key == "sleep_timer" -> state.playback.sleepTimerMode != SleepTimerMode.OFF
+            key == "sleep_timer" || key == "main_sleep_timer" -> state.playback.sleepTimerMode != SleepTimerMode.OFF
             key == "gapless" -> state.preferences.gaplessEnabled && state.preferences.crossfadeMs == 0
             key == "crossfade" -> state.preferences.crossfadeMs > 0
             key == "pause_fade" -> state.preferences.pauseResumeFadeMs > 0
-            key == "pause_disconnect" -> !state.preferences.pauseOnDisconnect
+            key == "pause_disconnect" -> state.preferences.pauseOnDisconnect
             key == "resume_position" -> state.preferences.resumePosition
             key == "keep_screen_on" -> state.preferences.keepScreenOnWhilePlaying
             key == "extra_track_info" -> state.preferences.extraTrackInfo
             key == "show_fm_radio" -> state.preferences.showFmRadio
+            key == "clock_24_hour" -> state.preferences.use24HourClock
+            key == "clock_status_bar" -> state.preferences.showStatusClock
             key == "wrap_lists" -> state.preferences.wrapLists
             key == "screen_off_keys" -> state.preferences.localKeysWhileScreenOff
             key == "seek_when_locked" -> state.preferences.seekWhenLocked

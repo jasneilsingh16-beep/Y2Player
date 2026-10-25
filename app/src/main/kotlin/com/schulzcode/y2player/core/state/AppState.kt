@@ -68,6 +68,15 @@ data class DisplayState(
     val screenTimeoutMs: Int = 60_000
 )
 
+/**
+ * Wall-clock time as last reported by the activity's minute tick. The reducer
+ * and row builders stay pure by reading the time from here, never the system.
+ */
+data class ClockState(
+    val nowMs: Long = 0L,
+    val timeZoneId: String = "UTC"
+)
+
 data class BackupUiState(
     val exportedPath: String? = null,
     val importPreview: String? = null
@@ -84,6 +93,8 @@ data class PlayerPreferencesState(
     val keepScreenOnWhilePlaying: Boolean = false,
     val extraTrackInfo: Boolean = false,
     val showFmRadio: Boolean = false,
+    val use24HourClock: Boolean = false,
+    val showStatusClock: Boolean = true,
     val skinId: String = "classic",
     val lightTheme: Boolean = false,
     val localKeysWhileScreenOff: Boolean = false,
@@ -124,6 +135,7 @@ data class AppState(
     val device: DeviceState = DeviceState(),
     val bluetooth: BluetoothUiState = BluetoothUiState(),
     val display: DisplayState = DisplayState(),
+    val clock: ClockState = ClockState(),
     val preferences: PlayerPreferencesState = PlayerPreferencesState(),
     val diagnostics: DiagnosticsState = DiagnosticsState(),
     val backup: BackupUiState = BackupUiState(),

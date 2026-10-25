@@ -1,6 +1,7 @@
 package com.schulzcode.y2player.ui
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.content.ComponentName
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -23,6 +24,8 @@ import com.schulzcode.y2player.bluetooth.BluetoothController
 import com.schulzcode.y2player.backup.UserDataBackupManager
 import com.schulzcode.y2player.core.model.AudioQualityMode
 import com.schulzcode.y2player.core.model.PlaybackStatus
+import com.schulzcode.y2player.core.model.SleepTimerMode
+import com.schulzcode.y2player.core.state.ClockState
 import com.schulzcode.y2player.core.state.AppAction
 import com.schulzcode.y2player.core.state.AppEffect
 import com.schulzcode.y2player.core.state.AppStore
@@ -100,6 +103,9 @@ class MainActivity : Activity() {
     private var lastKeepScreenOn = false
     private var lastAvailabilityRevision = Long.MIN_VALUE
     private var screenReceiverRegistered = false
+    private var clockReceiverRegistered = false
+    /** Minutes of a sleep timer handed back by a video, applied once playback is bound again. */
+    private var pendingSleepMinutes: Int? = null
     @Volatile private var destroyed = false
 
     private val screenStateReceiver = object : BroadcastReceiver() {
@@ -111,6 +117,19 @@ class MainActivity : Activity() {
                 Intent.ACTION_SCREEN_ON -> playerView.setTextAnimationsVisible(true)
             }
         }
+    }
+
+    // The status bar clock and Date & Time read the time from state, refreshed on
+    // the system's minute tick and whenever the time or zone is changed.
+    private val clockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_TIMEZONE_CHANGED) java.util.TimeZone.setDefault(null)
+            publishClock()
+        }
+    }
+
+    private fun publishClock() {
+        store.dispatch(AppAction.ClockChanged(ClockState(System.currentTimeMillis(), java.util.TimeZone.getDefault().id)))
     }
 
     private val stateListener = AppStore.StateListener { state ->
@@ -196,6 +215,7 @@ class MainActivity : Activity() {
             val library = libraryRepository.snapshot()
             lastAvailabilityRevision = library.availabilityRevision
             playbackBinder?.reconcileAvailability(library.availableTrackIds)
+            applyPendingSleepTimer()
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             playbackBinder?.removeListener(playbackListener)
@@ -255,6 +275,16 @@ class MainActivity : Activity() {
             registerReceiver(
                 screenStateReceiver,
                 IntentFilter(Intent.ACTION_SCREEN_ON).apply { addAction(Intent.ACTION_SCREEN_OFF) }
+            )
+            true
+        }.getOrDefault(false)
+        clockReceiverRegistered = runCatching {
+            registerReceiver(
+                clockReceiver,
+                IntentFilter(Intent.ACTION_TIME_TICK).apply {
+                    addAction(Intent.ACTION_TIME_CHANGED)
+                    addAction(Intent.ACTION_TIMEZONE_CHANGED)
+                }
             )
             true
         }.getOrDefault(false)
@@ -320,6 +350,7 @@ class MainActivity : Activity() {
         storageMonitor.publish()
         store.dispatch(AppAction.DisplayChanged(displayController.snapshot()))
         store.dispatch(AppAction.PreferencesChanged(currentPreferences))
+        publishClock()
         if (!safeModeManager.isSafeMode()) store.dispatch(AppAction.BluetoothChanged(bluetoothController.snapshot()))
         playerView.isSoundEffectsEnabled = currentPreferences.uiSoundEffectsEnabled
         val uiSounds = currentPreferences.uiSoundEffectsEnabled
@@ -369,7 +400,7 @@ class MainActivity : Activity() {
         val resume = VideoResumeStore(applicationContext)
         backgroundExecutor.execute {
             val items = runCatching {
-                VideoLibrary.load(path, Y2StoragePaths.availableRoots(), resume::get)
+                VideoLibrary.load(path, Y2StoragePaths.availableRoots(), resume::get, resume::isWatched, resume::lastWatched)
             }.getOrElse {
                 logger.warn("Video", "listing failed: ${it.javaClass.simpleName}")
                 emptyList()
@@ -412,6 +443,7 @@ class MainActivity : Activity() {
         store.removeEffectListener(effectListener)
         store.removeActionListener(actionLogger)
         if (screenReceiverRegistered) runCatching { unregisterReceiver(screenStateReceiver) }
+        if (clockReceiverRegistered) runCatching { unregisterReceiver(clockReceiver) }
         playerView.release()
         backgroundExecutor.shutdownNow()
         super.onDestroy()
@@ -499,7 +531,7 @@ class MainActivity : Activity() {
                     binder.playCollectionShuffled(tracks.map { track -> track.id })
                 }
             }
-            is AppEffect.ToggleFavorite -> { libraryRepository.toggleFavorite(effect.trackId); showMessage("Favorite updated") }
+            is AppEffect.ToggleFavorite -> { libraryRepository.toggleFavorite(effect.trackId); showMessage("Favourite updated") }
             AppEffect.CreatePlaylist -> { libraryRepository.createPlaylist(); showMessage("Playlist created") }
             is AppEffect.CreatePlaylistWithTrack -> { libraryRepository.createPlaylistWithTrack(effect.trackId); showMessage("Playlist created") }
             is AppEffect.AddTrackToPlaylist -> { libraryRepository.addTrackToPlaylist(effect.playlistId, effect.trackId); showMessage("Added to playlist") }
@@ -718,13 +750,29 @@ class MainActivity : Activity() {
             is AppEffect.LoadVideos -> loadVideos(effect.path)
             is AppEffect.PlayVideo -> {
                 // One output at a time: music pauses and stays exactly where it was.
+                // A running sleep timer moves to the video and comes back afterwards.
+                var sleepRemainingMs = 0L
                 playbackBinder?.let { binder ->
-                    val status = binder.snapshot().status
-                    if (status == PlaybackStatus.PLAYING || status == PlaybackStatus.PREPARING) binder.togglePlayback()
+                    val snapshot = binder.snapshot()
+                    if (snapshot.status == PlaybackStatus.PLAYING || snapshot.status == PlaybackStatus.PREPARING) binder.togglePlayback()
+                    val deadline = snapshot.sleepTimerDeadlineElapsedMs
+                    if (snapshot.sleepTimerMode == SleepTimerMode.MINUTES && deadline != null) {
+                        sleepRemainingMs = (deadline - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+                        binder.setSleepTimer(SleepTimerMode.OFF, null)
+                    }
                 }
-                runCatching { startActivity(VideoActivity.intent(this, effect.path, effect.folderVideos)) }
-                    .onFailure { showMessage("Videos could not open") }
+                runCatching {
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(
+                        VideoActivity.intent(this, effect.path, effect.folderVideos, sleepRemainingMs),
+                        VIDEO_REQUEST
+                    )
+                }.onFailure { showMessage("Videos could not open") }
             }
+            AppEffect.Toggle24HourClock -> applyPlaybackPreferences(preferences.toggle24HourClock())
+            AppEffect.ToggleStatusClock -> applyPlaybackPreferences(preferences.toggleStatusClock())
+            is AppEffect.SetDateTime -> setDateTime(effect)
+            is AppEffect.SetTimeZone -> setTimeZone(effect.id)
             AppEffect.OpenAndroidSettings -> {
                 val settings = Intent(android.provider.Settings.ACTION_SETTINGS)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -864,6 +912,51 @@ class MainActivity : Activity() {
         playbackBinder?.applyPreferences(value)
     }
 
+    @Deprecated("Platform callback")
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != VIDEO_REQUEST) return
+        val remaining = VideoActivity.sleepRemainingMs(data)
+        if (remaining > 0L) {
+            pendingSleepMinutes = ((remaining + 59_999L) / 60_000L).toInt()
+            applyPendingSleepTimer()
+        }
+    }
+
+    // The video ran while this activity was stopped and unbound, so the binder may
+    // still be connecting; onServiceConnected calls this again.
+    private fun applyPendingSleepTimer() {
+        val minutes = pendingSleepMinutes ?: return
+        val binder = playbackBinder ?: return
+        pendingSleepMinutes = null
+        binder.setSleepTimer(SleepTimerMode.MINUTES, minutes)
+    }
+
+    /**
+     * Y2Player ships in priv-app, so KitKat grants it SET_TIME and SET_TIME_ZONE.
+     * The Y2 has no network time, which leaves this the only way to set the clock.
+     */
+    private fun setDateTime(effect: AppEffect.SetDateTime) {
+        val calendar = java.util.GregorianCalendar(java.util.TimeZone.getDefault())
+        calendar.set(effect.year, effect.month - 1, effect.day, effect.hour, effect.minute, 0)
+        calendar.set(java.util.Calendar.MILLISECOND, 0)
+        val applied = runCatching { SystemClock.setCurrentTimeMillis(calendar.timeInMillis) }
+            .onFailure { logger.warn("Clock", "set time failed: ${it.javaClass.simpleName}") }
+            .getOrDefault(false)
+        publishClock()
+        showMessage(if (applied) "Time set" else "The time could not be set")
+    }
+
+    private fun setTimeZone(id: String) {
+        val applied = runCatching {
+            (getSystemService(Context.ALARM_SERVICE) as AlarmManager).setTimeZone(id)
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(id))
+        }.onFailure { logger.warn("Clock", "set zone failed: ${it.javaClass.simpleName}") }.isSuccess
+        publishClock()
+        showMessage(if (applied) "Time zone set" else "The time zone could not be set")
+    }
+
     private fun requirePlayback(block: (PlaybackService.LocalBinder) -> Unit) {
         val binder = playbackBinder
         if (binder == null) showMessage("Playback is starting") else block(binder)
@@ -924,5 +1017,6 @@ class MainActivity : Activity() {
         private const val WHEEL_LOG_WINDOW_MS = 1_000L
         private const val ALPHABET_SCRUB_TIMEOUT_MS = 420L
         private const val STARTUP_STABLE_DELAY_MS = 10_000L
+        private const val VIDEO_REQUEST = 41
     }
 }

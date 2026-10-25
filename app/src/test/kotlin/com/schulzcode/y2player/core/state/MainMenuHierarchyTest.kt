@@ -75,9 +75,15 @@ class MainMenuHierarchyTest {
         assertEquals(listOf("music", "audiobooks", "videos", "fm_radio", "search", "settings"), keys(state))
     }
 
-    @Test fun `the main menu removes the duplicate Now Playing row during a session`() {
+    @Test fun `a session leads with Now Playing and offers the Sleep Timer`() {
         val state = AppState(library = library, playback = playing)
-        assertEquals(listOf("music", "audiobooks", "videos", "search", "settings"), keys(state))
+        assertEquals(
+            listOf("now_playing", "music", "audiobooks", "videos", "search", "main_sleep_timer", "settings"),
+            keys(state)
+        )
+        assertEquals(Screen.NowPlaying, open(state, "now_playing").state.currentScreen)
+        assertEquals(Screen.SleepTimer, open(state, "main_sleep_timer").state.currentScreen)
+        assertEquals("Song · Artist", ScreenContent.rows(state).first().subtitle)
     }
 
     @Test fun `right from the main menu skips to the next track`() {
@@ -96,10 +102,10 @@ class MainMenuHierarchyTest {
         assertEquals(Screen.Audiobooks, open(AppState(library = library), "audiobooks").state.currentScreen)
     }
 
-    @Test fun `the main menu subtitle never regroups the library`() {
+    @Test fun `the Audiobooks subtitle says how to add books when there are none`() {
         val row = ScreenContent.rows(AppState(library = library))[1] as ScreenRow.Action
         assertEquals("Audiobooks", row.title)
-        assertEquals("Pick up where you stopped", row.subtitle)
+        assertEquals("Put books in an AUDIOBOOKS folder", row.subtitle)
     }
 
     // ---- Music -----------------------------------------------------------------
@@ -160,7 +166,7 @@ class MainMenuHierarchyTest {
 
     @Test fun `Audio moved under Settings and stays reachable`() {
         val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
-        assertEquals(listOf("bluetooth", "audio", "interface", "library_settings", "system"), keys(settings))
+        assertEquals(listOf("bluetooth", "audio", "interface", "date_time", "library_settings", "system"), keys(settings))
         assertEquals(Screen.Audio, open(settings, "audio").state.currentScreen)
     }
 

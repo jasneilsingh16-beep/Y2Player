@@ -132,20 +132,22 @@ class AppReducerNowPlayingTest {
         assertTrue(sleepTimer.effects.isEmpty())
     }
 
-    @Test fun sleepTimerOffersEveryMinuteAndAppliesTheSelectedValue() {
+    @Test fun sleepTimerOffersPresetLengthsAndAppliesTheSelectedValue() {
         val opened = optionsReductionFor("sleep_timer").state
         val rows = ScreenContent.rows(opened).filterIsInstance<ScreenRow.Action>()
-        assertEquals(64, rows.size)
-        assertEquals("sleep_timer_minutes:1", rows[4].key)
-        assertEquals("sleep_timer_minutes:60", rows.last().key)
+        assertEquals(13, rows.size)
+        assertEquals("sleep_timer_minutes:5", rows[4].key)
+        assertEquals("5 minutes", rows[4].title)
+        assertEquals("sleep_timer_minutes:120", rows.last().key)
+        assertEquals("2 hours", rows.last().title)
 
         val selected = opened.copy(
-            screenStack = opened.screenStack.dropLast(1) + opened.currentEntry.copy(selectedIndex = 8)
+            screenStack = opened.screenStack.dropLast(1) + opened.currentEntry.copy(selectedIndex = 6)
         )
         val applied = AppReducer.reduce(selected, AppAction.Confirm)
 
         assertEquals(Screen.NowPlayingOptions, applied.state.currentScreen)
-        assertEquals(AppEffect.SetSleepTimer(SleepTimerMode.MINUTES, 5), applied.effects.single())
+        assertEquals(AppEffect.SetSleepTimer(SleepTimerMode.MINUTES, 15), applied.effects.single())
     }
 
     @Test fun reopeningSleepTimerSelectsTheActiveMinute() {
@@ -159,8 +161,9 @@ class AppReducerNowPlayingTest {
             AppAction.Confirm
         ).state
 
-        assertEquals(10, opened.selectedIndex)
-        assertEquals("Active", (ScreenContent.rows(opened)[10] as ScreenRow.Action).subtitle)
+        // 7 minutes is not a preset, so the list opens on the next longer one, 10.
+        assertEquals(5, opened.selectedIndex)
+        assertEquals("sleep_timer_minutes:10", (ScreenContent.rows(opened)[5] as ScreenRow.Action).key)
     }
 
     @Test fun optionsMenuTogglesFavoriteOfTheCurrentTrack() {
@@ -248,7 +251,7 @@ class AppReducerNowPlayingTest {
         val settings = AppState(screenStack = listOf(ScreenEntry(Screen.Settings)))
         val rows = ScreenContent.rows(settings)
         assertEquals(
-            listOf("bluetooth", "audio", "interface", "library_settings", "system"),
+            listOf("bluetooth", "audio", "interface", "date_time", "library_settings", "system"),
             rows.map { (it as ScreenRow.Action).key }
         )
         val systemIndex = rows.indexOfFirst { (it as? ScreenRow.Action)?.key == "system" }

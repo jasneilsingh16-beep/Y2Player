@@ -40,7 +40,7 @@
       {"type":"rect","bounds":[0,0,480,62],"color":"paper","gradient":{"endColor":"background","direction":"horizontal"}},
       {"type":"component","bounds":[14,12,28,28],"asset":"flower"},
       {"type":"text","bounds":[52,4,300,30],"text":"{screen.title}","style":"title","action":"back"},
-      {"type":"text","bounds":[52,34,260,18],"text":"Y2PLAYER  ·  PIXEL GARDEN","style":"caption"},
+      {"type":"text","bounds":[52,34,260,18],"text":"{clock}  ·  PIXEL GARDEN","style":"caption"},
       {"type":"text","bounds":[360,10,104,22],"text":"{battery}","size":13,"color":"accent","align":"right"},
       {"type":"text","bounds":[360,32,104,17],"text":"{device.charging}","style":"whisper","align":"right","when":"charging"},
       {"type":"line","bounds":[16,58,448,1],"color":"divider","stroke":2}

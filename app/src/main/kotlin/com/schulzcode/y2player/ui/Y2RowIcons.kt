@@ -84,7 +84,9 @@ object Y2RowIcons {
         "repeat" -> Y2Icon.REPEAT
         "queue", "queue_actions", "queue_management" -> Y2Icon.QUEUE
         "queue_clear_up_next", "queue_clear_remaining", "queue_clear" -> Y2Icon.REMOVE
-        "sleep_timer" -> Y2Icon.TIMER
+        "sleep_timer", "main_sleep_timer" -> Y2Icon.TIMER
+        "date_time", "clock_set_time", "clock_set_date", "clock_24_hour", "clock_status_bar" -> Y2Icon.TIMER
+        "clock_time_zone" -> Y2Icon.SYSTEM
         "playlist_create", "playlist_create_and_add" -> Y2Icon.ADD
         "playlist_import_m3u", "playlist_export_m3u", "playlist_files" -> Y2Icon.PLAYLIST
 
@@ -169,6 +171,9 @@ object Y2RowIcons {
         key.startsWith("balance:") -> Y2Icon.VOLUME
         key.startsWith("brightness:") || key.startsWith("timeout:") -> Y2Icon.DISPLAY
         key.startsWith("sleep_timer_") -> Y2Icon.TIMER
+        key.startsWith("clock_zone:") -> Y2Icon.SYSTEM
+        key.startsWith("clock_") -> Y2Icon.TIMER
+        key.startsWith("video_continue:") -> Y2Icon.PLAYING
         key.startsWith("eq_band:") || key.startsWith("eq_preset:") || key.startsWith("eq_level:") -> Y2Icon.EQUALIZER
         key.startsWith("search_track:") -> Y2Icon.MUSIC
         key.startsWith("search_album:") -> Y2Icon.ALBUM

@@ -179,6 +179,7 @@ duration, or on Search/FM. No intermediate drag seeks are emitted.
 | `device.charging`, `device.storageAvailable` | `true` or `false` |
 | `device.model` | Reported device model |
 | `display.brightness` | Brightness percentage |
+| `clock` | Current time, following the 24-Hour Time setting |
 
 These describe track metadata, not an assertion about the actual DAC output.
 System volume is cached for one second by the view and refreshed when drawing.

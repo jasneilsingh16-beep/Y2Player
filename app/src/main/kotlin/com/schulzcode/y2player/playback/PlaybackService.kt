@@ -327,6 +327,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     private val sleepTimer = SleepTimerController()
     private var backupImportInProgress = false
     private var sleepTimerCallback: Runnable? = null
+    private var sleepFadeCallback: Runnable? = null
     private val safetyPolicy = PlaybackSafetyPolicy()
 
     private val storageListener = StorageMonitor.Listener { device ->
@@ -1094,6 +1095,9 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         errorMessage: String? = null
     ) {
         if (reason == PauseReason.USER) safetyPolicy.onManualPause()
+        // Any pause ends a sleep fade; the gain is reset below, after the engine stops.
+        sleepFadeCallback?.let(playbackHandler::removeCallbacks)
+        sleepFadeCallback = null
         val position = currentPosition()
         val duration = currentDuration()
         val preparing = snapshot.status == PlaybackStatus.PREPARING
@@ -1765,6 +1769,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
     }
 
     private fun setSleepTimerInternal(mode: SleepTimerMode, minutes: Int?) {
+        cancelSleepFade()
         sleepTimerCallback?.let(playbackHandler::removeCallbacks)
         sleepTimerCallback = null
         sleepTimer.set(mode, minutes, SystemClock.elapsedRealtime())?.let { scheduled ->
@@ -1774,7 +1779,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
                         SleepTimerTick.Expired -> {
                             sleepTimerCallback = null
                             syncSleepTimerSnapshot()
-                            pauseInternal(PauseReason.SLEEP_TIMER)
+                            fadeOutForSleep()
                         }
                         is SleepTimerTick.Waiting -> playbackHandler.postDelayed(this, tick.delayMs)
                         SleepTimerTick.Stale -> Unit
@@ -1787,6 +1792,33 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         revalidatePreload()
         refreshSnapshot()
         publishSnapshot()
+    }
+
+    /**
+     * Music drifts out over a few seconds instead of cutting off, so falling asleep
+     * is not interrupted by the stop itself. The transient gain is restored by the
+     * pause, which leaves the next Play at full volume.
+     */
+    private fun fadeOutForSleep() {
+        if (snapshot.status != PlaybackStatus.PLAYING || !::engine.isInitialized) {
+            pauseInternal(PauseReason.SLEEP_TIMER)
+            return
+        }
+        fadeOutputGain(0f, SLEEP_FADE_MS)
+        val finish = Runnable {
+            sleepFadeCallback = null
+            pauseInternal(PauseReason.SLEEP_TIMER)
+        }
+        sleepFadeCallback = finish
+        playbackHandler.postDelayed(finish, SLEEP_FADE_MS)
+    }
+
+    /** A new timer chosen mid-fade keeps the music playing at its normal level. */
+    private fun cancelSleepFade() {
+        val pending = sleepFadeCallback ?: return
+        sleepFadeCallback = null
+        playbackHandler.removeCallbacks(pending)
+        cancelVolumeFade()
     }
 
     private fun clearSleepTimer() {
@@ -2359,6 +2391,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         private const val EFFECTIVE_DUCK_VOLUME = 0.2f
         private const val SHORT_FOCUS_FADE_MS = 100L
         private const val VOLUME_FADE_STEP_MS = 25L
+        private const val SLEEP_FADE_MS = 12_000L
         private const val ROUTE_LOSS_MESSAGE = "Private audio output disconnected - playback paused"
         private val ACTIVE_STATUSES = setOf(PlaybackStatus.PLAYING, PlaybackStatus.PREPARING)
         private val RESUMABLE_ENGINE_STATES = setOf(

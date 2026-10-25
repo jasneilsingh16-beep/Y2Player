@@ -27,7 +27,7 @@ class UserDataBackupManager(
     ) {
         val summary: String get() = buildString {
             append(document.userData.playlists.size).append(" playlists, ")
-            append(document.userData.favorites.size).append(" favorites, ")
+            append(document.userData.favorites.size).append(" favourites, ")
             append(document.userData.audiobookProgress.size).append(" book positions, ")
             append(document.userData.recentlyPlayed.size).append(" recent tracks")
             if (resolved.unresolvedReferences > 0) append(" · ${resolved.unresolvedReferences} tracks currently missing")

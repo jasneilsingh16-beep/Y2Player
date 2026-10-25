@@ -47,6 +47,25 @@ class SleepTimerPresentationTest {
         assertEquals("0:01", SleepTimerPresentation.countdown(1L))
         assertEquals("0:00", SleepTimerPresentation.countdown(0L))
         assertFalse(SleepTimerPresentation.countdown(899_999L).contains("..."))
+        assertEquals("1:30:00", SleepTimerPresentation.countdown(5_400_000L))
+        assertEquals("59:59", SleepTimerPresentation.countdown(3_599_000L))
+    }
+
+    @Test fun durationLabelsReadNaturally() {
+        assertEquals("5 minutes", SleepTimerPresentation.durationLabel(5))
+        assertEquals("1 hour", SleepTimerPresentation.durationLabel(60))
+        assertEquals("1 hour 30 minutes", SleepTimerPresentation.durationLabel(90))
+        assertEquals("2 hours", SleepTimerPresentation.durationLabel(120))
+        assertEquals("24 min", SleepTimerPresentation.compact(23 * 60_000L + 1L))
+    }
+
+    @Test fun mainMenuCountdownRefreshesToo() {
+        assertTrue(SleepTimerPresentation.shouldRefresh(
+            Screen.MainMenu,
+            SleepTimerMode.MINUTES,
+            deadlineElapsedMs = 900_000L,
+            uiVisible = true
+        ))
     }
 
     @Test fun refreshRunsOnlyWhileANumericCountdownIsVisible() {

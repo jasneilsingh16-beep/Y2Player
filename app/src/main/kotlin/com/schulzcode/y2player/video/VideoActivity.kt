@@ -10,6 +10,7 @@ import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.KeyEvent
 import android.view.View
@@ -35,12 +36,14 @@ import java.io.File
  * Android's MediaPlayer hands H.264 to the MT6582's hardware decoder, so video
  * never goes through the FFmpeg music engine. MainActivity pauses music first.
  *
- *   Center / Play    play or pause
+ *   Centre / Play    play or pause
  *   Wheel            volume
  *   Left / Right     back 10 s / forward 30 s; hold to keep seeking
- *   Hold Center      subtitles on or off
+ *   Hold Centre      options: subtitles, sleep timer, start over, next episode
  *   Next / Previous  next or previous video in the folder
  *   Back             stop; the position is remembered
+ *
+ * In the options panel the wheel moves, Centre chooses and Back closes it.
  */
 class VideoActivity : Activity() {
     private val handler = Handler(Looper.getMainLooper())
@@ -74,6 +77,19 @@ class VideoActivity : Activity() {
     private val clearSeekTarget = Runnable { seekTarget = -1L }
     private var seekRepeats = 0
 
+    // Sleep timer. A running music timer is handed over on launch and the time
+    // left is handed back on exit, so one timer spans music and video.
+    private var sleepEndOfVideo = false
+    private var sleepDeadline = 0L
+    private var sleepChoice = 0
+    private var sleepGain = 1f
+    private val sleepTick = object : Runnable {
+        override fun run() = onSleepTick()
+    }
+
+    private var menuSelection = 0
+    private val closeMenu = Runnable { hideMenu() }
+
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
         if (change == AudioManager.AUDIOFOCUS_LOSS || change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT) {
             if (videoView.isPlaying) pauseVideo()
@@ -88,7 +104,7 @@ class VideoActivity : Activity() {
             }
         }
     }
-    private val hideOsd = Runnable { if (videoView.isPlaying) osd.visibility = View.GONE }
+    private val hideOsd = Runnable { if (videoView.isPlaying && !osd.menuOpen) osd.visibility = View.GONE }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,6 +148,12 @@ class VideoActivity : Activity() {
             true
         }
 
+        intent.getLongExtra(EXTRA_SLEEP_REMAINING, 0L).takeIf { it > 0L }?.let { remaining ->
+            sleepDeadline = SystemClock.elapsedRealtime() + remaining
+            sleepChoice = -1
+            handler.post(sleepTick)
+        }
+
         val path = intent.getStringExtra(EXTRA_PATH)
         playlist = intent.getStringArrayListExtra(EXTRA_PLAYLIST).orEmpty().map(::File)
         if (path == null) {
@@ -169,7 +191,7 @@ class VideoActivity : Activity() {
             videoView.seekTo(start.toInt())
             osd.setMessage("Resumed at ${TimeFormat.duration(start)} · Previous starts over")
         } else {
-            osd.setMessage(null)
+            osd.setMessage("Hold Centre for options")
         }
         if (stayPausedOnPrepare) {
             stayPausedOnPrepare = false
@@ -248,7 +270,15 @@ class VideoActivity : Activity() {
     }
 
     private fun onCompleted() {
-        current?.let { resumeStore.clear(it.absolutePath) }
+        current?.let { resumeStore.markWatched(it.absolutePath) }
+        if (sleepEndOfVideo) {
+            // "End of video" stops here instead of rolling into the next episode.
+            clearSleepTimer()
+            prepared = false
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            finish()
+            return
+        }
         val next = neighbour(1)
         if (next != null) {
             videoView.stopPlayback()
@@ -303,7 +333,8 @@ class VideoActivity : Activity() {
     }
 
     private fun applyAppVolume() {
-        val gain = if (volumeMode == VolumeMode.PERCEPTUAL) VolumeCurve.gainForLevel(appVolumeLevel) else 1f
+        val base = if (volumeMode == VolumeMode.PERCEPTUAL) VolumeCurve.gainForLevel(appVolumeLevel) else 1f
+        val gain = base * sleepGain
         runCatching { player?.setVolume(gain, gain) }
     }
 
@@ -360,14 +391,17 @@ class VideoActivity : Activity() {
 
         val down = event.action == KeyEvent.ACTION_DOWN
         val up = event.action == KeyEvent.ACTION_UP
+        val menu = osd.menuOpen
         when (code) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (down) adjustVolume(-1)
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (down) adjustVolume(1)
+            KeyEvent.KEYCODE_DPAD_UP -> if (down) { if (menu) moveMenu(-1) else adjustVolume(-1) }
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (down) { if (menu) moveMenu(1) else adjustVolume(1) }
 
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                // Holding toggles subtitles; a short press acts on release.
-                if (down && event.repeatCount == LONG_PRESS_REPEATS) toggleSubtitles()
-                if (up && !event.isCanceled && event.eventTime - event.downTime < LONG_PRESS_MS) togglePlayPause()
+                // Holding opens or closes the options; a short press acts on release.
+                if (down && event.repeatCount == LONG_PRESS_REPEATS) { if (menu) hideMenu() else showMenu() }
+                if (up && !event.isCanceled && event.eventTime - event.downTime < LONG_PRESS_MS) {
+                    if (menu) chooseMenuItem() else togglePlayPause()
+                }
             }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK,
             KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE ->
@@ -383,7 +417,7 @@ class VideoActivity : Activity() {
                 if (osd.hasResumeMessage() && prepared) seekTo(0) else skip(-1)
             }
 
-            KeyEvent.KEYCODE_BACK -> if (down && event.repeatCount == 0) finish()
+            KeyEvent.KEYCODE_BACK -> if (down && event.repeatCount == 0) { if (menu) hideMenu() else finish() }
             KeyEvent.KEYCODE_MENU -> if (down) showOsd()
         }
         return true
@@ -415,6 +449,125 @@ class VideoActivity : Activity() {
         showOsd()
     }
 
+    // ---- options panel ---------------------------------------------------------
+
+    private fun menuItems(): List<VideoOsdView.MenuItem> = buildList {
+        add(VideoOsdView.MenuItem(
+            "Subtitles",
+            when {
+                !subtitlesAvailable -> "None"
+                subtitlesOn -> "On"
+                else -> "Off"
+            }
+        ))
+        add(VideoOsdView.MenuItem("Sleep Timer", sleepValueLabel()))
+        add(VideoOsdView.MenuItem("Start Over", ""))
+        neighbour(1)?.let { add(VideoOsdView.MenuItem("Next Episode", VideoLibrary.displayTitle(it.name))) }
+    }
+
+    private fun showMenu() {
+        menuSelection = 0
+        refreshMenu()
+    }
+
+    private fun refreshMenu() {
+        osd.setMenu(menuItems(), menuSelection)
+        showOsd(sticky = true)
+        handler.removeCallbacks(closeMenu)
+        handler.postDelayed(closeMenu, MENU_TIMEOUT_MS)
+    }
+
+    private fun hideMenu() {
+        handler.removeCallbacks(closeMenu)
+        if (!osd.menuOpen) return
+        osd.setMenu(null)
+        showOsd(sticky = !videoView.isPlaying)
+    }
+
+    private fun moveMenu(delta: Int) {
+        val count = menuItems().size
+        menuSelection = (menuSelection + delta).coerceIn(0, count - 1)
+        refreshMenu()
+    }
+
+    private fun chooseMenuItem() {
+        when (menuItems().getOrNull(menuSelection)?.title) {
+            "Subtitles" -> { toggleSubtitles(); refreshMenu() }
+            "Sleep Timer" -> { cycleSleepTimer(); refreshMenu() }
+            "Start Over" -> { hideMenu(); if (prepared) seekTo(0) }
+            "Next Episode" -> { hideMenu(); skip(1) }
+        }
+    }
+
+    // ---- sleep timer -------------------------------------------------------------
+
+    /** Centre steps through the choices, as the Repeat row does in music. */
+    private fun cycleSleepTimer() {
+        sleepChoice = if (sleepChoice < 0) 1 else (sleepChoice + 1) % SLEEP_CHOICES.size
+        val choice = SLEEP_CHOICES[sleepChoice]
+        restoreSleepGain()
+        handler.removeCallbacks(sleepTick)
+        sleepEndOfVideo = choice == END_OF_VIDEO
+        sleepDeadline = if (choice > 0) SystemClock.elapsedRealtime() + choice * 60_000L else 0L
+        if (sleepDeadline > 0L) handler.post(sleepTick)
+        updateSleepLabel()
+    }
+
+    private fun clearSleepTimer() {
+        handler.removeCallbacks(sleepTick)
+        sleepEndOfVideo = false
+        sleepDeadline = 0L
+        sleepChoice = 0
+        restoreSleepGain()
+        updateSleepLabel()
+    }
+
+    private fun sleepRemainingMs(): Long =
+        if (sleepDeadline <= 0L) 0L else (sleepDeadline - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+
+    private fun sleepValueLabel(): String = when {
+        sleepEndOfVideo -> "End of video"
+        sleepDeadline > 0L -> "${(sleepRemainingMs() + 59_999L) / 60_000L} min left"
+        else -> "Off"
+    }
+
+    private fun updateSleepLabel() {
+        osd.setSleepLabel(
+            when {
+                sleepEndOfVideo -> "Sleep · end of video"
+                sleepDeadline > 0L -> "Sleep · ${TimeFormat.duration(sleepRemainingMs())}"
+                else -> null
+            }
+        )
+    }
+
+    private fun onSleepTick() {
+        if (sleepDeadline <= 0L) return
+        val remaining = sleepRemainingMs()
+        updateSleepLabel()
+        if (remaining <= 0L) {
+            // Asleep: stop at this spot and let the screen time out.
+            clearSleepTimer()
+            if (prepared && videoView.isPlaying) pauseVideo()
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            osd.setMessage("Sleep timer ended")
+            return
+        }
+        if (remaining <= SLEEP_FADE_MS) {
+            sleepGain = remaining.toFloat() / SLEEP_FADE_MS
+            applyAppVolume()
+            handler.postDelayed(sleepTick, SLEEP_FADE_STEP_MS)
+        } else {
+            handler.postDelayed(sleepTick, (remaining - SLEEP_FADE_MS).coerceAtMost(1_000L))
+        }
+    }
+
+    private fun restoreSleepGain() {
+        if (sleepGain == 1f) return
+        sleepGain = 1f
+        applyAppVolume()
+    }
+
     // ---- lifecycle -------------------------------------------------------------
 
     override fun onResume() {
@@ -439,6 +592,7 @@ class VideoActivity : Activity() {
         if (foreground === this) foreground = null
         // Screen off, or another app in front: stop where we are.
         stayPausedOnPrepare = true
+        hideMenu()
         if (prepared && videoView.isPlaying) videoView.pause()
         saveResume()
         showOsd(sticky = true)
@@ -447,6 +601,8 @@ class VideoActivity : Activity() {
 
     override fun finish() {
         saveResume()
+        val remaining = sleepRemainingMs()
+        setResult(RESULT_OK, Intent().putExtra(EXTRA_SLEEP_REMAINING, remaining))
         super.finish()
     }
 
@@ -460,6 +616,13 @@ class VideoActivity : Activity() {
     companion object {
         private const val EXTRA_PATH = "path"
         private const val EXTRA_PLAYLIST = "playlist"
+        private const val EXTRA_SLEEP_REMAINING = "sleep_remaining_ms"
+        private const val MENU_TIMEOUT_MS = 8_000L
+        private const val SLEEP_FADE_MS = 10_000L
+        private const val SLEEP_FADE_STEP_MS = 100L
+        private const val END_OF_VIDEO = -1
+        /** Off, end of video, then minutes. */
+        private val SLEEP_CHOICES = listOf(0, END_OF_VIDEO, 15, 30, 45, 60, 90, 120)
         private const val OSD_TIMEOUT_MS = 3_000L
         private const val SHORT_SEEK_BACK_MS = -10_000L
         private const val SHORT_SEEK_FORWARD_MS = 30_000L
@@ -485,9 +648,13 @@ class VideoActivity : Activity() {
             return true
         }
 
-        fun intent(context: Context, path: String, folderVideos: List<String>): Intent =
+        fun intent(context: Context, path: String, folderVideos: List<String>, sleepRemainingMs: Long = 0L): Intent =
             Intent(context, VideoActivity::class.java)
                 .putExtra(EXTRA_PATH, path)
                 .putStringArrayListExtra(EXTRA_PLAYLIST, ArrayList(folderVideos))
+                .putExtra(EXTRA_SLEEP_REMAINING, sleepRemainingMs)
+
+        /** Time left on a minutes sleep timer when the video closed; 0 when none is running. */
+        fun sleepRemainingMs(result: Intent?): Long = result?.getLongExtra(EXTRA_SLEEP_REMAINING, 0L) ?: 0L
     }
 }

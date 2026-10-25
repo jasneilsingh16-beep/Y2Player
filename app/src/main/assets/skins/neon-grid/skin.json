@@ -25,7 +25,7 @@
       {"type":"path","bounds":[10,10,18,18],"points":[[0,0],[1,0.5],[0,1],[0.28,0.5]],"closed":true,"color":"accent","action":"back"},
       {"type":"text","bounds":[36,2,310,36],"text":"{screen.title}","style":"title","color":"accent","action":"back"},
       {"type":"text","bounds":[355,3,113,18],"text":"PWR {battery}","style":"meta","align":"right"},
-      {"type":"text","bounds":[355,20,113,16],"text":"LUX {display.brightness}%","style":"micro","align":"right"},
+      {"type":"text","bounds":[355,20,113,16],"text":"{clock}","style":"micro","align":"right"},
       {"type":"rect","bounds":[12,40,456,2],"color":"accent","gradient":{"endColor":"accentHot","direction":"horizontal"}}
     ],
     "footer": [

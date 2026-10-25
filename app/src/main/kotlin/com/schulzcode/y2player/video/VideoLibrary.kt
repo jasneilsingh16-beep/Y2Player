@@ -42,19 +42,47 @@ object VideoLibrary {
      * [path] null is the section's first screen. With one volume holding a Videos
      * folder it opens straight into that folder; with two, each volume is a row.
      */
-    fun load(path: String?, roots: List<StorageRoot>, resumeMs: (String) -> Long = { 0L }): List<VideoItem> {
-        if (path != null) return list(File(path), resumeMs)
+    fun load(
+        path: String?,
+        roots: List<StorageRoot>,
+        resumeMs: (String) -> Long = { 0L },
+        watched: (String) -> Boolean = { false },
+        lastWatched: () -> String? = { null }
+    ): List<VideoItem> {
+        if (path != null) return list(File(path), watched, resumeMs)
         val withVideos = roots.mapNotNull { root -> videoRoot(root.directory)?.let { root to it } }
-        return when (withVideos.size) {
+        val items = when (withVideos.size) {
             0 -> emptyList()
-            1 -> list(withVideos.single().second, resumeMs)
+            1 -> list(withVideos.single().second, watched, resumeMs)
             else -> withVideos.map { (root, directory) ->
                 VideoItem(VideoItemKind.VOLUME, volumeName(root.id), directory.absolutePath, countVideos(directory))
             }
         }
+        val continuing = if (items.isEmpty()) null else continueWatching(lastWatched(), resumeMs)
+        return listOfNotNull(continuing) + items
     }
 
-    fun list(directory: File, resumeMs: (String) -> Long = { 0L }): List<VideoItem> {
+    /** The video last left part-way, offered first so one press picks it back up. */
+    private fun continueWatching(path: String?, resumeMs: (String) -> Long): VideoItem? {
+        val file = path?.let(::File)?.takeIf { it.isFile } ?: return null
+        val position = resumeMs(file.absolutePath).takeIf { it > 0 } ?: return null
+        val siblings = file.parentFile?.listFiles().orEmpty()
+            .filter { it.isFile && isVideoFile(it.name) }
+            .sortedWith { first, second ->
+                NaturalTextOrder.compare(first.name.lowercase(Locale.US), second.name.lowercase(Locale.US))
+            }
+            .map { it.absolutePath }
+        return VideoItem(
+            VideoItemKind.CONTINUE, displayTitle(file.name), file.absolutePath,
+            resumeMs = position, playlist = siblings
+        )
+    }
+
+    fun list(
+        directory: File,
+        watched: (String) -> Boolean = { false },
+        resumeMs: (String) -> Long = { 0L }
+    ): List<VideoItem> {
         val items = directory.listFiles().orEmpty().mapNotNull { child ->
             when {
                 child.name.startsWith(".") -> null
@@ -67,7 +95,8 @@ object VideoLibrary {
                 }
                 child.isFile && isVideoFile(child.name) -> VideoItem(
                     VideoItemKind.VIDEO, displayTitle(child.name), child.absolutePath,
-                    sizeBytes = child.length(), resumeMs = resumeMs(child.absolutePath)
+                    sizeBytes = child.length(), resumeMs = resumeMs(child.absolutePath),
+                    watched = watched(child.absolutePath)
                 )
                 else -> null
             }
@@ -115,18 +144,54 @@ object VideoLibrary {
     private const val MAX_DEPTH = 4
 }
 
-/** Where each video was left, keyed by absolute path. */
+/**
+ * Where each video was left, keyed by absolute path, plus when it was last
+ * watched and whether it has been finished. Paths are absolute, so the prefixed
+ * keys can never collide with a position key.
+ */
 class VideoResumeStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("video_resume", Context.MODE_PRIVATE)
 
-    fun get(path: String): Long = preferences.getLong(path, 0L)
+    fun get(path: String): Long = runCatching { preferences.getLong(path, 0L) }.getOrDefault(0L)
+
+    fun isWatched(path: String): Boolean = runCatching { preferences.getBoolean(WATCHED_PREFIX + path, false) }.getOrDefault(false)
 
     fun save(path: String, positionMs: Long, durationMs: Long) {
         val keep = VideoResumePolicy.positionToStore(positionMs, durationMs)
-        preferences.edit().apply { if (keep == null) remove(path) else putLong(path, keep) }.apply()
+        val finished = VideoResumePolicy.isFinished(positionMs, durationMs)
+        preferences.edit().apply {
+            if (keep == null) {
+                remove(path)
+                remove(TIME_PREFIX + path)
+            } else {
+                putLong(path, keep)
+                putLong(TIME_PREFIX + path, System.currentTimeMillis())
+                remove(WATCHED_PREFIX + path)
+            }
+            if (finished) putBoolean(WATCHED_PREFIX + path, true)
+        }.apply()
     }
 
-    fun clear(path: String) = preferences.edit().remove(path).apply()
+    /** Played to the end: the position is forgotten and the video is marked watched. */
+    fun markWatched(path: String) = preferences.edit()
+        .remove(path)
+        .remove(TIME_PREFIX + path)
+        .putBoolean(WATCHED_PREFIX + path, true)
+        .apply()
+
+    /** The most recently left video that still has a position to resume. */
+    fun lastWatched(): String? = runCatching {
+        preferences.all.entries
+            .filter { it.key.startsWith(TIME_PREFIX) && it.value is Long }
+            .sortedByDescending { it.value as Long }
+            .map { it.key.removePrefix(TIME_PREFIX) }
+            .firstOrNull { get(it) > 0 }
+    }.getOrNull()
+
+    private companion object {
+        const val TIME_PREFIX = "t:"
+        const val WATCHED_PREFIX = "w:"
+    }
 }
 
 /**
@@ -146,6 +211,10 @@ object VideoResumePolicy {
         }
         return positionMs
     }
+
+    /** Stopped in the closing stretch: counts as watched. */
+    fun isFinished(positionMs: Long, durationMs: Long): Boolean =
+        durationMs > 0 && positionMs >= MIN_RESUME_MS && positionToStore(positionMs, durationMs) == null
 
     fun startPosition(storedMs: Long, durationMs: Long): Long = when {
         storedMs < MIN_RESUME_MS -> 0L

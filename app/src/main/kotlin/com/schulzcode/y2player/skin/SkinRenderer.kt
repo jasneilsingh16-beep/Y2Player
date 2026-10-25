@@ -119,6 +119,7 @@ class SkinRenderer(private val dispatch: (AppAction) -> Unit) {
             "track.artist" to (track?.displayArtist ?: "Select a track"), "track.album" to (track?.displayAlbum ?: ""),
             "playback.elapsed" to TimeFormat.duration(state.playback.positionMs), "playback.duration" to TimeFormat.duration(state.playback.durationMs),
             "playback.status" to state.playback.status.name, "battery" to (state.device.batteryPercent?.let { "$it%" } ?: "--"),
+            "clock" to com.schulzcode.y2player.core.state.ClockPresentation.time(state.clock, state.preferences.use24HourClock),
             "position" to if (rows.isEmpty()) "" else "${state.selectedIndex + 1} / ${rows.size}",
             "search.query" to ((state.currentScreen as? Screen.Search)?.query ?: ""),
             "fm.frequency" to "${state.fm.frequencyLabel} MHz", "fm.status" to (state.fm.message ?: if (state.fm.powered) "FM ON" else "FM OFF"),

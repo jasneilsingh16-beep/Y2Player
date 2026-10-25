@@ -25,6 +25,8 @@ object PreferenceBackup {
         "keep_screen_on" to value.keepScreenOnWhilePlaying.toString(),
         "extra_track_info" to value.extraTrackInfo.toString(),
         "show_fm_radio" to value.showFmRadio.toString(),
+        "use_24_hour_clock" to value.use24HourClock.toString(),
+        "show_status_clock" to value.showStatusClock.toString(),
         "skin_id" to value.skinId,
         "light_theme" to value.lightTheme.toString(),
         "screen_off_keys" to value.localKeysWhileScreenOff.toString(),
@@ -99,6 +101,8 @@ object PreferenceBackup {
                     else -> throw IllegalArgumentException("Invalid show_fm_radio setting")
                 }
             } ?: false,
+            use24HourClock = optionalBoolean(values, "use_24_hour_clock", false),
+            showStatusClock = optionalBoolean(values, "show_status_clock", true),
             skinId = values["skin_id"]?.also { require(com.schulzcode.y2player.skin.SkinIds.valid(it)) { "Invalid skin_id" } }
                 ?: if (boolean("light_theme")) "classic-light" else "classic",
             lightTheme = boolean("light_theme"),
@@ -137,6 +141,19 @@ object PreferenceBackup {
         )
     }
 
-    private val OPTIONAL_KEYS = setOf("album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked", "skin_id")
+    // Backups written before a setting existed simply lack its key.
+    private fun optionalBoolean(values: Map<String, String>, key: String, fallback: Boolean): Boolean =
+        values[key]?.let {
+            when (it) {
+                "true" -> true
+                "false" -> false
+                else -> throw IllegalArgumentException("Invalid $key setting")
+            }
+        } ?: fallback
+
+    private val OPTIONAL_KEYS = setOf(
+        "album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked", "skin_id",
+        "use_24_hour_clock", "show_status_clock"
+    )
     private val REQUIRED_KEYS = encode(PlayerPreferencesState()).keys - OPTIONAL_KEYS
 }

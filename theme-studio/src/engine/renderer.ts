@@ -31,7 +31,7 @@ export function renderTheme(canvas:HTMLCanvasElement,theme:SkinDocument,state:Pr
     'empty.message':state.screen==='search'?'Use the keyboard below to search':'No items here. Press Back to return.',
     'volume':String(state.volume),'volume.mode':'SYSTEM','shuffle':'OFF','repeat':'OFF','track.codec':'FLAC',
     'track.sampleRate':'44100','track.bitDepth':'16','track.channels':'2','track.bitrate':'945000',
-    'device.charging':String(state.charging),'device.model':'Y2','device.storageAvailable':'true','display.brightness':'50'
+    'device.charging':String(state.charging),'device.model':'Y2','device.storageAvailable':'true','display.brightness':'50','clock':'9:41 pm'
   }
   const visible=(n:SkinNode,row?:RowData,index=-1)=>{switch(n.when??'always'){
     case'focused':return index===state.selected;case'unfocused':return index!==state.selected;case'active':return !!row?.active

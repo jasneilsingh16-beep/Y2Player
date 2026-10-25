@@ -7,7 +7,7 @@ const ajv=new Ajv2020({allErrors:true,strict:false})
 const structural=ajv.compile(schema)
 const actions=new Set(['','confirm','back','home','nowPlaying','playPause','next','previous','left','right','volumeUp','volumeDown','shuffle','repeat','nextGroup','previousGroup'])
 const conditions=new Set(['always','focused','unfocused','active','unavailable','playing','paused','hasTrack','noTrack','message','alphabet','emptyRows','pressed','disabled','enabled','charging'])
-const bindings=new Set(['screen.title','track.title','track.artist','track.album','playback.elapsed','playback.duration','playback.status','battery','position','row.title','row.subtitle','row.number','row.trailing','search.query','fm.frequency','fm.status','message','alphabet','empty.message','playback.details','volume','volume.mode','shuffle','repeat','track.codec','track.sampleRate','track.bitDepth','track.channels','track.bitrate','device.charging','device.model','device.storageAvailable','display.brightness'])
+const bindings=new Set(['screen.title','track.title','track.artist','track.album','playback.elapsed','playback.duration','playback.status','battery','position','row.title','row.subtitle','row.number','row.trailing','search.query','fm.frequency','fm.status','message','alphabet','empty.message','playback.details','volume','volume.mode','shuffle','repeat','track.codec','track.sampleRate','track.bitDepth','track.channels','track.bitrate','device.charging','device.model','device.storageAvailable','display.brightness','clock'])
 const reserved=new Set(['classic','classic-light','neon-grid','pixel-garden','studio-deck'])
 export const safeAsset=(path:string)=>!!path&&path.length<=128&&!path.startsWith('/')&&!path.includes('\\')&&path.split('/').every(p=>p!==''&&p!=='.'&&p!=='..')
 

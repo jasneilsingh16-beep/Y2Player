@@ -100,7 +100,7 @@ object ScreenContent {
         is Screen.AudiobookOptions -> audiobookName(state, screen.folderKey) ?: "Book"
         is Screen.AudiobookChapters -> "Chapters"
         Screen.Songs -> "Songs"
-        Screen.Favorites -> "Favorites"
+        Screen.Favorites -> "Favourites"
         Screen.RecentlyPlayed -> "Recently Played"
         Screen.Albums -> "Albums"
         is Screen.AlbumSongs -> "Album"
@@ -160,6 +160,13 @@ object ScreenContent {
         Screen.Balance -> "Balance"
         Screen.Brightness -> "Brightness"
         Screen.ScreenTimeout -> "Screen Timeout"
+        Screen.DateTime -> "Date & Time"
+        Screen.ClockHour -> "Set Time"
+        is Screen.ClockMinute -> ClockPresentation.hourLabel(screen.hour, state.preferences.use24HourClock)
+        Screen.ClockYear -> "Set Date"
+        is Screen.ClockMonth -> screen.year.toString()
+        is Screen.ClockDay -> "${ClockPresentation.monthName(screen.month)} ${screen.year}"
+        Screen.TimeZone -> "Time Zone"
         Screen.Storage -> "Storage & Scan"
         Screen.PlaybackHistory -> "Listening History"
         Screen.System -> "System"
@@ -269,6 +276,13 @@ object ScreenContent {
         Screen.Balance -> balanceRows(state)
         Screen.Brightness -> brightnessRows(state)
         Screen.ScreenTimeout -> timeoutRows(state)
+        Screen.DateTime -> dateTimeRows(state)
+        Screen.ClockHour -> clockHourRows(state)
+        is Screen.ClockMinute -> clockMinuteRows(state, screen.hour)
+        Screen.ClockYear -> clockYearRows()
+        is Screen.ClockMonth -> clockMonthRows()
+        is Screen.ClockDay -> clockDayRows(screen.year, screen.month)
+        Screen.TimeZone -> timeZoneRows(state)
         Screen.Storage -> storageRows(state)
         Screen.PlaybackHistory -> playbackHistoryRows(state)
         Screen.System -> systemRows(state)
@@ -319,15 +333,39 @@ object ScreenContent {
         else -> false
     }
 
+    // While something is loaded, Now Playing leads, as on an iPod, so the wheel can
+    // always get back to it (before, only holding Play/Pause could), and Sleep Timer
+    // joins the list. Idle, the five destinations still fit the split home without scrolling.
     private fun mainMenuRows(state: AppState): List<ScreenRow> = buildList {
+        val track = state.playback.currentTrackId?.let(state.library.byId::get)
+        if (track != null) {
+            add(ScreenRow.Action("Now Playing", "${track.title} · ${track.displayArtist}", NOW_PLAYING_KEY, track.id))
+        }
         add(ScreenRow.Action("Music", "Songs, albums, artists and playlists", "music"))
-        add(ScreenRow.Action("Audiobooks", "Pick up where you stopped", "audiobooks"))
+        add(ScreenRow.Action("Audiobooks", audiobookMenuSubtitle(state), "audiobooks"))
         add(ScreenRow.Action("Videos", "Films and shows", "videos"))
         if (state.preferences.showFmRadio) {
             add(ScreenRow.Action("FM Radio", "Tune the built-in tuner", "fm_radio"))
         }
         add(ScreenRow.Action("Search", "Find anything on this device", "search"))
-        add(ScreenRow.Action("Settings", if (state.safeMode) "SAFE MODE" else null, "settings"))
+        if (track != null || state.playback.sleepTimerMode != SleepTimerMode.OFF) {
+            add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), MAIN_SLEEP_TIMER_KEY))
+        }
+        add(ScreenRow.Action(
+            "Settings",
+            if (state.safeMode) "SAFE MODE" else "Bluetooth, audio, display and more",
+            "settings"
+        ))
+    }
+
+    private fun audiobookMenuSubtitle(state: AppState): String {
+        val books = audiobookEntries(state)
+        books.firstOrNull { it.chapterNumber != null }?.let { return "Continue ${it.name}" }
+        return when (books.size) {
+            0 -> "Put books in an AUDIOBOOKS folder"
+            1 -> "1 book"
+            else -> "${books.size} books"
+        }
     }
 
     private fun videoRows(state: AppState, screen: Screen.Videos): List<ScreenRow> =
@@ -340,9 +378,18 @@ object ScreenContent {
                     item.title, videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
                     artworkPath = item.artworkPath
                 )
+                VideoItemKind.CONTINUE -> ScreenRow.Action(
+                    "Continue Watching",
+                    "${item.title} · ${TimeFormat.duration(item.resumeMs)}",
+                    VIDEO_CONTINUE_KEY + item.path
+                )
                 VideoItemKind.VIDEO -> ScreenRow.Action(
                     item.title,
-                    if (item.resumeMs > 0) "Resume at ${TimeFormat.duration(item.resumeMs)}" else videoSizeLabel(item.sizeBytes),
+                    when {
+                        item.resumeMs > 0 -> "Resume at ${TimeFormat.duration(item.resumeMs)}"
+                        item.watched -> "Watched"
+                        else -> videoSizeLabel(item.sizeBytes)
+                    },
                     VIDEO_KEY + item.path
                 )
             }
@@ -443,7 +490,7 @@ object ScreenContent {
         ScreenRow.Action("Genres", null, "genres"),
         ScreenRow.Action("Years", null, "years"),
         ScreenRow.Action("Playlists", null, "playlists"),
-        ScreenRow.Action("Favorites", trackCountLabel(state.library.favoriteMusicTracks.size), "favorites"),
+        ScreenRow.Action("Favourites", trackCountLabel(state.library.favoriteMusicTracks.size), "favorites"),
         ScreenRow.Action("Recently Played", trackCountLabel(state.library.recentlyPlayedMusic.size), "recent"),
         ScreenRow.Action("Folders", null, "folders")
     )
@@ -626,9 +673,9 @@ object ScreenContent {
             if (!screen.fromNowPlaying && !track.isAudiobookChapter) {
                 add(ScreenRow.Action("Play Next", null, "track_next:$trackId"))
                 add(ScreenRow.Action("Add to Queue", null, "track_queue:$trackId"))
-                add(ScreenRow.Action("Favorite", onOff(track.favorite), "track_favorite:$trackId"))
+                add(ScreenRow.Action("Favourite", onOff(track.favorite), "track_favorite:$trackId"))
                 add(ScreenRow.Action("Add to Playlist", null, "track_playlist:$trackId"))
-                add(ScreenRow.Action("Select Multiple", "Build a batch with Center", "track_multi:$trackId"))
+                add(ScreenRow.Action("Select Multiple", "Build a batch with Centre", "track_multi:$trackId"))
             }
             screen.sourcePlaylistId?.let { playlistId ->
                 add(ScreenRow.Action("Remove from Playlist", "The music file is kept", "track_remove_playlist:$playlistId:$trackId"))
@@ -775,7 +822,7 @@ object ScreenContent {
             ))
             if (track != null) {
                 // Stable title with the state in the subtitle, like Shuffle and Repeat above it.
-                add(ScreenRow.Action("Favorite", onOff(track.favorite), "np_favorite:${track.id}"))
+                add(ScreenRow.Action("Favourite", onOff(track.favorite), "np_favorite:${track.id}"))
             }
             add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), "sleep_timer"))
             if (track != null) {
@@ -785,18 +832,27 @@ object ScreenContent {
         }
     }
 
+    // Presets rather than every minute from 1 to 60: a short list the wheel crosses
+    // in a flick, like the timer lengths on an iPhone.
     private fun sleepTimerRows(state: AppState): List<ScreenRow> = buildList {
         fun addChoice(title: String, key: String, active: Boolean) {
             add(ScreenRow.Action(title, if (active) "Active" else null, key))
         }
         val playback = state.playback
+        val audiobook = playback.currentTrackId?.let(state.library.byId::get)?.isAudiobookChapter == true
         addChoice("Off", "sleep_timer_off", playback.sleepTimerMode == SleepTimerMode.OFF)
-        addChoice("End of track", "sleep_timer_end_track", playback.sleepTimerMode == SleepTimerMode.END_TRACK)
-        addChoice("End of album", "sleep_timer_end_album", playback.sleepTimerMode == SleepTimerMode.END_ALBUM)
+        addChoice(
+            if (audiobook) "End of chapter" else "End of track",
+            "sleep_timer_end_track", playback.sleepTimerMode == SleepTimerMode.END_TRACK
+        )
+        addChoice(
+            if (audiobook) "End of book" else "End of album",
+            "sleep_timer_end_album", playback.sleepTimerMode == SleepTimerMode.END_ALBUM
+        )
         addChoice("End of queue", "sleep_timer_end_queue", playback.sleepTimerMode == SleepTimerMode.END_QUEUE)
-        for (minutes in 1..60) {
+        SleepTimerPresentation.PRESET_MINUTES.forEach { minutes ->
             addChoice(
-                if (minutes == 1) "1 minute" else "$minutes minutes",
+                SleepTimerPresentation.durationLabel(minutes),
                 "sleep_timer_minutes:$minutes",
                 playback.sleepTimerMode == SleepTimerMode.MINUTES &&
                     playback.sleepTimerConfiguredMinutes == minutes
@@ -809,7 +865,12 @@ object ScreenContent {
         SleepTimerMode.END_TRACK -> 1
         SleepTimerMode.END_ALBUM -> 2
         SleepTimerMode.END_QUEUE -> 3
-        SleepTimerMode.MINUTES -> 3 + (state.playback.sleepTimerConfiguredMinutes ?: 5).coerceIn(1, 60)
+        SleepTimerMode.MINUTES -> {
+            // A restored length that is not a preset lands on the next longer one.
+            val minutes = state.playback.sleepTimerConfiguredMinutes ?: SleepTimerPresentation.PRESET_MINUTES.first()
+            val presets = SleepTimerPresentation.PRESET_MINUTES
+            4 + (presets.indexOfFirst { it >= minutes }.takeIf { it >= 0 } ?: presets.lastIndex)
+        }
     }
 
     private fun playingNextLabel(state: AppState): String {
@@ -877,7 +938,8 @@ object ScreenContent {
     private fun settingsRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Bluetooth", bluetoothSummary(state), "bluetooth"),
         ScreenRow.Action("Audio", playbackSummary(state), "audio"),
-        ScreenRow.Action("Interface", "Display, controls and Now Playing", "interface"),
+        ScreenRow.Action("Interface", "Display, controls and FM Radio", "interface"),
+        ScreenRow.Action("Date & Time", dateTimeSummary(state), "date_time"),
         ScreenRow.Action("Library", "Storage, sorting and history", "library_settings"),
         ScreenRow.Action("System", "Backup, diagnostics, reset and about", "system")
     )
@@ -975,8 +1037,8 @@ object ScreenContent {
         ScreenRow.Action("Resume Position", onOff(state.preferences.resumePosition), "resume_position"),
         ScreenRow.Action("Focus Ducking", if (state.preferences.duckOnFocusLoss) "Lower volume" else "Pause", "duck_focus"),
         ScreenRow.Action(
-            "Wired Speaker Fallback",
-            if (state.preferences.pauseOnDisconnect) "Off · wired unplug pauses" else "On · Bluetooth still always pauses",
+            "Pause When Unplugged",
+            if (state.preferences.pauseOnDisconnect) "On" else "Off · plays on the speaker",
             "pause_disconnect"
         )
     )
@@ -1061,7 +1123,7 @@ object ScreenContent {
             add(ScreenRow.Group("Android Output", route, "dac_output"))
             dac.limitation?.let { add(ScreenRow.Group("Firmware Limit", it, "dac_limit")) }
             if (direct) {
-                add(ScreenRow.Group("Direct profile", "Direct hardware access is unavailable; effects, crossfade and fades remain disabled by the requested profile", "dac_bypass"))
+                add(ScreenRow.Group("Direct profile", "Effects, crossfade and fades are off in this profile", "dac_bypass"))
             }
             if (effects.available) {
                 effects.errorMessage?.let { add(ScreenRow.Group("Last effect error", it, "effects_error")) }
@@ -1290,6 +1352,59 @@ object ScreenContent {
         ScreenRow.Action(timeoutLabel(timeout), null, "timeout:$timeout")
     }
 
+    private fun dateTimeSummary(state: AppState): String =
+        if (!ClockPresentation.isSet(state.clock)) "Not set · history dates are wrong until it is"
+        else "${ClockPresentation.time(state.clock, state.preferences.use24HourClock)} · ${ClockPresentation.zoneName(state.clock.timeZoneId)}"
+
+    private fun dateTimeRows(state: AppState): List<ScreenRow> = buildList {
+        val clock = state.clock
+        val set = ClockPresentation.isSet(clock)
+        add(ScreenRow.Action("Set Time", ClockPresentation.time(clock, state.preferences.use24HourClock), "clock_set_time"))
+        add(ScreenRow.Action("Set Date", if (set) ClockPresentation.date(clock) else "Not set", "clock_set_date"))
+        add(ScreenRow.Action("Time Zone", ClockPresentation.zoneLabel(clock.timeZoneId, clock.nowMs), "clock_time_zone"))
+        add(ScreenRow.Action("24-Hour Time", onOff(state.preferences.use24HourClock), "clock_24_hour"))
+        add(ScreenRow.Action(
+            "Clock in Status Bar",
+            if (state.preferences.showStatusClock) "Shown" else "Hidden",
+            "clock_status_bar"
+        ))
+    }
+
+    private fun clockHourRows(state: AppState): List<ScreenRow> = (0..23).map { hour ->
+        ScreenRow.Action(ClockPresentation.hourLabel(hour, state.preferences.use24HourClock), null, "$CLOCK_HOUR_KEY$hour")
+    }
+
+    private fun clockMinuteRows(state: AppState, hour: Int): List<ScreenRow> = (0..59).map { minute ->
+        ScreenRow.Action(ClockPresentation.time(hour, minute, state.preferences.use24HourClock), null, "$CLOCK_MINUTE_KEY$minute")
+    }
+
+    private fun clockYearRows(): List<ScreenRow> = (ClockPresentation.FIRST_YEAR..ClockPresentation.LAST_YEAR).map { year ->
+        ScreenRow.Action(year.toString(), null, "$CLOCK_YEAR_KEY$year")
+    }
+
+    private fun clockMonthRows(): List<ScreenRow> = (1..12).map { month ->
+        ScreenRow.Action(ClockPresentation.monthName(month), null, "$CLOCK_MONTH_KEY$month")
+    }
+
+    private fun clockDayRows(year: Int, month: Int): List<ScreenRow> =
+        (1..ClockPresentation.daysInMonth(year, month)).map { day ->
+            ScreenRow.Action(ClockPresentation.dayLabel(year, month, day), null, "$CLOCK_DAY_KEY$day")
+        }
+
+    internal fun timeZoneIds(state: AppState): List<String> {
+        val listed = ClockPresentation.ZONES.map { it.id }
+        val current = state.clock.timeZoneId
+        return if (current in listed) listed else listOf(current) + listed
+    }
+
+    private fun timeZoneRows(state: AppState): List<ScreenRow> = timeZoneIds(state).map { id ->
+        ScreenRow.Action(
+            ClockPresentation.zoneName(id),
+            ClockPresentation.offsetLabel(id, state.clock.nowMs) + if (id == state.clock.timeZoneId) " · Current" else "",
+            "$CLOCK_ZONE_KEY$id"
+        )
+    }
+
     private fun storageRows(state: AppState): List<ScreenRow> = buildList {
         state.device.storageVolumes.forEach { volume ->
             val count = state.library.tracks.count { it.volumeId == volume.id && it.available }
@@ -1334,7 +1449,7 @@ object ScreenContent {
     }
 
     private fun aboutRows(state: AppState): List<ScreenRow> = listOf(
-        ScreenRow.Group("Y2 Player", "Version ${BuildConfig.VERSION_NAME}", "about_app"),
+        ScreenRow.Group("Y2 Player", "Version ${BuildConfig.VERSION_NAME} · with Videos", "about_app"),
         ScreenRow.Group("Device", state.device.deviceModel, "about_device"),
         ScreenRow.Group("System", state.device.androidVersion, "about_android"),
         ScreenRow.Group("Firmware", state.device.firmwareBuild, "about_firmware"),
@@ -1618,7 +1733,8 @@ object ScreenContent {
 
     private fun millisecondsLabel(value: Int): String = if (value <= 0) "Off" else if (value < 1_000) "${value} ms" else "${value / 1_000} seconds"
     private fun secondsLabel(value: Int): String = "${value / 1_000} seconds"
-    private fun thresholdLabel(value: Int): String = if (value <= 0) "Always previous" else "After ${value / 1_000} seconds"
+    private fun thresholdLabel(value: Int): String =
+        if (value <= 0) "Always goes to the previous track" else "Restarts the track after ${value / 1_000} seconds"
     private fun sleepTimerSubtitle(state: AppState): String =
         SleepTimerPresentation.label(state.playback.sleepTimerMode, state.playback.sleepTimerRemainingMs)
     private fun volumeModeLabel(state: AppState): String = when (state.preferences.volumeMode) {
@@ -1699,6 +1815,15 @@ object ScreenContent {
     const val COLLECTION_SHUFFLE_KEY = "collection_shuffle"
     const val AUDIOBOOK_KEY_PREFIX = "audiobook:"
     const val VIDEO_KEY = "video:"
+    const val VIDEO_CONTINUE_KEY = "video_continue:"
+    const val NOW_PLAYING_KEY = "now_playing"
+    const val MAIN_SLEEP_TIMER_KEY = "main_sleep_timer"
+    const val CLOCK_HOUR_KEY = "clock_hour:"
+    const val CLOCK_MINUTE_KEY = "clock_minute:"
+    const val CLOCK_YEAR_KEY = "clock_year:"
+    const val CLOCK_MONTH_KEY = "clock_month:"
+    const val CLOCK_DAY_KEY = "clock_day:"
+    const val CLOCK_ZONE_KEY = "clock_zone:"
     const val VIDEO_FOLDER_KEY = "video_folder:"
     const val VIDEO_VOLUME_KEY = "video_volume:"
     const val AUDIOBOOK_CHAPTERS_KEY = "audiobook_chapters:"

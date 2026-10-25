@@ -33,6 +33,8 @@ class AppPreferences(context: Context) {
         keepScreenOnWhilePlaying = boolean(KEY_KEEP_SCREEN_ON, false),
         extraTrackInfo = boolean(KEY_EXTRA_TRACK_INFO, false),
         showFmRadio = boolean(KEY_SHOW_FM_RADIO, false),
+        use24HourClock = boolean(KEY_24_HOUR_CLOCK, false),
+        showStatusClock = boolean(KEY_STATUS_CLOCK, true),
         skinId = string(KEY_SKIN_ID, null)?.takeIf(com.schulzcode.y2player.skin.SkinIds::valid)
             ?: if (boolean(KEY_LIGHT_THEME, false)) "classic-light" else "classic",
         lightTheme = boolean(KEY_LIGHT_THEME, false),
@@ -66,6 +68,8 @@ class AppPreferences(context: Context) {
     fun toggleKeepScreenOn() = updateBoolean(KEY_KEEP_SCREEN_ON, !snapshot().keepScreenOnWhilePlaying)
     fun toggleExtraTrackInfo() = updateBoolean(KEY_EXTRA_TRACK_INFO, !snapshot().extraTrackInfo)
     fun toggleShowFmRadio() = updateBoolean(KEY_SHOW_FM_RADIO, !snapshot().showFmRadio)
+    fun toggle24HourClock() = updateBoolean(KEY_24_HOUR_CLOCK, !snapshot().use24HourClock)
+    fun toggleStatusClock() = updateBoolean(KEY_STATUS_CLOCK, !snapshot().showStatusClock)
     fun setSkin(id: String) = commit {
         require(com.schulzcode.y2player.skin.SkinIds.valid(id))
         putString(KEY_SKIN_ID, id)
@@ -168,6 +172,8 @@ class AppPreferences(context: Context) {
             putBoolean(KEY_KEEP_SCREEN_ON, value.keepScreenOnWhilePlaying)
             putBoolean(KEY_EXTRA_TRACK_INFO, value.extraTrackInfo)
             putBoolean(KEY_SHOW_FM_RADIO, value.showFmRadio)
+            putBoolean(KEY_24_HOUR_CLOCK, value.use24HourClock)
+            putBoolean(KEY_STATUS_CLOCK, value.showStatusClock)
             putString(KEY_SKIN_ID, value.skinId)
             putBoolean(KEY_LIGHT_THEME, value.skinId == "classic-light")
             putBoolean(KEY_SCREEN_OFF_KEYS, value.localKeysWhileScreenOff)
@@ -239,6 +245,8 @@ class AppPreferences(context: Context) {
         private const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         private const val KEY_EXTRA_TRACK_INFO = "extra_track_info"
         private const val KEY_SHOW_FM_RADIO = "show_fm_radio"
+        private const val KEY_24_HOUR_CLOCK = "use_24_hour_clock"
+        private const val KEY_STATUS_CLOCK = "show_status_clock"
         private const val KEY_SKIN_ID = "skin_id"
         private const val KEY_LIGHT_THEME = "light_theme"
         private const val KEY_SCREEN_OFF_KEYS = "screen_off_keys"

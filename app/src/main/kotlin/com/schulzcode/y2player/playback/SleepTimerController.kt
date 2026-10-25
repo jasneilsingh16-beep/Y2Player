@@ -62,7 +62,7 @@ internal class SleepTimerController {
 
     companion object {
         const val MIN_MINUTES = 1
-        const val MAX_MINUTES = 60
+        const val MAX_MINUTES = 120
         const val DEFAULT_MINUTES = 5
     }
 }
