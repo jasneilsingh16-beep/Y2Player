@@ -133,8 +133,7 @@ internal object TalksContent {
                     "Continue · ${current.title}",
                     listOfNotNull(
                         if (entry.chapterCount > 1) "Episode ${entry.startIndex + 1}" else null,
-                        timeLeft(current, entry.positionMs),
-                        if (entry.chapterCount > 1) "${entry.startIndex} of ${entry.chapterCount} played" else null
+                        timeLeft(current, entry.positionMs)
                     ).joinToString(" · "),
                     RESUME_KEY + folderKey,
                     progress = RowProgress(fraction(current, entry.positionMs))

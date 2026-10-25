@@ -797,7 +797,7 @@ class MainActivity : Activity() {
     private fun dispatchInput(action: AppAction) {
         val wheel = action is AppAction.WheelMoved || action is AppAction.AlphabetMoved
         val adjustsNowPlayingVolume = action is AppAction.WheelMoved &&
-            store.state.currentScreen == Screen.NowPlaying
+            store.state.currentScreen == Screen.NowPlaying && store.state.selectedIndex == 0
         if (wheel) playerView.onNavigationInput()
         val accepted = playerView.handleSkinInput(action) || store.dispatch(action)
         if (action is AppAction.AlphabetMoved) {

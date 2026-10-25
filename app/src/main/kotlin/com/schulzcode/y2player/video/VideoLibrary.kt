@@ -84,6 +84,21 @@ object VideoLibrary {
 
     fun artworkFor(folder: File): String? = artworkProbe(folder)
 
+    /**
+     * Up to three posters for a folder's strip: those of its subfolders (one film or
+     * show each), or else its own cover.
+     */
+    fun posters(folder: File): List<String> {
+        val inside = folder.listFiles().orEmpty()
+            .filter { it.isDirectory && !it.name.startsWith(".") }
+            .sortedWith { first, second ->
+                NaturalTextOrder.compare(first.name.lowercase(Locale.US), second.name.lowercase(Locale.US))
+            }
+            .mapNotNull(::artworkProbe)
+            .take(3)
+        return inside.ifEmpty { listOfNotNull(artworkProbe(folder)) }
+    }
+
     fun list(
         directory: File,
         watched: (String) -> Boolean = { false },
@@ -96,7 +111,8 @@ object VideoLibrary {
                     val count = countVideos(child)
                     if (count == 0) null else VideoItem(
                         VideoItemKind.FOLDER, child.name, child.absolutePath, count,
-                        artworkPath = artworkProbe(child)
+                        artworkPath = artworkProbe(child),
+                        posterPaths = posters(child)
                     )
                 }
                 child.isFile && isVideoFile(child.name) -> VideoItem(

@@ -1222,6 +1222,7 @@ object AppReducer {
                 Screen.TimeZone,
                 selectedIndex = ScreenContent.timeZoneIds(state).indexOf(state.clock.timeZoneId).coerceAtLeast(0)
             )
+            "bedtime" -> push(state, Screen.Bedtime, selectedIndex = ScreenContent.BEDTIME_STARTS.indexOf(state.preferences.bedtimeStartHour).coerceAtLeast(0))
             "clock_24_hour" -> Reduction(state, listOf(Toggle24HourClock))
             "clock_status_bar" -> Reduction(state, listOf(ToggleStatusClock))
             else -> Reduction(state)

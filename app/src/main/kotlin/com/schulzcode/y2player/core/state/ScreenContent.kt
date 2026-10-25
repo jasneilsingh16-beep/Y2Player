@@ -43,7 +43,9 @@ sealed interface ScreenRow {
         /** Drawn as a ring on the right: how far through, or a tick once played. */
         val progress: RowProgress? = null,
         /** A short label in its own column on the left, such as an episode number. */
-        val leading: String? = null
+        val leading: String? = null,
+        /** Posters shown side by side on the left, for a folder of films or shows. */
+        val posterPaths: List<String> = emptyList()
     ) : ScreenRow
     data class TrackRow(
         val track: Track,
@@ -400,7 +402,8 @@ object ScreenContent {
                 )
                 VideoItemKind.FOLDER -> ScreenRow.Action(
                     item.title, videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
-                    artworkPath = item.artworkPath
+                    artworkPath = item.artworkPath,
+                    posterPaths = item.posterPaths
                 )
                 VideoItemKind.CONTINUE -> {
                     val progress = state.videos.inProgress.firstOrNull { it.path == item.path }
@@ -520,7 +523,7 @@ object ScreenContent {
     private fun musicRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Shuffle All", trackCountLabel(state.library.musicTracks.size), "shuffle_all"),
         ScreenRow.Action("Songs", null, "songs"),
-        ScreenRow.Action("Ragis & Speakers", null, "artists"),
+        ScreenRow.Action("Ragis & Speakers", HomePane.artistCount(state).takeIf { it > 0 }?.toString(), "artists"),
         ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Albums", null, "albums"),
         ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
@@ -715,7 +718,7 @@ object ScreenContent {
     }
 
     private fun shuffleCollectionRow(trackCount: Int): ScreenRow =
-        ScreenRow.Action("Shuffle", "$trackCount tracks in random order", COLLECTION_SHUFFLE_KEY)
+        ScreenRow.Action("Shuffle", trackCountLabel(trackCount), COLLECTION_SHUFFLE_KEY)
 
     private fun trackOptionRows(state: AppState, screen: Screen.TrackOptions): List<ScreenRow> {
         val trackId = screen.trackId
@@ -932,7 +935,7 @@ object ScreenContent {
         }
         addChoice("Off", "sleep_timer_off", false)
         addChoice(
-            if (audiobook) "End of episode" else "End of track",
+            if (audiobook) "End of this episode" else "End of this track",
             "sleep_timer_end_track", playback.sleepTimerMode == SleepTimerMode.END_TRACK
         )
         addChoice(
@@ -958,6 +961,10 @@ object ScreenContent {
             "Playback fades out, then pauses." else "Choose Off to cancel. Playback fades out, then pauses."
         Screen.Continue -> "Centre picks up where you left off."
         Screen.Bedtime -> "Warm, softer colours until 6 am, for the night and Amrit Vela."
+        // How far through the series, on its own line above the episodes.
+        is Screen.AudiobookChapters -> audiobookEntry(state, (state.currentScreen as Screen.AudiobookChapters).folderKey)
+            ?.takeIf { it.chapterCount > 1 }
+            ?.let { if (it.inProgress) "${it.startIndex} of ${it.chapterCount} played" else "${it.chapterCount} episodes, none played yet" }
         else -> null
     }
 
@@ -1495,14 +1502,26 @@ object ScreenContent {
     private fun dateTimeRows(state: AppState): List<ScreenRow> = buildList {
         val clock = state.clock
         val set = ClockPresentation.isSet(clock)
-        add(ScreenRow.Action("Set Time", ClockPresentation.time(clock, state.preferences.use24HourClock), "clock_set_time"))
-        add(ScreenRow.Action("Set Date", if (set) ClockPresentation.date(clock) else "Not set", "clock_set_date"))
-        add(ScreenRow.Action("Time Zone", ClockPresentation.zoneLabel(clock.timeZoneId, clock.nowMs), "clock_time_zone"))
+        // One line per row, value on the right, as on the design.
+        add(ScreenRow.Action("Time", if (set) ClockPresentation.time(clock, state.preferences.use24HourClock) else "Not set", "clock_set_time"))
+        add(ScreenRow.Action("Date", if (set) ClockPresentation.date(clock) else "Not set", "clock_set_date"))
+        add(ScreenRow.Action(
+            "Time Zone",
+            "${ClockPresentation.zoneName(clock.timeZoneId).substringBefore(',')} · ${ClockPresentation.offsetLabel(clock.timeZoneId, clock.nowMs)}",
+            "clock_time_zone"
+        ))
         add(ScreenRow.Action("24-Hour Time", onOff(state.preferences.use24HourClock), "clock_24_hour"))
         add(ScreenRow.Action(
             "Clock in Status Bar",
             if (state.preferences.showStatusClock) "Shown" else "Hidden",
             "clock_status_bar"
+        ))
+        val bedtime = state.preferences.bedtimeStartHour
+        add(ScreenRow.Action(
+            "Bedtime",
+            if (bedtime < 0) "Off" else "${ClockPresentation.hourLabel(bedtime, state.preferences.use24HourClock)} – " +
+                ClockPresentation.hourLabel(BEDTIME_END_HOUR, state.preferences.use24HourClock),
+            "bedtime"
         ))
     }
 

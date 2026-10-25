@@ -164,7 +164,7 @@ internal sealed interface HomePane {
 
         private fun music(state: AppState): Collection {
             val tracks = state.library.musicTracks
-            val artists = state.library.index.organization.artists(com.schulzcode.y2player.core.model.LibraryScope.All).size
+            val artists = artistCount(state)
             val recent = state.library.recentlyPlayedMusic
             return Collection(
                 "Music",
@@ -205,6 +205,20 @@ internal sealed interface HomePane {
                 progress.take(3).map { Line(it.title, TalksContent.videoLeft(it)) },
                 null
             )
+        }
+
+        private var countedIndex: Any? = null
+        private var countedArtists = 0
+
+        /** Counting artists groups the whole library, so it is done once per library. */
+        @Synchronized
+        fun artistCount(state: AppState): Int {
+            val index = state.library.index
+            if (countedIndex !== index) {
+                countedArtists = index.organization.artists(com.schulzcode.y2player.core.model.LibraryScope.All).size
+                countedIndex = index
+            }
+            return countedArtists
         }
 
         /** Up to four covers, one per album, for the mosaic. */

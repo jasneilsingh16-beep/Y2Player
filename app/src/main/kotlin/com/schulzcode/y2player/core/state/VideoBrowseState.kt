@@ -22,7 +22,9 @@ data class VideoItem(
     /** Finished at least once; shown until it is started again. */
     val watched: Boolean = false,
     /** For [VideoItemKind.CONTINUE]: the videos of its folder, so the next episode follows. */
-    val playlist: List<String> = emptyList()
+    val playlist: List<String> = emptyList(),
+    /** For a folder: up to three posters from inside it, shown as a strip. */
+    val posterPaths: List<String> = emptyList()
 )
 
 /** A video left part-way, for Continue on Home. */
