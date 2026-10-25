@@ -80,6 +80,7 @@ object ScreenCatalogue {
         put(Screen.ScreenTimeout)
         put(Screen.DateTime)
         put(Screen.Bedtime)
+        put(Screen.WakeTime)
         put(Screen.Continue)
         put(Screen.TalkCollection("sdcard|Talks/Basics of Sikhi"))
         put(Screen.ClockHour)

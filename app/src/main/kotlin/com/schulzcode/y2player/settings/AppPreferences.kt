@@ -61,7 +61,8 @@ class AppPreferences(context: Context) {
         bassStrength = integer(KEY_BASS_STRENGTH, 0).coerceIn(0, 1_000),
         loudnessGainMb = integer(KEY_LOUDNESS_GAIN, 0).coerceIn(0, 300),
         balance = AudioBalance.clamp(integer(KEY_BALANCE, AudioBalance.CENTRE)),
-        bedtimeStartHour = integer(KEY_BEDTIME_START, -1).takeIf { it in BEDTIME_LEVELS } ?: -1
+        bedtimeStartHour = integer(KEY_BEDTIME_START, -1).takeIf { it in BEDTIME_LEVELS } ?: -1,
+        bedtimeEndHour = integer(KEY_BEDTIME_END, 6).takeIf { it in WAKE_LEVELS } ?: 6
     )
 
     fun toggleUiSoundEffects() = updateBoolean(KEY_UI_SOUND_EFFECTS, !snapshot().uiSoundEffectsEnabled)
@@ -72,6 +73,7 @@ class AppPreferences(context: Context) {
     fun toggle24HourClock() = updateBoolean(KEY_24_HOUR_CLOCK, !snapshot().use24HourClock)
     fun toggleStatusClock() = updateBoolean(KEY_STATUS_CLOCK, !snapshot().showStatusClock)
     fun setBedtime(startHour: Int) = commit { putInt(KEY_BEDTIME_START, startHour.takeIf { it in BEDTIME_LEVELS } ?: -1) }
+    fun setWakeTime(hour: Int) = commit { putInt(KEY_BEDTIME_END, hour.takeIf { it in WAKE_LEVELS } ?: 6) }
     fun setSkin(id: String) = commit {
         require(com.schulzcode.y2player.skin.SkinIds.valid(id))
         putString(KEY_SKIN_ID, id)
@@ -201,6 +203,7 @@ class AppPreferences(context: Context) {
             putInt(KEY_LOUDNESS_GAIN, value.loudnessGainMb)
             putInt(KEY_BALANCE, value.balance)
             putInt(KEY_BEDTIME_START, value.bedtimeStartHour)
+            putInt(KEY_BEDTIME_END, value.bedtimeEndHour)
         }.commit()
         if (committed) cached = value
         return committed
@@ -253,6 +256,9 @@ class AppPreferences(context: Context) {
         private const val KEY_BEDTIME_START = "bedtime_start_hour"
         /** Off, then 8, 9, 10 or 11 pm, each running to 6 am. */
         val BEDTIME_LEVELS = listOf(-1, 20, 21, 22, 23)
+        private const val KEY_BEDTIME_END = "bedtime_end_hour"
+        /** Wake times from 3 to 8 am; Amrit Vela starts early. */
+        val WAKE_LEVELS = listOf(3, 4, 5, 6, 7, 8)
         private const val KEY_SKIN_ID = "skin_id"
         private const val KEY_LIGHT_THEME = "light_theme"
         private const val KEY_SCREEN_OFF_KEYS = "screen_off_keys"

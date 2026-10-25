@@ -176,6 +176,7 @@ object ScreenContent {
         Screen.ScreenTimeout -> "Screen Timeout"
         Screen.DateTime -> "Date & Time"
         Screen.Bedtime -> "Bedtime"
+        Screen.WakeTime -> "Wake Time"
         Screen.ClockHour -> "Set Time"
         is Screen.ClockMinute -> ClockPresentation.hourLabel(screen.hour, state.preferences.use24HourClock)
         Screen.ClockYear -> "Set Date"
@@ -295,6 +296,7 @@ object ScreenContent {
         Screen.ScreenTimeout -> timeoutRows(state)
         Screen.DateTime -> dateTimeRows(state)
         Screen.Bedtime -> bedtimeRows(state)
+        Screen.WakeTime -> wakeRows(state)
         Screen.ClockHour -> clockHourRows(state)
         is Screen.ClockMinute -> clockMinuteRows(state, screen.hour)
         Screen.ClockYear -> clockYearRows()
@@ -383,6 +385,7 @@ object ScreenContent {
     /** The playlist named Nitnem, which Home offers by name. */
     internal fun nitnemPlaylist(state: AppState): com.schulzcode.y2player.core.model.PlaylistSummary? =
         state.library.playlists.firstOrNull { it.name.trim().equals("Nitnem", ignoreCase = true) }
+            ?: state.library.playlists.firstOrNull { it.name.contains("nitnem", ignoreCase = true) }
 
     private fun audiobookMenuSubtitle(state: AppState): String {
         val series = audiobookEntries(state)
@@ -697,7 +700,7 @@ object ScreenContent {
         val tracks = state.library.playlistTrackIds[screen.playlistId].orEmpty()
             .mapNotNull(state.library.byId::get)
         if (tracks.isEmpty()) add(ScreenRow.Group("Playlist is empty", "Hold Centre on a track, then Add to Playlist", "playlist_empty"))
-        else if (screen.name.trim().equals("Nitnem", ignoreCase = true)) tracks.forEach { add(ScreenRow.TrackRow(it)) }
+        else if (screen.name.contains("nitnem", ignoreCase = true)) tracks.forEach { add(ScreenRow.TrackRow(it)) }
         else collectionRows(tracks).forEach(::add)
         add(ScreenRow.Action("Delete Playlist", "Removes this playlist, not its music", "playlist_delete:${screen.playlistId}"))
     }
@@ -960,7 +963,8 @@ object ScreenContent {
         Screen.SleepTimer -> if (state.playback.sleepTimerMode == SleepTimerMode.OFF)
             "Playback fades out, then pauses." else "Choose Off to cancel. Playback fades out, then pauses."
         Screen.Continue -> "Centre picks up where you left off."
-        Screen.Bedtime -> "Warm, softer colours until 6 am, for the night and Amrit Vela."
+        Screen.Bedtime -> "Warm, softer colours from the start time until you wake."
+        Screen.WakeTime -> "Normal colours return at this time."
         // How far through the series, on its own line above the episodes.
         is Screen.AudiobookChapters -> audiobookEntry(state, (state.currentScreen as Screen.AudiobookChapters).folderKey)
             ?.takeIf { it.chapterCount > 1 }
@@ -1073,16 +1077,30 @@ object ScreenContent {
         val start = state.preferences.bedtimeStartHour
         if (start < 0) return "Off"
         val range = "${ClockPresentation.hourLabel(start, state.preferences.use24HourClock)} to " +
-            ClockPresentation.hourLabel(BEDTIME_END_HOUR, state.preferences.use24HourClock)
+            ClockPresentation.hourLabel(state.preferences.bedtimeEndHour, state.preferences.use24HourClock)
         return if (ClockPresentation.isSet(state.clock)) "Warm colours, $range" else "$range · set the clock first"
     }
 
     private fun bedtimeRows(state: AppState): List<ScreenRow> = BEDTIME_STARTS.map { hour ->
         val title = if (hour < 0) "Off" else "From ${ClockPresentation.hourLabel(hour, state.preferences.use24HourClock)}"
         ScreenRow.Action(title, if (hour == state.preferences.bedtimeStartHour) "Active" else null, "$BEDTIME_KEY$hour")
+    } + ScreenRow.Action(
+        "Wake Time",
+        ClockPresentation.hourLabel(state.preferences.bedtimeEndHour, state.preferences.use24HourClock),
+        WAKE_TIME_KEY
+    )
+
+    private fun wakeRows(state: AppState): List<ScreenRow> = com.schulzcode.y2player.settings.AppPreferences.WAKE_LEVELS.map { hour ->
+        ScreenRow.Action(
+            ClockPresentation.hourLabel(hour, state.preferences.use24HourClock),
+            if (hour == state.preferences.bedtimeEndHour) "Active" else null,
+            "$WAKE_KEY$hour"
+        )
     }
 
     const val BEDTIME_KEY = "bedtime:"
+    const val WAKE_TIME_KEY = "wake_time"
+    const val WAKE_KEY = "wake:"
     val BEDTIME_STARTS = listOf(-1, 20, 21, 22, 23)
 
     /** Bedtime's warm colours apply from its start hour until 6 am, and only once the clock is set. */
@@ -1090,10 +1108,9 @@ object ScreenContent {
         val start = state.preferences.bedtimeStartHour
         if (start < 0 || !ClockPresentation.isSet(state.clock)) return false
         val hour = ClockPresentation.fields(state.clock).hour
-        return hour >= start || hour < BEDTIME_END_HOUR
+        return hour >= start || hour < state.preferences.bedtimeEndHour
     }
 
-    const val BEDTIME_END_HOUR = 6
 
     private fun interfaceRows(state: AppState): List<ScreenRow> = listOf(
         ScreenRow.Action("Display", "${state.display.brightnessPercent}% · ${timeoutLabel(state.display.screenTimeoutMs)}", "display"),
@@ -1520,7 +1537,7 @@ object ScreenContent {
         add(ScreenRow.Action(
             "Bedtime",
             if (bedtime < 0) "Off" else "${ClockPresentation.hourLabel(bedtime, state.preferences.use24HourClock)} – " +
-                ClockPresentation.hourLabel(BEDTIME_END_HOUR, state.preferences.use24HourClock),
+                ClockPresentation.hourLabel(state.preferences.bedtimeEndHour, state.preferences.use24HourClock),
             "bedtime"
         ))
     }

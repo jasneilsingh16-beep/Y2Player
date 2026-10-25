@@ -120,7 +120,9 @@ data class PlayerPreferencesState(
     val loudnessGainMb: Int = 0,
     val balance: Int = AudioBalance.CENTRE,
     /** Hour Bedtime starts, through to 6 am; -1 when it is off. */
-    val bedtimeStartHour: Int = -1
+    val bedtimeStartHour: Int = -1,
+    /** Hour Bedtime ends in the morning: the wake time. */
+    val bedtimeEndHour: Int = 6
 )
 
 fun isProgressOnlyUpdate(previous: PlaybackSnapshot, current: PlaybackSnapshot): Boolean =

@@ -783,6 +783,7 @@ class MainActivity : Activity() {
             AppEffect.Toggle24HourClock -> applyPlaybackPreferences(preferences.toggle24HourClock())
             AppEffect.ToggleStatusClock -> applyPlaybackPreferences(preferences.toggleStatusClock())
             is AppEffect.SetBedtime -> applyPlaybackPreferences(preferences.setBedtime(effect.startHour))
+            is AppEffect.SetWakeTime -> applyPlaybackPreferences(preferences.setWakeTime(effect.hour))
             is AppEffect.SetDateTime -> setDateTime(effect)
             is AppEffect.SetTimeZone -> setTimeZone(effect.id)
             AppEffect.OpenAndroidSettings -> {

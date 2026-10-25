@@ -357,8 +357,17 @@ object AppReducer {
             Screen.ScreenTimeout -> confirmTimeout(state, row)
             Screen.DateTime -> confirmDateTime(state, row)
             Screen.Bedtime -> {
-                val hour = (row as? Action)?.key?.removePrefix(ScreenContent.BEDTIME_KEY)?.toIntOrNull()
-                if (hour == null) Reduction(state) else Reduction(pop(state), listOf(SetBedtime(hour)))
+                val key = (row as? Action)?.key
+                if (key == ScreenContent.WAKE_TIME_KEY) push(state, Screen.WakeTime,
+                    selectedIndex = com.schulzcode.y2player.settings.AppPreferences.WAKE_LEVELS.indexOf(state.preferences.bedtimeEndHour).coerceAtLeast(0))
+                else {
+                    val hour = key?.removePrefix(ScreenContent.BEDTIME_KEY)?.toIntOrNull()
+                    if (hour == null) Reduction(state) else Reduction(pop(state), listOf(SetBedtime(hour)))
+                }
+            }
+            Screen.WakeTime -> {
+                val hour = (row as? Action)?.key?.removePrefix(ScreenContent.WAKE_KEY)?.toIntOrNull()
+                if (hour == null) Reduction(state) else Reduction(pop(state), listOf(SetWakeTime(hour)))
             }
             Screen.ClockHour, is Screen.ClockMinute, Screen.ClockYear,
             is Screen.ClockMonth, is Screen.ClockDay, Screen.TimeZone -> confirmClockPicker(state, row)

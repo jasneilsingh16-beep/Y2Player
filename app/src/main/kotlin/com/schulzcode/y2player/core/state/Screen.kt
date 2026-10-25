@@ -94,6 +94,7 @@ sealed interface Screen {
     data object ScreenTimeout : Screen
     data object DateTime : Screen
     data object Bedtime : Screen
+    data object WakeTime : Screen
     data object ClockHour : Screen
     data class ClockMinute(val hour: Int) : Screen
     data object ClockYear : Screen
@@ -191,6 +192,7 @@ val Screen.code: String get() = when (this) {
     Screen.ScreenTimeout -> "screen_timeout"
     Screen.DateTime -> "date_time"
     Screen.Bedtime -> "bedtime"
+    Screen.WakeTime -> "wake_time"
     Screen.ClockHour -> "clock_hour"
     is Screen.ClockMinute -> "clock_minute"
     Screen.ClockYear -> "clock_year"

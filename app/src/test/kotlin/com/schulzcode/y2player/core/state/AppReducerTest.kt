@@ -1225,6 +1225,25 @@ class AppReducerTest {
             ScreenContent.isBedtime(on.copy(clock = ClockState(0L, "UTC"))))
     }
 
+    @Test fun wakeTimeEndsBedtimeAndIsChosenFromBedtime() {
+        val bedtime = AppState(screenStack = listOf(ScreenEntry(Screen.Settings), ScreenEntry(Screen.Bedtime)))
+        val wakeRow = ScreenContent.rows(bedtime).filterIsInstance<ScreenRow.Action>().last()
+        assertEquals("Wake Time", wakeRow.title)
+        assertEquals("6 am", wakeRow.subtitle)
+        val list = AppReducer.reduce(selectKey(bedtime, ScreenContent.WAKE_TIME_KEY), AppAction.Confirm).state
+        assertEquals(Screen.WakeTime, list.currentScreen)
+        val chosen = AppReducer.reduce(selectKey(list, "wake:5"), AppAction.Confirm)
+        assertEquals(AppEffect.SetWakeTime(5), chosen.effects.single())
+        assertEquals(Screen.Bedtime, chosen.state.currentScreen)
+        val half5 = bedtime.copy(
+            preferences = bedtime.preferences.copy(bedtimeStartHour = 21),
+            clock = ClockState(1_793_079_000_000L, "UTC")
+        )
+        assertTrue("5:30 am is still night with a 6 am wake", ScreenContent.isBedtime(half5))
+        assertFalse("but not with a 5 am wake",
+            ScreenContent.isBedtime(half5.copy(preferences = half5.preferences.copy(bedtimeEndHour = 5))))
+    }
+
     @Test fun keepScreenOnLivesOnlyOnTheDisplayScreen() {
         fun keys(screen: Screen) = ScreenContent.rows(AppState(screenStack = listOf(ScreenEntry(screen))))
             .filterIsInstance<ScreenRow.Action>().map { it.key }

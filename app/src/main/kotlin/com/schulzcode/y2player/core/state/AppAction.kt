@@ -111,6 +111,7 @@ sealed interface AppEffect {
     data object Toggle24HourClock : AppEffect
     data object ToggleStatusClock : AppEffect
     data class SetBedtime(val startHour: Int) : AppEffect
+    data class SetWakeTime(val hour: Int) : AppEffect
     /** Month is 1–12. Applied in the device's current time zone. */
     data class SetDateTime(val year: Int, val month: Int, val day: Int, val hour: Int, val minute: Int) : AppEffect
     data class SetTimeZone(val id: String) : AppEffect

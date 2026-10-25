@@ -179,6 +179,7 @@ object Y2RowIcons {
         key.startsWith("video_continue:") -> Y2Icon.PLAYING
         key.startsWith("nitnem:") -> Y2Icon.PLAYLIST
         key.startsWith("bedtime:") -> Y2Icon.MOON
+        key == "wake_time" || key.startsWith("wake:") -> Y2Icon.TIMER
         key.startsWith("talk_collection:") -> Y2Icon.FOLDER
         key.startsWith("talk_resume:") -> Y2Icon.PLAY
         key.startsWith("talk_episode:") -> Y2Icon.SONG
