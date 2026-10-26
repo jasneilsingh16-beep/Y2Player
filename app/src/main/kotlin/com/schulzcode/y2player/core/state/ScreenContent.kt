@@ -360,29 +360,54 @@ object ScreenContent {
     // at the top because they are what is played most.
     private fun mainMenuRows(state: AppState): List<ScreenRow> = buildList {
         val track = state.playback.currentTrackId?.let(state.library.byId::get)
-        if (track != null) {
-            add(ScreenRow.Action("Now Playing", "${track.title} · ${track.displayArtist}", NOW_PLAYING_KEY, track.id))
+        // The playing track leads Home as its own row: cover, title and artist.
+        if (track != null) add(ScreenRow.Action(track.title, track.displayArtist, NOW_PLAYING_KEY, track.id))
+        TalksContent.continueItems(state).firstOrNull()?.let { first ->
+            add(ScreenRow.Action("Continue", continueSummary(first), CONTINUE_KEY, progress = continueProgress(first)))
         }
-        val continuing = TalksContent.continueItems(state)
-        if (continuing.isNotEmpty()) {
-            add(ScreenRow.Action("Continue", "${continuing.size} in progress", CONTINUE_KEY))
-        }
-        add(ScreenRow.Action("Favourites", trackCountLabel(state.library.favoriteMusicTracks.size), "favorites"))
+        add(ScreenRow.Action("Favourites", state.library.favoriteMusicTracks.size.takeIf { it > 0 }?.let(::countLabel), "favorites"))
         nitnemPlaylist(state)?.let { playlist ->
-            add(ScreenRow.Action(playlist.name, null, NITNEM_KEY + playlist.id))
+            add(ScreenRow.Action(playlist.name, nitnemSummary(state, playlist), NITNEM_KEY + playlist.id))
         }
         add(ScreenRow.Action("Music", null, "music"))
         add(ScreenRow.Action("Music Folders", null, MUSIC_FOLDERS_KEY))
         add(ScreenRow.Action("Talks & Podcasts", audiobookMenuSubtitle(state), "audiobooks"))
-        add(ScreenRow.Action("Videos", null, "videos"))
+        add(ScreenRow.Action("Videos", state.videos.inProgress.size.takeIf { it > 0 }?.let { "$it in progress" }, "videos"))
         if (state.preferences.showFmRadio) {
             add(ScreenRow.Action("FM Radio", null, "fm_radio"))
         }
-        if (track != null || state.playback.sleepTimerMode != SleepTimerMode.OFF) {
-            add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), MAIN_SLEEP_TIMER_KEY))
-        }
         add(ScreenRow.Action("Search", null, "search"))
-        add(ScreenRow.Action("Settings", if (state.safeMode) "SAFE MODE" else null, "settings"))
+        add(ScreenRow.Action("Settings", if (state.safeMode) "Safe mode" else null, "settings"))
+    }
+
+    private fun countLabel(count: Int): String = String.format(java.util.Locale.US, "%,d", count)
+
+    /** "Suraj Podcast · 18 min": what Continue would pick up. */
+    private fun continueSummary(item: ContinueItem): String = when (item) {
+        is ContinueItem.Talk -> listOfNotNull(
+            item.entry.name,
+            TalksContent.timeLeft(item.episode, item.entry.positionMs)?.removeSuffix(" left")
+        ).joinToString(" · ")
+        is ContinueItem.Video -> listOfNotNull(
+            item.video.title,
+            TalksContent.videoLeft(item.video)?.removeSuffix(" left")
+        ).joinToString(" · ")
+    }
+
+    private fun continueProgress(item: ContinueItem): RowProgress = when (item) {
+        is ContinueItem.Talk -> RowProgress(TalksContent.fraction(item.episode, item.entry.positionMs).coerceAtLeast(.03f))
+        is ContinueItem.Video -> RowProgress(item.video.fraction.coerceAtLeast(.03f))
+    }
+
+    /** The bani that is due now ("Rehras Sahib"), or how many there are when the clock is unset. */
+    private fun nitnemSummary(state: AppState, playlist: com.schulzcode.y2player.core.model.PlaylistSummary): String? {
+        val tracks = state.library.playlistTrackIds[playlist.id].orEmpty().mapNotNull(state.library.byId::get)
+        if (tracks.isEmpty()) return null
+        if (ClockPresentation.isSet(state.clock)) {
+            val word = NitnemSchedule.due(ClockPresentation.fields(state.clock).hour)
+            tracks.firstOrNull { it.title.contains(word, ignoreCase = true) }?.let { return it.title }
+        }
+        return if (tracks.size == 1) "1 bani" else "${tracks.size} banis"
     }
 
     /** The playlist named Nitnem, which Home offers by name. */
@@ -390,13 +415,13 @@ object ScreenContent {
         state.library.playlists.firstOrNull { it.name.trim().equals("Nitnem", ignoreCase = true) }
             ?: state.library.playlists.firstOrNull { it.name.contains("nitnem", ignoreCase = true) }
 
-    private fun audiobookMenuSubtitle(state: AppState): String {
+    private fun audiobookMenuSubtitle(state: AppState): String? {
         val series = audiobookEntries(state)
         val active = series.count { it.inProgress }
         return when {
             series.isEmpty() -> "Nothing yet"
             active > 0 -> "$active in progress"
-            else -> if (series.size == 1) "1 podcast" else "${series.size} podcasts"
+            else -> null
         }
     }
 

@@ -75,15 +75,16 @@ class MainMenuHierarchyTest {
         assertEquals(listOf("favorites", "music", "music_folders", "audiobooks", "videos", "fm_radio", "search", "settings"), keys(state))
     }
 
-    @Test fun `a session leads with Now Playing and offers the Sleep Timer`() {
+    @Test fun `a session leads with the playing track`() {
         val state = AppState(library = library, playback = playing)
         assertEquals(
-            listOf("now_playing", "favorites", "music", "music_folders", "audiobooks", "videos", "main_sleep_timer", "search", "settings"),
+            listOf("now_playing", "favorites", "music", "music_folders", "audiobooks", "videos", "search", "settings"),
             keys(state)
         )
         assertEquals(Screen.NowPlaying, open(state, "now_playing").state.currentScreen)
-        assertEquals(Screen.SleepTimer, open(state, "main_sleep_timer").state.currentScreen)
-        assertEquals("Song · Artist", ScreenContent.rows(state).first().subtitle)
+        val first = ScreenContent.rows(state).first()
+        assertEquals("Song", first.title)
+        assertEquals("Artist", first.subtitle)
     }
 
     @Test fun `right from the main menu skips to the next track`() {

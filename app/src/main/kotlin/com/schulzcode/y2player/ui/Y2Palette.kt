@@ -58,30 +58,33 @@ data class Y2Palette(
             success = 0xFF1F7A4D.toInt(),
             focusFill = 0xFF0A64D6.toInt(),
             onFocus = 0xFFFFFFFF.toInt(),
-            onFocusSecondary = 0xFFDCE9FB.toInt(),
+            onFocusSecondary = 0xFFEAF2FE.toInt(),
             track = 0xFFE5E5EA.toInt(),
-            scrollThumb = 0xFFC7C7CC.toInt()
+            scrollThumb = 0xFFAEAEB2.toInt()
         )
 
-        /** Porcelain after dark: warm paper and a muted blue, for bed and Amrit Vela. */
+        /**
+         * Bedtime: dark umber with amber, so the screen gives off as little light as it
+         * can and nothing on it is blue. Brightness is capped while it is on.
+         */
         val BEDTIME = Y2Palette(
-            background = 0xFFE9DFCF.toInt(),
-            surface = 0xFFE1D5C1.toInt(),
-            surfaceRaised = 0xFFDDD0BA.toInt(),
-            focusSurface = 0xFFD5CBC0.toInt(),
-            activeSurface = 0xFFDFD5C6.toInt(),
-            primaryText = 0xFF2A2219.toInt(),
-            secondaryText = 0xFF5E5141.toInt(),
-            mutedText = 0xFF6A5C4A.toInt(),
-            accent = 0xFF3F5F8F.toInt(),
-            divider = 0xFFD6CAB6.toInt(),
-            warning = 0xFF8F3A12.toInt(),
-            success = 0xFF3E6B4C.toInt(),
-            focusFill = 0xFF3F5F8F.toInt(),
-            onFocus = 0xFFF4EDE2.toInt(),
-            onFocusSecondary = 0xFFD9DDE4.toInt(),
-            track = 0xFFCFC1AA.toInt(),
-            scrollThumb = 0xFFB3A48C.toInt()
+            background = 0xFF14100C.toInt(),
+            surface = 0xFF1E1812.toInt(),
+            surfaceRaised = 0xFF261E16.toInt(),
+            focusSurface = 0xFF3A2A1A.toInt(),
+            activeSurface = 0xFF2A2017.toInt(),
+            primaryText = 0xFFE9D9BF.toInt(),
+            secondaryText = 0xFFB39D7E.toInt(),
+            mutedText = 0xFF8C7A62.toInt(),
+            accent = 0xFFD9A35F.toInt(),
+            divider = 0xFF2A2219.toInt(),
+            warning = 0xFFE08A5A.toInt(),
+            success = 0xFF9DB07A.toInt(),
+            focusFill = 0xFF8C5622.toInt(),
+            onFocus = 0xFFF6E7CF.toInt(),
+            onFocusSecondary = 0xFFE2C9A6.toInt(),
+            track = 0xFF3A2E22.toInt(),
+            scrollThumb = 0xFF6E5C46.toInt()
         )
 
         fun of(lightTheme: Boolean, bedtime: Boolean = false): Y2Palette = when {

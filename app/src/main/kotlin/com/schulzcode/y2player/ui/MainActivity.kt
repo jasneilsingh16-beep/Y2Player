@@ -134,8 +134,15 @@ class MainActivity : Activity() {
         store.dispatch(AppAction.ClockChanged(ClockState(System.currentTimeMillis(), java.util.TimeZone.getDefault().id)))
     }
 
+    private var lastBedtime = false
+
     private val stateListener = AppStore.StateListener { state ->
         playerView.render(state)
+        val bedtime = state.preferences.skinId == "classic-light" && ScreenContent.isBedtime(state)
+        if (bedtime != lastBedtime) {
+            lastBedtime = bedtime
+            displayController.capForBedtime(bedtime)
+        }
         val keepScreenOn = state.preferences.keepScreenOnWhilePlaying && state.playback.status == PlaybackStatus.PLAYING
         if (keepScreenOn != lastKeepScreenOn) {
             lastKeepScreenOn = keepScreenOn

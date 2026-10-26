@@ -6,6 +6,9 @@ import com.schulzcode.y2player.core.state.DisplayState
 import com.schulzcode.y2player.core.state.ScreenContent
 import kotlin.math.roundToInt
 
+/** The most a window may glow during Bedtime. */
+private const val BEDTIME_BRIGHTNESS = .15f
+
 class DisplayController(private val activity: Activity) {
     private var sessionBrightnessPercent: Int? = null
     fun snapshot(): DisplayState {
@@ -52,6 +55,30 @@ class DisplayController(private val activity: Activity) {
         }
         return if (persisted) "Brightness set to $safePercent%" else {
             "Brightness changed for this session; firmware permission is still required for persistence"
+        }
+    }
+
+    private var windowBrightnessBeforeBedtime: Float? = null
+
+    /**
+     * Bedtime dims this window to at most 15%, without touching the saved
+     * brightness; waking restores what the window had before.
+     */
+    fun capForBedtime(on: Boolean) {
+        runCatching {
+            val attributes = activity.window.attributes
+            if (on && windowBrightnessBeforeBedtime == null) {
+                windowBrightnessBeforeBedtime = attributes.screenBrightness
+                val current = attributes.screenBrightness.takeIf { it >= 0f }
+                    ?: (Settings.System.getInt(activity.contentResolver, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f)
+                attributes.screenBrightness = minOf(current, BEDTIME_BRIGHTNESS)
+                activity.window.attributes = attributes
+            } else if (!on) {
+                val before = windowBrightnessBeforeBedtime ?: return
+                windowBrightnessBeforeBedtime = null
+                attributes.screenBrightness = before
+                activity.window.attributes = attributes
+            }
         }
     }
 

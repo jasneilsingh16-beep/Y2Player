@@ -8,10 +8,10 @@ object Y2UiTheme {
     const val COMPACT_FOOTER_HEIGHT_DP = 30f
     const val MINI_PLAYER_HEIGHT_DP = 58f
     /** One line: title, and a value on the right when there is one. */
-    const val ROW_HEIGHT_DP = 44f
+    const val ROW_HEIGHT_DP = 46f
     /** Title over a second line, or a track beside its artwork. */
-    const val TWO_LINE_ROW_HEIGHT_DP = 56f
-    const val HOME_ROW_HEIGHT_DP = 40f
+    const val TWO_LINE_ROW_HEIGHT_DP = 58f
+    const val HOME_ROW_HEIGHT_DP = 48f
     const val DETAIL_HEADER_HEIGHT_DP = 76f
     const val EDGE_DP = 8f
     const val ROW_PADDING_DP = 12f
@@ -25,24 +25,24 @@ object Y2UiTheme {
     const val FOCUS_BAR_WIDTH_DP = 2f
     const val ROW_FOCUS_INSET_DP = EDGE_DP
     const val ROW_SCROLLBAR_GAP_DP = 2f
-    const val SCROLLBAR_WIDTH_DP = 3f
-    const val SCROLLBAR_END_INSET_DP = 2f
+    const val SCROLLBAR_WIDTH_DP = 4f
+    const val SCROLLBAR_END_INSET_DP = 3f
     const val PROGRESS_HEIGHT_DP = 6f
     const val HOME_PROGRESS_BOTTOM_INSET_DP = 32f
     const val HOME_PROGRESS_TIME_BOTTOM_INSET_DP = 8f
     const val SCREEN_TITLE_SP = 17f
     const val SECTION_TITLE_SP = 18f
-    const val BODY_SP = 15f
-    const val MINI_TITLE_SP = 16f
-    const val ROW_TITLE_SP = 17f
-    const val TWO_LINE_TITLE_SP = 16f
-    const val ROW_SUBTITLE_SP = 14f
+    const val BODY_SP = 16f
+    const val MINI_TITLE_SP = 17f
+    const val ROW_TITLE_SP = 19f
+    const val TWO_LINE_TITLE_SP = 17f
+    const val ROW_SUBTITLE_SP = 15f
     const val ROW_DETAIL_SP = 15f
-    const val NAV_LABEL_SP = 13f
+    const val NAV_LABEL_SP = 14f
     const val STATUS_SP = 14f
-    const val NOW_TITLE_SP = 23f
-    const val NOW_ARTIST_SP = 16f
-    const val NOW_ALBUM_SP = 14f
-    const val META_SP = 14f
-    const val BADGE_SP = 13f
+    const val NOW_TITLE_SP = 24f
+    const val NOW_ARTIST_SP = 17f
+    const val NOW_ALBUM_SP = 15f
+    const val META_SP = 15f
+    const val BADGE_SP = 14f
 }

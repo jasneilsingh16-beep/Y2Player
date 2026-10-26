@@ -50,12 +50,18 @@ class Y2PlayerView(
         typeface = fonts.regular
         style = Paint.Style.FILL
     }
-    /** One-line row titles. */
+    /** Row titles. */
     private val mediumPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        typeface = fonts.medium
+        style = Paint.Style.FILL
+    }
+    /** Screen titles, labels and tile values. */
+    private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.semibold
         style = Paint.Style.FILL
     }
-    private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+    /** The Now Playing title only. */
+    private val heavyPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.bold
         style = Paint.Style.FILL
     }
@@ -260,12 +266,13 @@ class Y2PlayerView(
 
     fun render(newState: AppState) {
         val oldState = state
-        // A card menu floats over a still image of the screen it was opened from.
-        if (newState.currentScreen.isCardMenu() && !oldState.currentScreen.isCardMenu()) captureCardBackdrop()
-        if (!newState.currentScreen.isCardMenu()) cardBackdrop = null
+        // The palette is settled first, so the card's backdrop is drawn in it.
         val light = newState.preferences.skinId == "classic-light"
         val themeChanged = applyPalette(light, light && ScreenContent.isBedtime(newState)) ||
             oldState.preferences.skinId != newState.preferences.skinId || oldState.skins.revision != newState.skins.revision
+        // A card menu floats over a still image of the screen it was opened from.
+        if (newState.currentScreen.isCardMenu() && !oldState.currentScreen.isCardMenu()) captureCardBackdrop()
+        if (!newState.currentScreen.isCardMenu()) cardBackdrop = null
         val progressOnly = !themeChanged && isProgressOnlyUpdate(oldState.playback, newState.playback) &&
             oldState.copy(playback = newState.playback) == newState
         val sameScreenPath = oldState.screenStack.size == newState.screenStack.size &&
@@ -463,8 +470,8 @@ class Y2PlayerView(
         if (textScrollCallbackScheduled) return
         textScrollCallbackScheduled = true
         if (delayMs == SelectedTextScroller.NEXT_FRAME) {
-            // Ten updates per second remain readable on the 480x360 panel without
-            // making the single Canvas view compete with audio decoding for CPU.
+            // Thirty updates a second keep the scroll smooth; only the one focused row
+            // is redrawn, so the cost stays small beside audio decoding.
             postDelayed(textScrollRunnable, MARQUEE_FRAME_MS)
         } else {
             postDelayed(textScrollRunnable, delayMs.coerceAtLeast(1L))
@@ -536,7 +543,10 @@ class Y2PlayerView(
 
     private fun isNowPlayingSurface(): Boolean = state.currentScreen == Screen.NowPlaying
 
-    private fun isSplitHome(): Boolean = state.currentScreen == Screen.MainMenu && width > height
+    /** Home was once a list beside a preview pane; it is now one column, as on the final board. */
+    private fun isSplitHome(): Boolean = false
+
+    private fun isHome(): Boolean = state.currentScreen == Screen.MainMenu
 
     private fun rowAreaRight(): Float = if (isSplitHome()) HOME_LIST_WIDTH_DP * density else width.toFloat()
 
@@ -719,12 +729,23 @@ class Y2PlayerView(
 
         val baseline = headerHeight * .5f + 6f * density
         val hasBack = state.screenStack.size > 1
-        val titleLeft = if (hasBack) 30f * density else 16f * density
+        val titleLeft = if (hasBack) 34f * density else 16f * density
         if (hasBack) {
-            val save = canvas.save()
-            canvas.rotate(180f, 17f * density, headerHeight * .5f)
-            iconPainter.draw(canvas, Y2Icon.CHEVRON, 17f * density, headerHeight * .5f, 16f * density, palette.primaryText)
-            canvas.restoreToCount(save)
+            // A 9 x 16 back chevron with a 2 px round stroke, as heavy as the title beside it.
+            val centerY = headerHeight * .5f
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2f * density
+            paint.strokeCap = Paint.Cap.ROUND
+            paint.strokeJoin = Paint.Join.ROUND
+            paint.color = palette.primaryText
+            reusablePath.reset()
+            reusablePath.moveTo(22.5f * density, centerY - 8f * density)
+            reusablePath.lineTo(13.5f * density, centerY)
+            reusablePath.lineTo(22.5f * density, centerY + 8f * density)
+            canvas.drawPath(reusablePath, paint)
+            paint.strokeCap = Paint.Cap.BUTT
+            paint.strokeJoin = Paint.Join.MITER
+            paint.style = Paint.Style.FILL
         }
 
         boldPaint.color = palette.primaryText
@@ -754,22 +775,23 @@ class Y2PlayerView(
             iconPainter.draw(canvas, routeIcon(icon), right - 7f * density, headerHeight * .5f, 14f * density, color)
             right -= 24f * density
         }
-        paint.style = Paint.Style.FILL
-        paint.textAlign = Paint.Align.RIGHT
-        paint.textSize = Y2UiTheme.STATUS_SP * density
+        val status = mediumPaint
+        status.textAlign = Paint.Align.RIGHT
+        status.textSize = Y2UiTheme.STATUS_SP * density
         if (state.preferences.showStatusClock) {
-            paint.color = palette.primaryText
+            // During Bedtime the clock takes the accent, the one sign that it is on.
+            status.color = if (palette == Y2Palette.BEDTIME) palette.accent else palette.secondaryText
             val clock = statusClockText()
-            canvas.drawText(clock, right, baseline - density, paint)
-            right -= paint.measureText(clock) + 10f * density
+            canvas.drawText(clock, right, baseline - density, status)
+            right -= status.measureText(clock) + 10f * density
         }
         statusSleepText()?.let { label ->
-            paint.color = palette.accent
-            canvas.drawText(label, right, baseline - density, paint)
-            val textWidth = paint.measureText(label)
+            status.color = palette.accent
+            canvas.drawText(label, right, baseline - density, status)
+            val textWidth = status.measureText(label)
             iconPainter.draw(canvas, Y2Icon.MOON, right - textWidth - 9f * density, headerHeight * .5f, 13f * density, palette.accent)
         }
-        paint.textAlign = Paint.Align.LEFT
+        status.textAlign = Paint.Align.LEFT
     }
 
     /** "23m", "1h 5m", or "End" for a timer that waits for the track, book or queue to finish. */
@@ -837,12 +859,12 @@ class Y2PlayerView(
         }
         var left = bodyLeft
         if (cachedBatteryText.isNotEmpty()) {
-            paint.textAlign = Paint.Align.RIGHT
-            paint.textSize = Y2UiTheme.BADGE_SP * density
-            paint.color = if (color == palette.primaryText) palette.secondaryText else color
-            canvas.drawText(cachedBatteryText, bodyLeft - 5f * density, centerY + 4.5f * density, paint)
-            left = bodyLeft - 5f * density - paint.measureText(cachedBatteryText)
-            paint.textAlign = Paint.Align.LEFT
+            mediumPaint.textAlign = Paint.Align.RIGHT
+            mediumPaint.textSize = Y2UiTheme.STATUS_SP * density
+            mediumPaint.color = if (color == palette.primaryText) palette.secondaryText else color
+            canvas.drawText(cachedBatteryText, bodyLeft - 5f * density, centerY + 5f * density, mediumPaint)
+            left = bodyLeft - 5f * density - mediumPaint.measureText(cachedBatteryText)
+            mediumPaint.textAlign = Paint.Align.LEFT
         }
         return left - 10f * density
     }
@@ -859,7 +881,7 @@ class Y2PlayerView(
         val saveCount = canvas.save()
         canvas.clipRect(0f, rowsTop, rowsRight, rowAreaBottom())
         val surfaceRight = rowSurfaceRight()
-        val textLeft = rowTextLeft()
+        val baseTextLeft = rowTextLeft()
         for (index in cachedRowStart until cachedRowEnd) {
             val slot = index - cachedRowStart
             val top = rowsTop + (index - visibleStart) * rowHeight
@@ -869,6 +891,22 @@ class Y2PlayerView(
             val active = cachedActive[slot]
             val unavailable = cachedUnavailable[slot]
             if (focused) drawFocus(canvas, top, bottom)
+            val nowPlayingRow = isHome() && (rows[index] as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
+            val textLeft = if (nowPlayingRow) baseTextLeft + (HOME_ART_DP + 12f) * density else baseTextLeft
+            if (nowPlayingRow) {
+                val artSize = HOME_ART_DP * density
+                val artLeft = baseTextLeft - 4f * density
+                val artTop = top + (rowHeight - artSize) * .5f
+                val bitmap = visibleRowArtworks[index]?.bitmap
+                if (bitmap != null) drawRowArtwork(canvas, artLeft, artTop, artSize, bitmap) else {
+                    reusableRectF.set(artLeft, artTop, artLeft + artSize, artTop + artSize)
+                    paint.style = Paint.Style.FILL
+                    paint.color = if (focused) colorAtAlpha(palette.onFocus, .18f) else palette.surfaceRaised
+                    canvas.drawRoundRect(reusableRectF, 6f * density, 6f * density, paint)
+                    iconPainter.draw(canvas, Y2Icon.SONG, artLeft + artSize * .5f, artTop + artSize * .5f,
+                        artSize * .5f, if (focused) palette.onFocus else palette.mutedText)
+                }
+            }
             val titleColor = when {
                 focused -> palette.onFocus
                 unavailable -> palette.mutedText
@@ -948,13 +986,12 @@ class Y2PlayerView(
             }
 
             val subtitle = cachedSubtitles[slot]
-            val twoLine = listTwoLine && subtitle != null
-            // Two-line lists keep every title bold, so a row without a second line still matches.
-            val title = boldOrRegular(listTwoLine || isSplitHome())
+            val twoLine = (listTwoLine || nowPlayingRow) && subtitle != null
+            val title = if (nowPlayingRow) boldPaint else mediumPaint
             title.textAlign = Paint.Align.LEFT
-            title.textSize = (if (listTwoLine) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
+            title.textSize = (if (listTwoLine || nowPlayingRow) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
             title.color = titleColor
-            val titleBaseline = if (twoLine) top + rowHeight * .5f - 3f * density else top + rowHeight * .5f + 6f * density
+            val titleBaseline = if (twoLine) top + rowHeight * .5f - 4f * density else top + rowHeight * .5f + 7f * density
             val fullTitle = rows[index].title
             if (focused && textScroller.isTarget(
                     SelectedTextScroller.TARGET_LIST,
@@ -980,23 +1017,24 @@ class Y2PlayerView(
                 paint.textAlign = Paint.Align.LEFT
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
                 paint.color = if (unavailable && !focused) palette.mutedText else secondaryColor
-                canvas.drawText(subtitle.orEmpty(), textLeft, top + rowHeight * .5f + 15f * density, paint)
+                canvas.drawText(subtitle.orEmpty(), textLeft, top + rowHeight * .5f + 17f * density, paint)
             }
 
             var trailingRight = surfaceRight - 10f * density
-            cachedProgress[slot]?.let { progress ->
-                drawProgressRing(canvas, trailingRight - 11f * density, top + rowHeight * .5f, 10f * density, progress, focused)
-                trailingRight -= 30f * density
-            }
             cachedTrailingIcons[slot]?.let { trailingIcon ->
                 val color = when {
                     focused -> palette.onFocus
-                    trailingIcon == Y2Icon.CHEVRON -> palette.mutedText
+                    trailingIcon == Y2Icon.CHEVRON -> palette.scrollThumb
+                    nowPlayingRow -> palette.primaryText
                     else -> palette.accent
                 }
                 val size = if (trailingIcon == Y2Icon.CHEVRON) 12f else 16f
                 iconPainter.draw(canvas, trailingIcon, trailingRight - 5f * density, top + rowHeight * .5f, size * density, color)
-                trailingRight -= 20f * density
+                trailingRight -= 22f * density
+            }
+            cachedProgress[slot]?.let { progress ->
+                drawProgressRing(canvas, trailingRight - 11f * density, top + rowHeight * .5f, 10f * density, progress, focused)
+                trailingRight -= 30f * density
             }
             cachedTrailingText[slot]?.let { trailing ->
                 paint.style = Paint.Style.FILL
@@ -1350,7 +1388,7 @@ class Y2PlayerView(
 
     private fun captureCardBackdrop() {
         if (width <= 0 || height <= 0) return
-        val bitmap = runCatching { Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565) }.getOrNull() ?: return
+        val bitmap = runCatching { Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888) }.getOrNull() ?: return
         draw(Canvas(bitmap))
         cardBackdrop = bitmap
     }
@@ -2672,7 +2710,7 @@ class Y2PlayerView(
 
     /** Chooses one row shape for the whole list: one line with values on the right, or two lines. */
     private fun updateListLayout() {
-        val home = isSplitHome()
+        val home = isHome()
         listLeadingColumn = !home && rows.any { (it as? ScreenRow.Action)?.leading != null }
         listPosterColumn = !home && rows.any { (it as? ScreenRow.Action)?.posterPaths?.isNotEmpty() == true }
         listArtColumn = !home && !listLeadingColumn && !listPosterColumn &&
@@ -2701,7 +2739,7 @@ class Y2PlayerView(
         if (cachedRowStart == visibleStart && cachedRowEnd == end) return
         cachedRowStart = visibleStart
         cachedRowEnd = end
-        val home = isSplitHome()
+        val home = isHome()
         val textLeft = rowTextLeft()
         val surfaceRight = rowSurfaceRight()
         for (slot in cachedTitles.indices) {
@@ -2709,7 +2747,8 @@ class Y2PlayerView(
                 val row = rows[visibleStart + slot]
                 val active = isActive(row)
                 val navigation = trailingIconFor(row, active) == Y2Icon.CHEVRON
-                val rawSubtitle = if (home) null else rowSubtitle(row)
+                val nowPlayingRow = home && (row as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
+                val rawSubtitle = rowSubtitle(row)
                 // A chosen option gets a tick; a switch already says On or Off in words.
                 val choiceMarked = (active || rawSubtitle?.let(::isChoiceMarker) == true) && !navigation && row !is ScreenRow.TrackRow &&
                     (row as? ScreenRow.Action)?.progress == null && rawSubtitle?.let(::isSwitchWord) != true
@@ -2718,6 +2757,9 @@ class Y2PlayerView(
                 val subtitle = rawSubtitle?.takeUnless { (choiceMarked && isChoiceMarker(it)) || shuffleRow }
                 val progress = (row as? ScreenRow.Action)?.progress
                 val trailingIcon = when {
+                    nowPlayingRow -> if (state.playback.status == PlaybackStatus.PLAYING) Y2Icon.PAUSE else Y2Icon.PLAY
+                    // Every Home row leads somewhere, so each carries the chevron, after any ring.
+                    home -> Y2Icon.CHEVRON
                     progress != null -> null
                     row is ScreenRow.TrackRow -> if (active) Y2Icon.PLAYING else null
                     // Every Home row leads somewhere, so each carries the chevron.
@@ -2725,22 +2767,24 @@ class Y2PlayerView(
                     choiceMarked -> Y2Icon.CHECK
                     else -> null
                 }
-                val trailingText = if (shuffleRow) rawSubtitle else if (!listTwoLine && subtitle != null) subtitle else null
+                val trailingText = if (shuffleRow) rawSubtitle else if (!listTwoLine && !nowPlayingRow && subtitle != null) subtitle else null
                 paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
-                val trailingIconWidth = if (trailingIcon != null || progress != null) 28f * density else 0f
+                val trailingIconWidth = (if (trailingIcon != null) 22f * density else 0f) + (if (progress != null) 30f * density else 0f) +
+                    (if (trailingIcon != null || progress != null) 6f * density else 0f)
                 val trailingTextWidth = trailingText?.let {
                     paint.measureText(it).coerceAtMost((surfaceRight - textLeft) * .48f) + 12f * density
                 } ?: 0f
-                val maxWidth = (surfaceRight - 10f * density - trailingIconWidth - trailingTextWidth - textLeft)
+                val rowTextLeft = if (nowPlayingRow) textLeft + HOME_ART_DP * density + 12f * density else textLeft
+                val maxWidth = (surfaceRight - 10f * density - trailingIconWidth - trailingTextWidth - rowTextLeft)
                     .coerceAtLeast(36f * density)
-                val titlePaint = boldOrRegular(listTwoLine || home)
-                titlePaint.textSize = (if (listTwoLine) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
+                val titlePaint = if (nowPlayingRow) boldPaint else mediumPaint
+                titlePaint.textSize = (if (listTwoLine || nowPlayingRow) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
                 cachedTitleWidths[slot] = titlePaint.measureText(row.title)
                 cachedTitleAvailableWidths[slot] = maxWidth
                 cachedTitles[slot] = ellipsize(row.title, maxWidth, titlePaint)
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
-                cachedSubtitles[slot] = subtitle?.let {
-                    ellipsize(it, surfaceRight - 10f * density - trailingIconWidth - textLeft, paint)
+                cachedSubtitles[slot] = subtitle?.takeIf { listTwoLine || nowPlayingRow }?.let {
+                    ellipsize(it, surfaceRight - 10f * density - trailingIconWidth - rowTextLeft, paint)
                 }
                 paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
                 cachedTrailingText[slot] = trailingText?.let { ellipsize(it, (surfaceRight - textLeft) * .48f, paint) }
@@ -2863,12 +2907,13 @@ class Y2PlayerView(
     companion object {
         private const val MAX_VISIBLE_ROWS = 12
         private const val SCAN_PROGRESS_PHASE_STEPS = 200
-        private const val MARQUEE_SPEED_DP_PER_SECOND = 28f
-        private const val MARQUEE_FRAME_MS = 100L
+        private const val MARQUEE_SPEED_DP_PER_SECOND = 24f
+        private const val MARQUEE_FRAME_MS = 33L
         private const val SLEEP_TIMER_REFRESH_MS = 1_000L
         private const val ROW_ARTWORK_SIZE_DP = 38f
         private const val TRAILING_SUBTITLE_MAX_CHARS = 24
         private const val HOME_LIST_WIDTH_DP = 252f
+        private const val HOME_ART_DP = 36f
         private val CHOICE_MARKERS = setOf("Active", "Selected", "Current")
         private const val ROW_ARTWORK_SIZE_PX = 64
         private const val NOW_ART_DP = 184f
