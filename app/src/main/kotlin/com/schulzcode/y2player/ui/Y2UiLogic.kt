@@ -120,7 +120,7 @@ object Y2UiLogic {
     fun audiobookChapterLine(chapterNumber: Int?, chapterCount: Int): String = when {
         chapterNumber == null || chapterCount <= 0 -> ""
         chapterCount == 1 -> ""
-        else -> "Chapter $chapterNumber of $chapterCount"
+        else -> "Episode $chapterNumber of $chapterCount"
     }
 
     fun albumLine(album: String, year: Int?, includeYear: Boolean): String {

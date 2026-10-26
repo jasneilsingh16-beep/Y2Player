@@ -60,13 +60,8 @@ sealed interface ScreenRow {
                 append(if (selected) "Selected" else "Not selected")
                 append(" · ")
             }
-            queueEntry?.let { entry ->
-                append(when (entry.origin) {
-                    QueueOrigin.UP_NEXT -> "Up Next"
-                    QueueOrigin.CONTINUATION -> "Continuing"
-                })
-                append(" · ")
-            }
+            // Only what was added by hand says so; the rest of the queue is just the music.
+            if (queueEntry?.origin == QueueOrigin.UP_NEXT) append("Up Next · ")
             append(track.displayArtist)
             if (!track.available) append(" · unavailable")
             if (track.decodeFailed ||
@@ -154,10 +149,10 @@ object ScreenContent {
         Screen.PlaybackVolume -> "Volume"
         Screen.PlaybackInterruptions -> "Interruptions"
         Screen.SoundEffects -> "Sound Effects"
-        Screen.EqualizerSettings -> "Equalizer"
-        Screen.EqualizerPresets -> "Equalizer Preset"
+        Screen.EqualizerSettings -> "Equaliser"
+        Screen.EqualizerPresets -> "Equaliser Preset"
         Screen.OutputInformation -> "Output"
-        Screen.EqualizerBands -> "Equalizer Bands"
+        Screen.EqualizerBands -> "Equaliser Bands"
         is Screen.EqualizerBandLevel -> state.playback.audioEffects.bandFrequenciesHz
             .getOrNull(screen.bandIndex)?.let { "${formatFrequency(it)} Level" } ?: "Band Level"
         Screen.SortOrder -> "Sort Order"
@@ -442,17 +437,20 @@ object ScreenContent {
                     item.title, videoCountLabel(item.videoCount), VIDEO_VOLUME_KEY + item.path
                 )
                 VideoItemKind.FOLDER -> ScreenRow.Action(
-                    item.title, videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
+                    item.title, item.detail ?: videoCountLabel(item.videoCount), VIDEO_FOLDER_KEY + item.path,
                     artworkPath = item.artworkPath,
                     posterPaths = item.posterPaths
                 )
                 VideoItemKind.CONTINUE -> {
                     val progress = state.videos.inProgress.firstOrNull { it.path == item.path }
+                    // The film itself leads; the label says why it is first.
                     ScreenRow.Action(
-                        "Continue Watching",
-                        listOfNotNull(item.title, progress?.let(TalksContent::videoLeft)).joinToString(" · "),
+                        item.title,
+                        listOfNotNull("Continue watching", progress?.let(TalksContent::videoLeft)).joinToString(" · "),
                         VIDEO_CONTINUE_KEY + item.path,
-                        progress = progress?.let { RowProgress(it.fraction.coerceAtLeast(.03f)) } ?: RowProgress(.03f)
+                        progress = progress?.let { RowProgress(it.fraction.coerceAtLeast(.03f)) } ?: RowProgress(.03f),
+                        artworkPath = item.artworkPath,
+                        posterPaths = item.posterPaths
                     )
                 }
                 VideoItemKind.VIDEO -> {
@@ -584,13 +582,14 @@ object ScreenContent {
     }
 
     private fun musicRows(state: AppState): List<ScreenRow> = listOf(
+        // In the order they are used: Folders most of all.
         ScreenRow.Action("Folders", null, "folders"),
         ScreenRow.Action("Shuffle All", trackCountLabel(state.library.musicTracks.size), "shuffle_all"),
+        ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
+        ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Songs", null, "songs"),
         ScreenRow.Action("Ragis & Speakers", HomePane.artistCount(state).takeIf { it > 0 }?.toString(), "artists"),
-        ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Albums", null, "albums"),
-        ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
         ScreenRow.Action("Recently Played", null, "recent")
     )
 
@@ -723,7 +722,7 @@ object ScreenContent {
             val duration = audiobookDuration(entry.totalDurationMs)
             return if (duration == null) chapters else "$chapters · $duration"
         }
-        val position = "Chapter ${entry.chapterNumber} of ${entry.chapterCount}"
+        val position = "Episode ${entry.chapterNumber} of ${entry.chapterCount}"
         if (entry.totalDurationMs <= 0L) return position
         val percent = (entry.listenedMs * 100 / entry.totalDurationMs).coerceIn(0L, 100L)
         return "$position · $percent%"
@@ -1097,7 +1096,7 @@ object ScreenContent {
     }
 
     private fun interruptionsSummary(state: AppState): String = buildList {
-        add(if (state.preferences.duckOnFocusLoss) "Duck on focus loss" else "Pause on focus loss")
+        add(if (state.preferences.duckOnFocusLoss) "Lowers for alerts" else "Pauses for alerts")
         if (state.preferences.resumePosition) add("resume on start")
     }.joinToString(" · ")
 
@@ -1282,7 +1281,7 @@ object ScreenContent {
                 if (direct) "Disabled by Direct profile" else onOff(state.preferences.audioEffectsEnabled),
                 "effects_toggle"
             ))
-            add(ScreenRow.Action("Equalizer", equalizerSummary(state), "equalizer"))
+            add(ScreenRow.Action("Equaliser", equalizerSummary(state), "equalizer"))
             if (effects.bassBoostSupported) {
                 add(ScreenRow.Action("Bass Boost", percent(state.preferences.bassStrength, 1000), "bass"))
             }
@@ -1297,7 +1296,7 @@ object ScreenContent {
         val effects = state.playback.audioEffects
         if (!effects.available || !effects.equalizerSupported) {
             return listOf(ScreenRow.Group(
-                "Equalizer",
+                "Equaliser",
                 effects.errorMessage ?: "Unsupported by this firmware",
                 "eq_unsupported"
             ))

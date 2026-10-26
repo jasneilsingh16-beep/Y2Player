@@ -69,9 +69,9 @@ class SearchFlowTest {
         assertEquals(state, AppReducer.reduce(state, AppAction.Right).state)
 
         val wheelOne = AppReducer.reduce(state, AppAction.WheelMoved(1)).state.currentScreen as Screen.Search
-        assertEquals("W", SearchKeyboard.key(wheelOne))
+        assertEquals("B", SearchKeyboard.key(wheelOne))
         val wheelTen = AppReducer.reduce(state, AppAction.WheelMoved(10)).state.currentScreen as Screen.Search
-        assertEquals("A", SearchKeyboard.key(wheelTen))
+        assertEquals("K", SearchKeyboard.key(wheelTen))
     }
 
     @Test fun `side and bottom button presses and holds do nothing in search`() {
@@ -100,7 +100,7 @@ class SearchFlowTest {
             screenStack = listOf(ScreenEntry(Screen.Search())),
             preferences = PlayerPreferencesState(wrapLists = false)
         )
-        assertEquals("Q", SearchKeyboard.key(
+        assertEquals("A", SearchKeyboard.key(
             AppReducer.reduce(bounded, AppAction.WheelMoved(-1)).state.currentScreen as Screen.Search
         ))
 

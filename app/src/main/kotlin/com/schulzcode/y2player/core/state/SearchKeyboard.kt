@@ -6,10 +6,12 @@ internal object SearchKeyboard {
     const val CLEAR = "clear"
     const val RESULTS = "results"
 
+    // In alphabetical order: the wheel walks the keys in reading order, so the
+    // alphabet puts every letter where you expect it.
     val rows: List<List<String>> = listOf(
-        "QWERTYUIOP".map(Char::toString),
-        "ASDFGHJKL".map(Char::toString),
-        "ZXCVBNM".map(Char::toString) + DELETE,
+        "ABCDEFGHI".map(Char::toString),
+        "JKLMNOPQR".map(Char::toString),
+        "STUVWXYZ".map(Char::toString) + DELETE,
         listOf(SPACE, CLEAR, RESULTS)
     )
 
@@ -32,10 +34,10 @@ internal object SearchKeyboard {
     }
 
     fun label(key: String): String = when (key) {
-        SPACE -> "SPACE"
+        SPACE -> "Space"
         DELETE -> "⌫"
-        CLEAR -> "CLEAR"
-        RESULTS -> "RESULTS"
+        CLEAR -> "Clear"
+        RESULTS -> "Results"
         else -> key
     }
 }

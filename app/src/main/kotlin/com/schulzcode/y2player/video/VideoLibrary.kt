@@ -70,7 +70,9 @@ object VideoLibrary {
         val siblings = siblings(file)
         return VideoItem(
             VideoItemKind.CONTINUE, displayTitle(file.name), file.absolutePath,
-            resumeMs = position, playlist = siblings
+            resumeMs = position, playlist = siblings,
+            artworkPath = file.parentFile?.let(::artworkProbe),
+            posterPaths = listOfNotNull(file.parentFile?.let(::artworkProbe))
         )
     }
 
@@ -99,6 +101,31 @@ object VideoLibrary {
         return inside.ifEmpty { listOfNotNull(artworkProbe(folder)) }
     }
 
+    /**
+     * What a folder holds, in the folder's own terms: films or shows when it is
+     * named for them, each title inside counted once.
+     */
+    fun folderDetail(folder: File, videoCount: Int): String {
+        val name = folder.name.lowercase(Locale.US)
+        val noun = when {
+            "movie" in name || "film" in name -> "films" to "film"
+            "show" in name || "series" in name || name == "tv" -> "shows" to "show"
+            else -> null
+        }
+        val titles = folder.listFiles().orEmpty()
+            .filter { it.isDirectory && !it.name.startsWith(".") && countVideos(it) > 0 }
+            .sortedWith { first, second -> NaturalTextOrder.compare(first.name.lowercase(Locale.US), second.name.lowercase(Locale.US)) }
+        val loose = folder.listFiles().orEmpty().count { it.isFile && isVideoFile(it.name) }
+        if (titles.isEmpty() || (noun?.first == "films" && loose > 0)) {
+            val count = if (titles.isEmpty()) videoCount else titles.size + loose
+            val (plural, single) = noun?.takeIf { it.first == "films" } ?: ("videos" to "video")
+            return "$count ${if (count == 1) single else plural}"
+        }
+        val (plural, single) = noun ?: ("folders" to "folder")
+        val count = "${titles.size} ${if (titles.size == 1) single else plural}"
+        return if (plural == "films") count else "$count · ${titles.joinToString(", ") { it.name }}"
+    }
+
     fun list(
         directory: File,
         watched: (String) -> Boolean = { false },
@@ -112,7 +139,8 @@ object VideoLibrary {
                     if (count == 0) null else VideoItem(
                         VideoItemKind.FOLDER, child.name, child.absolutePath, count,
                         artworkPath = artworkProbe(child),
-                        posterPaths = posters(child)
+                        posterPaths = posters(child),
+                        detail = folderDetail(child, count)
                     )
                 }
                 child.isFile && isVideoFile(child.name) -> VideoItem(

@@ -124,7 +124,7 @@ class AppReducerNowPlayingTest {
         val music = AppReducer.reduce(AppState(screenStack = listOf(ScreenEntry(Screen.MainMenu, 1))), AppAction.Confirm).state
         assertEquals(Screen.Music, music.currentScreen)
         assertEquals(
-            listOf("folders", "shuffle_all", "songs", "artists", "genres", "albums", "playlists", "recent"),
+            listOf("folders", "shuffle_all", "playlists", "genres", "songs", "artists", "albums", "recent"),
             ScreenContent.rows(music).map { (it as ScreenRow.Action).key }
         )
     }

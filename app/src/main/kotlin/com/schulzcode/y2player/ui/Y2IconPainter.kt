@@ -11,7 +11,7 @@ enum class Y2Icon {
     ACTION, REFRESH, HEADPHONES, SPEAKER, DISCONNECTED, UNKNOWN, CHEVRON, PLAY, PAUSE,
     PREVIOUS, NEXT, CHECK, PREPARING, WARNING, SHUFFLE, REPEAT, TIMER, DAC,
     MUSIC, BOOK, LIBRARY, SLIDERS, VOLUME, EQUALIZER, CROSSFADE, HISTORY, REMOVE, SYSTEM, WHEEL,
-    CHAPTERS, SEARCH, VIDEO, MOON
+    CHAPTERS, SEARCH, VIDEO, MOON, NOW_BARS
 }
 
 class Y2IconPainter(private val paint: Paint, density: Float) {
@@ -55,6 +55,18 @@ class Y2IconPainter(private val paint: Paint, density: Float) {
             Y2Icon.CHAPTERS -> drawChapters(canvas, left, top, size)
             Y2Icon.VIDEO -> drawVideo(canvas, left, top, size)
             Y2Icon.MOON -> drawMoon(canvas, centerX, centerY, size)
+            // Three bars of different heights: this is the one playing.
+            Y2Icon.NOW_BARS -> {
+                paint.style = Paint.Style.FILL
+                val barWidth = size * .2f
+                val bottom = top + size * .9f
+                listOf(.55f, .9f, .7f).forEachIndexed { index, height ->
+                    val barLeft = left + size * .08f + index * size * .32f
+                    rect.set(barLeft, bottom - size * height, barLeft + barWidth, bottom)
+                    canvas.drawRoundRect(rect, barWidth * .4f, barWidth * .4f, paint)
+                }
+                paint.style = Paint.Style.STROKE
+            }
             Y2Icon.SEARCH -> {
                 canvas.drawCircle(centerX - size * .1f, centerY - size * .1f, size * .27f, paint)
                 canvas.drawLine(centerX + size * .1f, centerY + size * .1f, centerX + size * .35f, centerY + size * .35f, paint)

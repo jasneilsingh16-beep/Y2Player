@@ -739,7 +739,7 @@ class Y2PlayerView(
                 reusableRectF.set(left, keyTop, right, bottom)
                 canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
                 boldPaint.textAlign = Paint.Align.CENTER
-                boldPaint.textSize = if (rowIndex == SearchKeyboard.rows.lastIndex) 12f * density else 14f * density
+                boldPaint.textSize = 15f * density
                 boldPaint.color = if (focused) palette.background else palette.primaryText
                 canvas.drawText(
                     SearchKeyboard.label(key),
@@ -958,9 +958,39 @@ class Y2PlayerView(
                 val posterHeight = POSTER_HEIGHT_DP * density
                 val posterTop = top + (rowHeight - posterHeight) * .5f
                 val columnLeft = (Y2UiTheme.EDGE_DP + 6f) * density
-                if (posters.isEmpty()) {
-                    iconPainter.draw(canvas, cachedIcons[slot], columnLeft + (posterWidth * 3 + POSTER_GAP_DP * 2 * density) * .5f,
-                        top + rowHeight * .5f, 22f * density, if (focused) palette.onFocus else palette.accent)
+                val columnWidth = posterWidth * 3 + POSTER_GAP_DP * 2 * density
+                val continueRow = (rows[index] as? ScreenRow.Action)?.key?.startsWith(ScreenContent.VIDEO_CONTINUE_KEY) == true
+                if (posters.isEmpty() || continueRow) {
+                    // One wide tile: the film's own frame for Continue, or a quiet tile with its icon.
+                    reusableRectF.set(columnLeft, posterTop, columnLeft + columnWidth, posterTop + posterHeight)
+                    val bitmap = posters.firstOrNull()?.let { paneArtwork(null, it) }
+                    if (bitmap == null) {
+                        paint.style = Paint.Style.FILL
+                        paint.color = if (focused) colorAtAlpha(palette.onFocus, .22f) else palette.surfaceRaised
+                        canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
+                        iconPainter.draw(canvas, if (continueRow) Y2Icon.PLAY else cachedIcons[slot], columnLeft + columnWidth * .5f,
+                            top + rowHeight * .5f, 20f * density, if (focused) palette.onFocus else palette.mutedText)
+                    } else {
+                        val save = canvas.save()
+                        reusablePath.reset()
+                        reusablePath.addRoundRect(reusableRectF, 4f * density, 4f * density, android.graphics.Path.Direction.CW)
+                        canvas.clipPath(reusablePath)
+                        // Centre-crop the cover into the wide frame.
+                        val scale = maxOf(columnWidth / bitmap.width, posterHeight / bitmap.height)
+                        val cropW = (columnWidth / scale).toInt().coerceAtMost(bitmap.width)
+                        val cropH = (posterHeight / scale).toInt().coerceAtMost(bitmap.height)
+                        val src = Rect((bitmap.width - cropW) / 2, (bitmap.height - cropH) / 2,
+                            (bitmap.width + cropW) / 2, (bitmap.height + cropH) / 2)
+                        reusableRect.set(columnLeft.toInt(), posterTop.toInt(), (columnLeft + columnWidth).toInt(), (posterTop + posterHeight).toInt())
+                        canvas.drawBitmap(bitmap, src, reusableRect, bitmapPaint)
+                        canvas.restoreToCount(save)
+                    }
+                    if (continueRow) {
+                        val fraction = cachedProgress[slot]?.fraction ?: 0f
+                        drawThinBar(canvas, columnLeft + 4f * density, columnLeft + columnWidth - 4f * density,
+                            posterTop + posterHeight - 7f * density, 3f * density, fraction,
+                            if (focused) palette.onFocus else palette.accent)
+                    }
                 } else posters.take(3).forEachIndexed { position, path ->
                     val left = columnLeft + position * (posterWidth + POSTER_GAP_DP * density)
                     val bitmap = paneArtwork(null, path)
@@ -998,14 +1028,7 @@ class Y2PlayerView(
                     rows[index] is ScreenRow.Action && rows[index].artworkTrackId == null && rows[index].artworkPath == null ->
                         iconPainter.draw(canvas, cachedIcons[slot], artLeft + artSize * .5f, artTop + artSize * .5f,
                             artSize * .55f, if (focused) palette.onFocus else palette.accent)
-                    else -> {
-                        reusableRectF.set(artLeft, artTop, artLeft + artSize, artTop + artSize)
-                        paint.style = Paint.Style.FILL
-                        paint.color = if (focused) colorAtAlpha(palette.onFocus, .18f) else palette.surfaceRaised
-                        canvas.drawRoundRect(reusableRectF, 6f * density, 6f * density, paint)
-                        iconPainter.draw(canvas, cachedIcons[slot], artLeft + artSize * .5f, artTop + artSize * .5f,
-                            artSize * .5f, if (focused) palette.onFocus else palette.mutedText)
-                    }
+                    else -> drawInitialTile(canvas, artLeft, artTop, artSize, rows[index].title, focused)
                 }
             } else if (listLeadingColumn) {
                 cachedLeading[slot]?.let { number ->
@@ -1069,7 +1092,11 @@ class Y2PlayerView(
                     nowPlayingRow -> palette.primaryText
                     else -> palette.accent
                 }
-                val size = if (trailingIcon == Y2Icon.CHEVRON) 12f else 16f
+                val size = when (trailingIcon) {
+                    Y2Icon.CHEVRON -> 12f
+                    Y2Icon.NOW_BARS -> 13f
+                    else -> 16f
+                }
                 iconPainter.draw(canvas, trailingIcon, trailingRight - 5f * density, top + rowHeight * .5f, size * density, color)
                 trailingRight -= 22f * density
             }
@@ -1128,6 +1155,24 @@ class Y2PlayerView(
             paint.strokeCap = Paint.Cap.BUTT
         }
         paint.style = Paint.Style.FILL
+    }
+
+    /**
+     * Where there is no cover, a soft tile with the first letter, its tint chosen
+     * from the name so the same speaker or folder always looks the same.
+     */
+    private fun drawInitialTile(canvas: Canvas, left: Float, top: Float, size: Float, name: String, focused: Boolean) {
+        val tints = if (palette == Y2Palette.BEDTIME) BEDTIME_TILE_TINTS else TILE_TINTS
+        reusableRectF.set(left, top, left + size, top + size)
+        paint.style = Paint.Style.FILL
+        paint.color = if (focused) colorAtAlpha(palette.onFocus, .2f) else tints[(name.hashCode() and 0x7FFFFFFF) % tints.size]
+        canvas.drawRoundRect(reusableRectF, 6f * density, 6f * density, paint)
+        val initial = name.trim().firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: return
+        boldPaint.textAlign = Paint.Align.CENTER
+        boldPaint.textSize = 17f * density
+        boldPaint.color = if (focused) palette.onFocus else colorAtAlpha(palette.primaryText, .6f)
+        canvas.drawText(initial, left + size * .5f, top + size * .5f + 6f * density, boldPaint)
+        boldPaint.textAlign = Paint.Align.LEFT
     }
 
     private fun drawRowArtwork(canvas: Canvas, left: Float, top: Float, size: Float, bitmap: Bitmap) {
@@ -1288,7 +1333,7 @@ class Y2PlayerView(
         val icon: Y2Icon
         if (search != null) {
             title = if (search.query.isBlank()) "Search your device" else "No search results"
-            detail = if (search.query.isBlank()) "Use the keyboard below to begin" else "Try another word or spelling"
+            detail = if (search.query.isBlank()) "Turn the wheel to choose letters. Centre types." else "Try another word or spelling"
             icon = Y2Icon.SEARCH
         } else when (kind) {
             EmptyStateKind.SCANNING -> {
@@ -2848,7 +2893,7 @@ class Y2PlayerView(
                     // Every Home row leads somewhere, so each carries the chevron, after any ring.
                     home -> Y2Icon.CHEVRON
                     progress != null -> null
-                    row is ScreenRow.TrackRow -> if (active) Y2Icon.PLAYING else null
+                    row is ScreenRow.TrackRow -> if (active) Y2Icon.NOW_BARS else null
                     // Every Home row leads somewhere, so each carries the chevron.
                     home || navigation -> Y2Icon.CHEVRON
                     choiceMarked -> Y2Icon.CHECK
@@ -3001,6 +3046,15 @@ class Y2PlayerView(
         private const val TRAILING_SUBTITLE_MAX_CHARS = 24
         private const val HOME_LIST_WIDTH_DP = 252f
         private const val HOME_ART_DP = 36f
+        /** Six quiet tints, about 20% saturation, for tiles without a cover. */
+        private val TILE_TINTS = intArrayOf(
+            0xFFE3E9F2.toInt(), 0xFFE9E3F0.toInt(), 0xFFE2EEE8.toInt(),
+            0xFFF2E9DF.toInt(), 0xFFF0E1E3.toInt(), 0xFFE4ECEF.toInt()
+        )
+        private val BEDTIME_TILE_TINTS = intArrayOf(
+            0xFF2A2119.toInt(), 0xFF2B231C.toInt(), 0xFF26221A.toInt(),
+            0xFF2E2418.toInt(), 0xFF2C201B.toInt(), 0xFF24211C.toInt()
+        )
         private val CHOICE_MARKERS = setOf("Active", "Selected", "Current")
         private const val ROW_ARTWORK_SIZE_PX = 64
         private const val NOW_ART_DP = 184f

@@ -130,11 +130,11 @@ class MainMenuHierarchyTest {
     @Test fun `Music owns every library entry point except Favourites, which is on Home`() {
         val music = AppState(screenStack = listOf(ScreenEntry(Screen.Music)), library = library)
         assertEquals(
-            listOf("folders", "shuffle_all", "songs", "artists", "genres", "albums", "playlists", "recent"),
+            listOf("folders", "shuffle_all", "playlists", "genres", "songs", "artists", "albums", "recent"),
             keys(music)
         )
-        assertEquals("Ragis & Speakers", ScreenContent.rows(music)[3].title)
-        assertEquals("Categories", ScreenContent.rows(music)[4].title)
+        assertEquals("Ragis & Speakers", ScreenContent.rows(music)[5].title)
+        assertEquals("Categories", ScreenContent.rows(music)[3].title)
     }
 
     @Test fun `Recently Played is one Confirm from Music`() {
