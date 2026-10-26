@@ -93,6 +93,8 @@ data class PlayerPreferencesState(
     val keepScreenOnWhilePlaying: Boolean = false,
     val extraTrackInfo: Boolean = false,
     val showFmRadio: Boolean = false,
+    /** Enhance: the one switch for clean-up, space and fullness on every track. */
+    val enhanceSound: Boolean = true,
     val use24HourClock: Boolean = false,
     val showStatusClock: Boolean = true,
     val skinId: String = "classic",

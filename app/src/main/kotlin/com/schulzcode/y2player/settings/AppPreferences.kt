@@ -33,6 +33,7 @@ class AppPreferences(context: Context) {
         keepScreenOnWhilePlaying = boolean(KEY_KEEP_SCREEN_ON, false),
         extraTrackInfo = boolean(KEY_EXTRA_TRACK_INFO, false),
         showFmRadio = boolean(KEY_SHOW_FM_RADIO, false),
+        enhanceSound = boolean(KEY_ENHANCE_SOUND, true),
         use24HourClock = boolean(KEY_24_HOUR_CLOCK, false),
         showStatusClock = boolean(KEY_STATUS_CLOCK, true),
         skinId = string(KEY_SKIN_ID, null)?.takeIf(com.schulzcode.y2player.skin.SkinIds::valid)
@@ -70,6 +71,7 @@ class AppPreferences(context: Context) {
     fun toggleKeepScreenOn() = updateBoolean(KEY_KEEP_SCREEN_ON, !snapshot().keepScreenOnWhilePlaying)
     fun toggleExtraTrackInfo() = updateBoolean(KEY_EXTRA_TRACK_INFO, !snapshot().extraTrackInfo)
     fun toggleShowFmRadio() = updateBoolean(KEY_SHOW_FM_RADIO, !snapshot().showFmRadio)
+    fun toggleEnhanceSound() = updateBoolean(KEY_ENHANCE_SOUND, !snapshot().enhanceSound)
     fun toggle24HourClock() = updateBoolean(KEY_24_HOUR_CLOCK, !snapshot().use24HourClock)
     fun toggleStatusClock() = updateBoolean(KEY_STATUS_CLOCK, !snapshot().showStatusClock)
     fun setBedtime(startHour: Int) = commit { putInt(KEY_BEDTIME_START, startHour.takeIf { it in BEDTIME_LEVELS } ?: -1) }
@@ -176,6 +178,7 @@ class AppPreferences(context: Context) {
             putBoolean(KEY_KEEP_SCREEN_ON, value.keepScreenOnWhilePlaying)
             putBoolean(KEY_EXTRA_TRACK_INFO, value.extraTrackInfo)
             putBoolean(KEY_SHOW_FM_RADIO, value.showFmRadio)
+            putBoolean(KEY_ENHANCE_SOUND, value.enhanceSound)
             putBoolean(KEY_24_HOUR_CLOCK, value.use24HourClock)
             putBoolean(KEY_STATUS_CLOCK, value.showStatusClock)
             putString(KEY_SKIN_ID, value.skinId)
@@ -251,6 +254,7 @@ class AppPreferences(context: Context) {
         private const val KEY_KEEP_SCREEN_ON = "keep_screen_on"
         private const val KEY_EXTRA_TRACK_INFO = "extra_track_info"
         private const val KEY_SHOW_FM_RADIO = "show_fm_radio"
+        private const val KEY_ENHANCE_SOUND = "enhance_sound"
         private const val KEY_24_HOUR_CLOCK = "use_24_hour_clock"
         private const val KEY_STATUS_CLOCK = "show_status_clock"
         private const val KEY_BEDTIME_START = "bedtime_start_hour"

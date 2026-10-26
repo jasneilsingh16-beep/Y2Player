@@ -25,6 +25,7 @@ object PreferenceBackup {
         "keep_screen_on" to value.keepScreenOnWhilePlaying.toString(),
         "extra_track_info" to value.extraTrackInfo.toString(),
         "show_fm_radio" to value.showFmRadio.toString(),
+        "enhance_sound" to value.enhanceSound.toString(),
         "use_24_hour_clock" to value.use24HourClock.toString(),
         "show_status_clock" to value.showStatusClock.toString(),
         "skin_id" to value.skinId,
@@ -96,6 +97,13 @@ object PreferenceBackup {
             wrapLists = boolean("wrap_lists"),
             keepScreenOnWhilePlaying = boolean("keep_screen_on"),
             extraTrackInfo = boolean("extra_track_info"),
+            enhanceSound = values["enhance_sound"]?.let {
+                when (it) {
+                    "true" -> true
+                    "false" -> false
+                    else -> throw IllegalArgumentException("Invalid enhance_sound setting")
+                }
+            } ?: true,
             showFmRadio = values["show_fm_radio"]?.let {
                 when (it) {
                     "true" -> true
@@ -159,7 +167,7 @@ object PreferenceBackup {
 
     private val OPTIONAL_KEYS = setOf(
         "album_sort_order", "year_sort_order", "show_fm_radio", "seek_when_locked", "skin_id",
-        "use_24_hour_clock", "show_status_clock", "bedtime_start_hour", "bedtime_end_hour"
+        "use_24_hour_clock", "show_status_clock", "bedtime_start_hour", "bedtime_end_hour", "enhance_sound"
     )
     private val REQUIRED_KEYS = encode(PlayerPreferencesState()).keys - OPTIONAL_KEYS
 }

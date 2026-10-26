@@ -407,6 +407,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             // crossfade depends on, and outside it, since it returns early in safe mode.
             syncTransition()
             syncReplayGain()
+            syncEnhance()
             publishSnapshot()
         }
     }
@@ -1903,6 +1904,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         currentPreferences = effective
         syncTransition()
         syncReplayGain()
+        syncEnhance()
         if (appVolumeGain() != previousGain && !fadeInProgress) setOutputVolume(effectiveVolume())
         engine.setBalance(effective.balance)
         dacController.applyDirectMode(value.audioQualityMode == AudioQualityMode.DIRECT_DAC)
@@ -2165,6 +2167,19 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         logger.info("Playback", "transition changed gapless=$gapless crossfadeMs=$crossfadeMs")
         if (!engine.isTransitioning) clearPreload()
         revalidatePreload()
+    }
+
+    /** Enhance reads the volume itself now and then, from whichever control is in use. */
+    private fun syncEnhance() {
+        if (!::engine.isInitialized) return
+        engine.configureEnhance(currentPreferences.enhanceSound) {
+            if (currentPreferences.volumeMode == VolumeMode.PERCEPTUAL) {
+                VolumeCurve.percentForLevel(currentPreferences.volumeLevel) / 100f
+            } else {
+                val maximum = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maximum
+            }
+        }
     }
 
     private fun syncReplayGain() {

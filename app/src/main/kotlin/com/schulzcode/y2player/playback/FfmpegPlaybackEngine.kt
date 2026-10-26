@@ -235,6 +235,8 @@ internal class FfmpegPlaybackEngine(
         val requestId: Long,
         val durationMs: Long,
         val replayGainMetadata: ReplayGainMetadata,
+        /** Talks and podcasts get Enhance's speech tuning. */
+        val speech: Boolean,
         var replayGain: ReplayGainAdjustment = ReplayGainAdjustment(),
         var firstPcmWriteLogged: Boolean = false,
         var completionCause: DecoderCompletionCause = DecoderCompletionCause.NATURAL
@@ -275,6 +277,10 @@ internal class FfmpegPlaybackEngine(
     private var current: Slot? = null
     private var next: Slot? = null
     private var balance = AudioBalance.CENTRE
+    private val enhancer = SoundEnhancer()
+    @Volatile private var enhanceVolume: () -> Float = { .5f }
+    private var enhanceBlocks = 0
+    private var enhanceNanos = 0L
     private var replayGainMode = ReplayGainMode.OFF
     private var shuffling = false
     private var seekBaseMs = 0L
@@ -370,6 +376,33 @@ internal class FfmpegPlaybackEngine(
             return
         }
         enqueue(EngineCommand.OutputGain(gain.coerceIn(0f, 1f), onComplete))
+    }
+
+    override fun configureEnhance(enabled: Boolean, volumeFraction: () -> Float) {
+        enhanceVolume = volumeFraction
+        enhancer.enabled = enabled
+    }
+
+    /** Runs Enhance over samples about to be written, once each, in place. Off, it returns at once. */
+    private fun enhance(pcm: FloatArray, offsetSamples: Int, sampleCount: Int, speech: Boolean) {
+        enhancer.kind = if (speech) SoundEnhancer.Kind.SPEECH else SoundEnhancer.Kind.MUSIC
+        if (enhanceBlocks % ENHANCE_VOLUME_POLL_BLOCKS == 0) {
+            enhancer.volumeFraction = runCatching { enhanceVolume() }.getOrDefault(.5f)
+        }
+        val started = System.nanoTime()
+        enhancer.process(pcm, offsetSamples, sampleCount)
+        enhanceNanos += System.nanoTime() - started
+        enhanceBlocks += 1
+        if (enhanceBlocks == ENHANCE_LOG_BLOCKS) {
+            // How much of each block's own playing time Enhance spends on it.
+            val blockMs = PcmFormat.BLOCK_FRAMES * 1000.0 / PcmFormat.SAMPLE_RATE
+            val averageMs = enhanceNanos / 1e6 / enhanceBlocks
+            if (enhancer.enabled) {
+                logger.info("PlaybackEngine", "enhance avgMs=${"%.2f".format(averageMs)} share=${"%.1f".format(100 * averageMs / blockMs)}%")
+            }
+            enhanceBlocks = 0
+            enhanceNanos = 0L
+        }
     }
 
     override fun setBalance(balance: Int) {
@@ -672,7 +705,7 @@ internal class FfmpegPlaybackEngine(
         currentDecoder = decoder
         try {
             val info = decoder.open(command.track.absolutePath, PcmFormat.SAMPLE_RATE, PcmFormat.CHANNELS)
-            val slot = Slot(decoder, command.requestId, info.durationMs, info.replayGain)
+            val slot = Slot(decoder, command.requestId, info.durationMs, info.replayGain, command.track.isAudiobookChapter)
             slot.updateReplayGain()
             current = slot
             publishedDurationMs = info.durationMs
@@ -707,7 +740,7 @@ internal class FfmpegPlaybackEngine(
         nextDecoder = decoder
         try {
             val info = decoder.open(command.track.absolutePath, PcmFormat.SAMPLE_RATE, PcmFormat.CHANNELS)
-            val slot = Slot(decoder, command.requestId, info.durationMs, info.replayGain)
+            val slot = Slot(decoder, command.requestId, info.durationMs, info.replayGain, command.track.isAudiobookChapter)
             slot.updateReplayGain()
             next = slot
             preparedNextRequestId = command.requestId
@@ -997,6 +1030,7 @@ internal class FfmpegPlaybackEngine(
             slot.replayGain.linearGain,
             balance
         )
+        enhance(currentBlock.pcm, offsetSamples, sampleCount, slot.speech)
         output.write(currentBlock.pcm, offsetSamples, sampleCount)
         noteFirstPcmWrite(slot, frameCount, "current")
         currentBlock.consume(frameCount)
@@ -1055,6 +1089,9 @@ internal class FfmpegPlaybackEngine(
             nextSlot.replayGain.linearGain,
             balance
         )
+        // The fading-in track decides the tuning from halfway through.
+        enhance(currentBlock.pcm, currentOffsetSamples, mixFrameCount * PcmFormat.CHANNELS,
+            if (transitionedFrames * 2 < transitionFrames) currentSlot.speech else nextSlot.speech)
         output.write(
             currentBlock.pcm,
             currentOffsetSamples,
@@ -1268,6 +1305,10 @@ internal class FfmpegPlaybackEngine(
     }
 
     companion object {
+        /** About every 1.5 s: the volume, for Enhance's low-volume fullness. */
+        private const val ENHANCE_VOLUME_POLL_BLOCKS = 16
+        /** About every 90 s while playing, Enhance's cost goes to the diagnostics log. */
+        private const val ENHANCE_LOG_BLOCKS = 1_000
         private const val COMPLETION_CHECK_MS = 20L
         private const val MAX_PENDING_COMMANDS = 32
         private const val COMMANDS_PER_TURN = 8

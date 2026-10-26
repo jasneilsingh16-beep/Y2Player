@@ -94,7 +94,7 @@ class AppReducerNowPlayingTest {
     @Test fun nowPlayingOptionsHoldOnlyWhatTheTilesDoNot() {
         val base = optionsState()
         assertEquals(
-            listOf("queue", "np_playlist:1", "track_artist:1", "track_album:1", "np_track_details:1"),
+            listOf("enhance", "queue", "np_playlist:1", "track_artist:1", "track_album:1", "np_track_details:1"),
             ScreenContent.rows(base).map { (it as ScreenRow.Action).key }
         )
         val album = optionsReductionFor("track_album:1").state
@@ -265,20 +265,21 @@ class AppReducerNowPlayingTest {
         assertEquals(Screen.Audio, audio.currentScreen)
         assertEquals("Sound", ScreenContent.title(audio))
         assertEquals(
-            listOf("sound_effects", "playback_volume", "playback_transitions", "playback_interruptions", "output"),
+            listOf("enhance", "sound_effects", "playback_volume", "playback_transitions", "playback_interruptions", "output"),
             ScreenContent.rows(audio).map { (it as ScreenRow.Action).key }
         )
 
-        assertEquals(Screen.SoundEffects, AppReducer.reduce(audio, AppAction.Confirm).state.currentScreen)
+        assertEquals(AppEffect.ToggleEnhanceSound, AppReducer.reduce(audio, AppAction.Confirm).effects.single())
 
         fun openAudioRow(index: Int) = AppReducer.reduce(
             audio.copy(screenStack = audio.screenStack.dropLast(1) + audio.currentEntry.copy(selectedIndex = index)),
             AppAction.Confirm
         ).state.currentScreen
-        assertEquals(Screen.PlaybackVolume, openAudioRow(1))
-        assertEquals(Screen.PlaybackTransitions, openAudioRow(2))
-        assertEquals(Screen.PlaybackInterruptions, openAudioRow(3))
-        assertEquals(Screen.OutputInformation, openAudioRow(4))
+        assertEquals(Screen.SoundEffects, openAudioRow(1))
+        assertEquals(Screen.PlaybackVolume, openAudioRow(2))
+        assertEquals(Screen.PlaybackTransitions, openAudioRow(3))
+        assertEquals(Screen.PlaybackInterruptions, openAudioRow(4))
+        assertEquals(Screen.OutputInformation, openAudioRow(5))
 
         val bluetoothIndex = ScreenContent.rows(settingsHome).indexOfFirst { (it as? ScreenRow.Action)?.key == "bluetooth" }
         val settingsRoot = AppState(screenStack = listOf(ScreenEntry(Screen.Settings, bluetoothIndex)))
@@ -316,7 +317,7 @@ class AppReducerNowPlayingTest {
         )
         val keys = ScreenContent.rows(state).filterIsInstance<ScreenRow.Action>().map { it.key }
         assertTrue(keys.first().startsWith("np_audiobook_chapters:"))
-        assertEquals(listOf("queue", "np_playlist:${audiobook.id}"), keys.drop(1).take(2))
+        assertEquals(listOf("enhance", "queue", "np_playlist:${audiobook.id}"), keys.drop(1).take(3))
         assertEquals("np_track_details:${audiobook.id}", keys.last())
         val details = AppReducer.reduce(
             state.copy(screenStack = listOf(ScreenEntry(Screen.NowPlayingOptions, keys.lastIndex))),

@@ -744,6 +744,7 @@ class AppReducerTest {
         val landing = AppState(screenStack = listOf(ScreenEntry(Screen.Audio)))
         assertEquals(
             listOf(
+                "enhance",
                 "sound_effects",
                 "playback_volume",
                 "playback_transitions",

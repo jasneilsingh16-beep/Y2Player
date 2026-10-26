@@ -52,6 +52,9 @@ interface PlaybackEngine {
     fun setBalance(balance: Int)
 
     fun configureReplayGain(mode: ReplayGainMode, shuffling: Boolean)
+
+    /** Enhance on or off; [volumeFraction] is read now and then to keep it full at low volume. */
+    fun configureEnhance(enabled: Boolean, volumeFraction: () -> Float)
     fun currentPositionMs(): Long
     fun durationMs(): Long
     fun isPlaying(): Boolean
@@ -78,6 +81,7 @@ internal class UnavailablePlaybackEngine(private val reason: String) : PlaybackE
     }
     override fun setBalance(balance: Int) = Unit
     override fun configureReplayGain(mode: ReplayGainMode, shuffling: Boolean) = Unit
+    override fun configureEnhance(enabled: Boolean, volumeFraction: () -> Float) = Unit
     override fun currentPositionMs(): Long = 0
     override fun durationMs(): Long = 0
     override fun isPlaying(): Boolean = false

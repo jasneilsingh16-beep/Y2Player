@@ -941,6 +941,7 @@ object ScreenContent {
         return buildList {
             val folderKey = track.audiobookFolderKey
             if (folderKey != null) add(ScreenRow.Action("Episodes", track.displayAlbum, "np_audiobook_chapters:$folderKey"))
+            add(ScreenRow.Action("Enhance", enhanceSummary(state), ENHANCE_KEY))
             add(queue)
             add(ScreenRow.Action("Add to Playlist", null, "np_playlist:${track.id}"))
             if (folderKey == null) {
@@ -1062,6 +1063,7 @@ object ScreenContent {
     }
 
     private fun audioRows(state: AppState): List<ScreenRow> = listOf(
+        ScreenRow.Action("Enhance", enhanceSummary(state), ENHANCE_KEY),
         ScreenRow.Action("Sound Effects", soundEffectsSummary(state), "sound_effects"),
         ScreenRow.Action("Volume", volumeRowSummary(state), "playback_volume"),
         ScreenRow.Action("Transitions", transitionsSummary(state), "playback_transitions"),
@@ -1112,6 +1114,19 @@ object ScreenContent {
         ScreenRow.Action("Library & Backup", "${trackCountLabel(state.library.availableTracks.size)} · playlists, backup", "library_settings"),
         ScreenRow.Action("System", "Diagnostics, reset and about", "system")
     )
+
+    const val ENHANCE_KEY = "enhance"
+
+    /** What Enhance is doing now: it treats kirtan and katha differently. */
+    fun enhanceSummary(state: AppState): String {
+        if (!state.preferences.enhanceSound) return "Off"
+        val playing = state.playback.currentTrackId?.let(state.library.byId::get)
+        return when {
+            playing == null -> "On"
+            playing.isAudiobookChapter -> "On · tuned for speech"
+            else -> "On · tuned for music"
+        }
+    }
 
     private fun soundSummary(state: AppState): String {
         val volume = when (state.preferences.volumeMode) {

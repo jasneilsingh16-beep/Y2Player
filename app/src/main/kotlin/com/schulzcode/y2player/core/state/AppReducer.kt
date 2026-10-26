@@ -593,6 +593,7 @@ object AppReducer {
             "playback_volume" -> push(state, Screen.PlaybackVolume)
             "sound_effects" -> push(state, Screen.SoundEffects)
             "playback_interruptions" -> push(state, Screen.PlaybackInterruptions)
+            ScreenContent.ENHANCE_KEY -> Reduction(state, listOf(ToggleEnhanceSound))
             else -> Reduction(state)
         }
     }
@@ -1149,6 +1150,8 @@ object AppReducer {
                 selectedIndex = ScreenContent.sleepTimerSelectionIndex(state)
             )
             key == "queue" -> push(state, Screen.Queue, selectedIndex = 1)
+            // Stays open, so on and off can be compared with one press each.
+            key == ScreenContent.ENHANCE_KEY -> Reduction(state, listOf(ToggleEnhanceSound))
             key.startsWith("np_audiobook_chapters:") -> {
                 val folderKey = key.substringAfter(':')
                 val episode = state.playback.currentTrackId

@@ -108,6 +108,7 @@ sealed interface AppEffect {
     data object ToggleKeepScreenOn : AppEffect
     data object ToggleExtraTrackInfo : AppEffect
     data object ToggleShowFmRadio : AppEffect
+    data object ToggleEnhanceSound : AppEffect
     data object Toggle24HourClock : AppEffect
     data object ToggleStatusClock : AppEffect
     data class SetBedtime(val startHour: Int) : AppEffect

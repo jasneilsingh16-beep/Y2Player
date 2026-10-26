@@ -600,6 +600,7 @@ class MainActivity : Activity() {
             AppEffect.ToggleKeepScreenOn -> applyPlaybackPreferences(preferences.toggleKeepScreenOn())
             AppEffect.ToggleExtraTrackInfo -> applyPlaybackPreferences(preferences.toggleExtraTrackInfo())
             AppEffect.ToggleShowFmRadio -> applyPlaybackPreferences(preferences.toggleShowFmRadio())
+            AppEffect.ToggleEnhanceSound -> applyPlaybackPreferences(preferences.toggleEnhanceSound())
             is AppEffect.SetSkin -> applyPlaybackPreferences(preferences.setSkin(effect.id))
             AppEffect.ReloadSkins -> reloadSkins()
             is AppEffect.SetBalance -> applyPlaybackPreferences(preferences.setBalance(effect.balance))
