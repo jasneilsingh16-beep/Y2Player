@@ -74,8 +74,21 @@ internal class ArtworkSourceResolver(
         return runCatching { decode(bytes, targetSize) }.getOrNull()
     }
 
+    /**
+     * A cover beside the file, or else in the folder above it, or the one above
+     * that: one folder.jpg in a speaker's folder covers all of their podcasts.
+     */
     private fun findExternal(trackPath: String): File? {
-        val directory = File(trackPath).parentFile ?: return null
+        var directory = File(trackPath).parentFile
+        repeat(PARENT_FOLDERS_SEARCHED + 1) {
+            val folder = directory ?: return null
+            findIn(folder)?.let { return it }
+            directory = folder.parentFile
+        }
+        return null
+    }
+
+    private fun findIn(directory: File): File? {
         val children = runCatching { listFiles(directory) }.getOrNull() ?: return null
         val matches = arrayOfNulls<File>(FILENAMES.size)
         children.forEach { child ->
@@ -137,6 +150,7 @@ internal class ArtworkSourceResolver(
 
     companion object {
         private const val SOURCE_CACHE_ENTRIES = 32
+        private const val PARENT_FOLDERS_SEARCHED = 2
         private val FILENAMES = listOf(
             "folder.jpg",
             "folder.jpeg",

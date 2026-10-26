@@ -36,6 +36,18 @@ class ArtworkSourceResolverTest {
         assertEquals("folder.jpg", resolverWithEmbedded(null).resolve(key(orderedTrack), 256, ::decodeText))
     }
 
+    @Test fun aSpeakersFolderCoverServesEveryPodcastInsideIt() {
+        val speaker = temporaryFolder.newFolder("talks", "Jvala Singh")
+        File(speaker, "folder.jpg").writeText("speaker")
+        val series = File(speaker, "Suraj Podcast").apply { mkdirs() }
+        val episode = File(series, "01.mp3").apply { writeText("audio") }
+        assertEquals("speaker", resolverWithEmbedded(null).resolve(key(episode), 256, ::decodeText))
+
+        File(series, "cover.jpg").writeText("series")
+        assertEquals("the podcast's own cover wins", "series",
+            resolverWithEmbedded(null).resolve(key(File(series, "02.mp3").apply { writeText("audio") }), 256, ::decodeText))
+    }
+
     @Test fun missingAndCorruptExternalArtworkFailSafely() {
         val missingFolder = temporaryFolder.newFolder("missing")
         val missingTrack = File(missingFolder, "song.flac").apply { writeText("audio") }
