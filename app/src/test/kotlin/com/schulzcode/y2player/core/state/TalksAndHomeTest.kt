@@ -66,7 +66,8 @@ class TalksAndHomeTest {
 
     @Test fun `Up next names the following track`() {
         val pane = HomePane.nowPlaying(AppState(library = library, playback = playing()))!!
-        assertEquals("Next Shabad · Speaker", pane.upNext)
+        assertEquals("Next Shabad", pane.upNext)
+        assertEquals("Speaker", pane.upNextArtist)
     }
 
     @Test fun `Up next says the same track again under Repeat One`() {
@@ -88,20 +89,39 @@ class TalksAndHomeTest {
 
     // ---- Talks & Podcasts -------------------------------------------------------------
 
-    @Test fun `talks mirror the card's folders and each lowest folder is a podcast`() {
+    @Test fun `talks list speakers and podcasts, and a speaker opens on all of theirs`() {
         val talks = AppState(screenStack = listOf(ScreenEntry(Screen.Audiobooks)), library = library)
         val rows = ScreenContent.rows(talks).map { it as ScreenRow.Action }
-        assertEquals("folders holding only one folder open straight through, beside tagged podcasts",
-            listOf("Explained", "Japji", "Suraj"), rows.map { it.title })
-
-        val parent = talks.copy(screenStack = listOf(ScreenEntry(Screen.TalkCollection("sdcard|Talks"))))
-        val folder = ScreenContent.rows(parent).single() as ScreenRow.Action
-        assertEquals("Basics of Sikhi", folder.title)
+        assertEquals("what is under way leads; the Talks folder itself is not a level",
+            listOf("Suraj", "Basics of Sikhi"), rows.map { it.title })
+        val folder = rows[1]
         assertEquals("2 podcasts", folder.subtitle)
-        val opened = AppReducer.reduce(parent, AppAction.Confirm).state
+        val opened = AppReducer.reduce(talks.copy(screenStack = listOf(ScreenEntry(Screen.Audiobooks, 1))), AppAction.Confirm).state
         assertEquals(Screen.TalkCollection("sdcard|Talks/Basics of Sikhi"), opened.currentScreen)
         assertEquals("Basics of Sikhi", ScreenContent.title(opened))
         assertEquals(listOf("Explained", "Japji"), ScreenContent.rows(opened).map { it.title })
+    }
+
+    @Test fun `a speaker's folder is the one inside the talks folders, however deep the podcast`() {
+        assertEquals("sdcard|Sikhi Talks/Jvala Singh", TalksContent.groupOf("sdcard|Sikhi Talks/Jvala Singh/Japji/Part A"))
+        assertEquals("sdcard|Talks/Sikhi Talks/Jvala Singh", TalksContent.groupOf("sdcard|Talks/Sikhi Talks/Jvala Singh/Japji"))
+        assertNull("a podcast straight inside a talks folder has no speaker", TalksContent.groupOf("sdcard|NDEs/Crossing Over"))
+    }
+
+    @Test fun `episodes can be marked unplayed after sleeping through them`() {
+        val folder = japji.first().audiobookFolderKey!!
+        val progress = mapOf(folder to AudiobookProgress(japji[2].id, 1_000, 10))
+        val state = AppState(
+            screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(folder)), ScreenEntry(Screen.TrackOptions(japji[1].id))),
+            library = library.copy(audiobookProgress = progress)
+        )
+        val rows = ScreenContent.rows(state).map { it as ScreenRow.Action }
+        val unplayed = rows.indexOfFirst { it.key.startsWith(ScreenContent.EPISODE_UNPLAYED_KEY) }
+        assertTrue(unplayed >= 0)
+        val result = AppReducer.reduce(state.copy(screenStack = state.screenStack.dropLast(1) +
+            state.currentEntry.copy(selectedIndex = unplayed)), AppAction.Confirm)
+        assertEquals(AppEffect.SetAudiobookEpisode(folder, japji[1].id, "Marked as unplayed"), result.effects.single())
+        assertEquals(Screen.AudiobookChapters(folder), result.state.currentScreen)
     }
 
     @Test fun `talk folders are found by name wherever they sit`() {

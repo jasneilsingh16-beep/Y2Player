@@ -674,6 +674,15 @@ class MainActivity : Activity() {
                     } else showMessage("Could not clear progress")
                 }
             }
+            is AppEffect.SetAudiobookEpisode -> {
+                val binder = playbackBinder
+                if (binder == null) showMessage("Playback is starting") else binder.setAudiobookEpisode(effect.folderKey, effect.trackId) { success ->
+                    if (success) {
+                        libraryRepository.refreshAudiobookProgress()
+                        showMessage(effect.message)
+                    } else showMessage("Could not change progress")
+                }
+            }
             AppEffect.ClearPlaybackHistory -> {
                 val binder = playbackBinder
                 if (binder == null) showMessage("Playback is starting") else binder.clearHistory { cleared ->

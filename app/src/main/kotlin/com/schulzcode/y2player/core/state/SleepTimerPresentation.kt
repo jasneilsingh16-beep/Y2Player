@@ -5,7 +5,7 @@ import com.schulzcode.y2player.core.model.SleepTimerMode
 
 internal object SleepTimerPresentation {
     /** Preset lengths offered in the Sleep Timer list, in minutes. */
-    val PRESET_MINUTES = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
+    val PRESET_MINUTES = listOf(15, 30, 45, 60, 120)
 
     fun remainingMs(playback: PlaybackSnapshot, nowElapsedMs: Long): Long? =
         playback.sleepTimerDeadlineElapsedMs

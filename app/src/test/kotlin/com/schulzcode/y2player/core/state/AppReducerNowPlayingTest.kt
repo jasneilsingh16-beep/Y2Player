@@ -45,6 +45,64 @@ class AppReducerNowPlayingTest {
         return AppReducer.reduce(selected, AppAction.Confirm)
     }
 
+    private fun tileReductionFor(key: String, base: AppState = nowPlayingState()): Reduction {
+        val index = ScreenContent.rows(base).indexOfFirst { (it as? ScreenRow.Action)?.key == key }
+        assertTrue("tile $key must exist", index > 0)
+        val selected = base.copy(screenStack = base.screenStack.dropLast(1) + base.currentEntry.copy(selectedIndex = index))
+        return AppReducer.reduce(selected, AppAction.Confirm)
+    }
+
+    @Test fun tilesToggleShuffleAndRepeatAndOpenTheSleepTimer() {
+        assertEquals(AppEffect.ToggleShuffle, tileReductionFor("shuffle").effects.single())
+        assertEquals(AppEffect.CycleRepeat, tileReductionFor("repeat").effects.single())
+        val sleepTimer = tileReductionFor("sleep_timer")
+        assertEquals(Screen.SleepTimer, sleepTimer.state.currentScreen)
+        assertTrue(sleepTimer.effects.isEmpty())
+    }
+
+    @Test fun theFavouriteTileTogglesTheCurrentTrack() {
+        assertEquals(AppEffect.ToggleFavorite(1), tileReductionFor("np_favorite:1").effects.single())
+    }
+
+    @Test fun sleepTimerOffersSevenChoicesAndAppliesTheSelectedValue() {
+        val opened = tileReductionFor("sleep_timer").state
+        val rows = ScreenContent.rows(opened).filterIsInstance<ScreenRow.Action>()
+        assertEquals(listOf("Off", "End of this track", "15 minutes", "30 minutes", "45 minutes", "1 hour", "2 hours"),
+            rows.map { it.title })
+        val selected = opened.copy(
+            screenStack = opened.screenStack.dropLast(1) + opened.currentEntry.copy(selectedIndex = 3)
+        )
+        val applied = AppReducer.reduce(selected, AppAction.Confirm)
+        assertEquals(Screen.NowPlaying, applied.state.currentScreen)
+        assertEquals(AppEffect.SetSleepTimer(SleepTimerMode.MINUTES, 30), applied.effects.single())
+    }
+
+    @Test fun aRunningTimerOpensOnAddFifteenMinutes() {
+        val running = nowPlayingState().let {
+            it.copy(playback = it.playback.copy(
+                sleepTimerMode = SleepTimerMode.MINUTES,
+                sleepTimerConfiguredMinutes = 30,
+                sleepTimerRemainingMs = 7 * 60_000L
+            ))
+        }
+        val opened = tileReductionFor("sleep_timer", running).state
+        assertEquals(0, opened.selectedIndex)
+        assertEquals(ScreenContent.SLEEP_ADD_KEY, (ScreenContent.rows(opened)[0] as ScreenRow.Action).key)
+        assertEquals(AppEffect.SetSleepTimer(SleepTimerMode.MINUTES, 22), AppReducer.reduce(opened, AppAction.Confirm).effects.single())
+    }
+
+    @Test fun nowPlayingOptionsHoldOnlyWhatTheTilesDoNot() {
+        val base = optionsState()
+        assertEquals(
+            listOf("queue", "np_playlist:1", "track_artist:1", "track_album:1", "np_track_details:1"),
+            ScreenContent.rows(base).map { (it as ScreenRow.Action).key }
+        )
+        val album = optionsReductionFor("track_album:1").state
+        assertEquals(Screen.AlbumSongs("Album", "Artist"), album.currentScreen)
+        assertFalse("the card closes behind the album", album.screenStack.any { it.screen == Screen.NowPlayingOptions })
+        assertEquals(Screen.ArtistAlbums("Artist"), optionsReductionFor("track_artist:1").state.currentScreen)
+    }
+
     @Test fun startingPlaybackNavigatesToNowPlaying() {
         val state = AppState(
             screenStack = listOf(ScreenEntry(Screen.Songs)),
@@ -124,79 +182,14 @@ class AppReducerNowPlayingTest {
         assertTrue("track-list options keep Add to Playlist", "track_playlist:1" in keys)
     }
 
-    @Test fun optionsMenuTogglesShuffleAndRepeatAndOpensTheSleepTimer() {
-        assertEquals(AppEffect.ToggleShuffle, optionsReductionFor("shuffle").effects.single())
-        assertEquals(AppEffect.CycleRepeat, optionsReductionFor("repeat").effects.single())
-        val sleepTimer = optionsReductionFor("sleep_timer")
-        assertEquals(Screen.SleepTimer, sleepTimer.state.currentScreen)
-        assertTrue(sleepTimer.effects.isEmpty())
-    }
 
-    @Test fun sleepTimerOffersPresetLengthsAndAppliesTheSelectedValue() {
-        val opened = optionsReductionFor("sleep_timer").state
-        val rows = ScreenContent.rows(opened).filterIsInstance<ScreenRow.Action>()
-        assertEquals(13, rows.size)
-        assertEquals("sleep_timer_minutes:5", rows[4].key)
-        assertEquals("5 minutes", rows[4].title)
-        assertEquals("sleep_timer_minutes:120", rows.last().key)
-        assertEquals("2 hours", rows.last().title)
 
-        val selected = opened.copy(
-            screenStack = opened.screenStack.dropLast(1) + opened.currentEntry.copy(selectedIndex = 6)
-        )
-        val applied = AppReducer.reduce(selected, AppAction.Confirm)
 
-        assertEquals(Screen.NowPlayingOptions, applied.state.currentScreen)
-        assertEquals(AppEffect.SetSleepTimer(SleepTimerMode.MINUTES, 15), applied.effects.single())
-    }
-
-    @Test fun reopeningSleepTimerSelectsTheActiveMinute() {
-        val state = optionsState().copy(playback = optionsState().playback.copy(
-            sleepTimerMode = SleepTimerMode.MINUTES,
-            sleepTimerConfiguredMinutes = 7
-        ))
-        val index = ScreenContent.rows(state).indexOfFirst { (it as? ScreenRow.Action)?.key == "sleep_timer" }
-        val opened = AppReducer.reduce(
-            state.copy(screenStack = state.screenStack.dropLast(1) + state.currentEntry.copy(selectedIndex = index)),
-            AppAction.Confirm
-        ).state
-
-        // 7 minutes is not a preset, so the list opens on the next longer one, 10.
-        assertEquals(5, opened.selectedIndex)
-        assertEquals("sleep_timer_minutes:10", (ScreenContent.rows(opened)[5] as ScreenRow.Action).key)
-    }
-
-    @Test fun optionsMenuTogglesFavoriteOfTheCurrentTrack() {
-        assertEquals(AppEffect.ToggleFavorite(1), optionsReductionFor("np_favorite:1").effects.single())
-    }
 
     @Test fun optionsMenuOpensAddToPlaylistForTheCurrentTrack() {
         assertEquals(Screen.AddToPlaylist(1), optionsReductionFor("np_playlist:1").state.currentScreen)
     }
 
-    @Test fun trackBrowsePreservesAlbumNavigationAndOpensTheArtistsAlbums() {
-        val trackOptions = optionsReductionFor("np_track_options:1").state
-        assertEquals(Screen.TrackOptions(1, fromNowPlaying = true), trackOptions.currentScreen)
-        assertEquals(
-            listOf("track_favorite:1", "track_playlist:1", "track_artist:1", "track_album:1", "track_details:1"),
-            ScreenContent.rows(trackOptions).map { (it as ScreenRow.Action).key }
-        )
-
-        fun choose(key: String) = AppReducer.reduce(
-            trackOptions.copy(
-                screenStack = trackOptions.screenStack.dropLast(1) + trackOptions.currentEntry.copy(
-                    selectedIndex = ScreenContent.rows(trackOptions).indexOfFirst { (it as? ScreenRow.Action)?.key == key }
-                )
-            ),
-            AppAction.Confirm
-        ).state
-        val album = choose("track_album:1")
-        assertEquals(Screen.AlbumSongs("Album", "Artist"), album.currentScreen)
-        assertFalse("the card closes behind the album", album.screenStack.any { it.screen is Screen.TrackOptions })
-        val artistDestination = choose("track_artist:1").currentScreen
-        assertEquals(Screen.ArtistAlbums("Artist"), artistDestination)
-        assertFalse(artistDestination is Screen.ArtistSongs)
-    }
 
     @Test fun queueOpensTheLinearQueueDirectlyWithActionsVisible() {
         val base = optionsState().let {
@@ -323,7 +316,7 @@ class AppReducerNowPlayingTest {
         )
         val keys = ScreenContent.rows(state).filterIsInstance<ScreenRow.Action>().map { it.key }
         assertTrue(keys.first().startsWith("np_audiobook_chapters:"))
-        assertEquals(listOf("queue", "sleep_timer"), keys.drop(1).take(2))
+        assertEquals(listOf("queue", "np_playlist:${audiobook.id}"), keys.drop(1).take(2))
         assertEquals("np_track_details:${audiobook.id}", keys.last())
         val details = AppReducer.reduce(
             state.copy(screenStack = listOf(ScreenEntry(Screen.NowPlayingOptions, keys.lastIndex))),

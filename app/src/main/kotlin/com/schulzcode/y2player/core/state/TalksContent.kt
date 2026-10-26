@@ -6,9 +6,11 @@ import com.schulzcode.y2player.core.model.Track
 import com.schulzcode.y2player.util.TimeFormat
 
 /**
- * Talks & Podcasts mirrors the card. Every folder that holds recordings is one
- * podcast; the folders above it (Sikhi Talks › Jvala Singh) open like folders.
- * Episodes before the one in progress count as played.
+ * Talks & Podcasts. Every folder that holds recordings is one podcast. The talks
+ * folders themselves (Talks, Sikhi Talks, NDEs, Plum Village) are not a level of
+ * their own: the first folder inside them (a speaker such as Jvala Singh) is, and
+ * opens on all of its podcasts however deep they sit. Whatever is under way comes
+ * first. Episodes before the one in progress count as played.
  */
 internal object TalksContent {
     const val SERIES_KEY = "audiobook:"
@@ -20,55 +22,64 @@ internal object TalksContent {
     const val CONTINUE_TALK_KEY = "continue_talk:"
     const val CONTINUE_VIDEO_KEY = "continue_video:"
 
-    /** A folder of podcasts: everything below [path], however deep. */
+    /** A speaker or collection: every podcast inside one folder. */
     data class Folder(val path: String, val name: String, val podcasts: List<AudiobookEntry>) {
         val inProgressCount: Int get() = podcasts.count { it.inProgress }
+        val updatedAt: Long get() = podcasts.maxOf { it.updatedAt }
     }
 
     /**
-     * One folder's contents, or the top level. The top level opens straight into
-     * the talks folder when there is only one ("Talks"), and keeps going while a
-     * folder holds nothing but one other folder.
+     * The speaker folder a podcast belongs to: the first folder below the run of
+     * talks folders, as "volume|path". Null when the podcast sits straight inside
+     * a talks folder, or was found by its genre tag alone.
      */
+    fun groupOf(folderKey: String): String? {
+        val segments = AudiobookIdentity.pathOf(folderKey).split('/')
+        var index = segments.indexOfFirst(AudiobookIdentity::isRootSegment)
+        if (index < 0) return null
+        while (index + 1 < segments.lastIndex && AudiobookIdentity.isRootSegment(segments[index + 1])) index += 1
+        val group = index + 1
+        if (group >= segments.lastIndex) return null
+        return AudiobookIdentity.volumeOf(folderKey) + "|" + segments.subList(0, group + 1).joinToString("/")
+    }
+
+    /** The top level, or one speaker's podcasts. */
     fun rows(state: AppState, folderPath: String? = null): List<ScreenRow> {
         val entries = ScreenContent.audiobookEntries(state)
-        if (folderPath != null) return listing(state, entries, folderPath)
-        val roots = entries.map { AudiobookIdentity.rootOf(it.folderKey) }
-        // Podcasts found by their genre tag alone sit at the top, beside the folders.
-        val loose = entries.indices.filter { roots[it] == null }.map { seriesRow(state, entries[it]) }
-        val folders = roots.filterNotNull().distinct()
-        if (folders.size != 1) {
-            val rows = folders.map { root ->
-                val podcasts = entries.filterIndexed { index, _ -> roots[index] == root }
-                if (podcasts.size == 1) seriesRow(state, podcasts.single()) else folderRow(Folder(root, nameOf(root), podcasts))
-            }
-            return sorted(rows + loose)
+        if (folderPath != null) {
+            val inside = entries.filter { it.folderKey.startsWith("$folderPath/") || it.folderKey == folderPath }
+            return ordered(inside.map { it to it.updatedAt }).map { seriesRow(state, it) }
         }
-        var rows = listing(state, entries, folders.single())
-        while (rows.size == 1 && rows.single().key.startsWith(COLLECTION_KEY)) {
-            rows = listing(state, entries, rows.single().key.removePrefix(COLLECTION_KEY))
-        }
-        return sorted(rows + loose)
-    }
-
-    private fun listing(state: AppState, entries: List<AudiobookEntry>, path: String): List<ScreenRow.Action> {
-        val prefix = "$path/"
-        val own = entries.filter { it.folderKey == path }.map { seriesRow(state, it) }
-        val children = entries.filter { it.folderKey.startsWith(prefix) }
-            .groupBy { it.folderKey.substring(prefix.length).substringBefore('/') }
-            .map { (child, podcasts) ->
-                // A folder holding a single podcast opens straight to its episodes.
-                if (podcasts.size == 1) seriesRow(state, podcasts.single())
-                else folderRow(Folder(prefix + child, child, podcasts))
+        val groups = entries.groupBy { groupOf(it.folderKey) }
+        val items: List<Pair<Any, Long>> = groups.flatMap { (group, podcasts) ->
+            when {
+                group == null -> podcasts.map { it to it.updatedAt }
+                podcasts.size == 1 -> listOf(podcasts.single() to podcasts.single().updatedAt)
+                else -> Folder(group, nameOf(group), podcasts).let { listOf(it to it.updatedAt) }
             }
-        return own + sorted(children)
+        }
+        return ordered(items).map { item ->
+            when (item) {
+                is Folder -> folderRow(item)
+                is AudiobookEntry -> seriesRow(state, item, speaker = groupOf(item.folderKey)?.let(::nameOf))
+                else -> error("unexpected")
+            }
+        }
     }
 
-    private fun sorted(rows: List<ScreenRow.Action>): List<ScreenRow.Action> = rows.sortedWith { first, second ->
-        NaturalTextOrder.compare(first.title.lowercase(), second.title.lowercase())
-    }
+    /** What is under way first, most recent first; then everything else by name. */
+    private fun <T : Any> ordered(items: List<Pair<T, Long>>): List<T> = items.sortedWith { first, second ->
+        val recent = compareValues(second.second, first.second)
+        if (recent != 0) recent
+        else NaturalTextOrder.compare(nameOf(first.first).lowercase(), nameOf(second.first).lowercase())
+    }.map { it.first }
 
-    private fun nameOf(path: String): String = path.substringAfterLast('/').substringAfter('|')
+    private fun nameOf(item: Any): String = when (item) {
+        is AudiobookEntry -> item.name
+        is Folder -> item.name
+        is String -> item.substringAfterLast('/').substringAfter('|')
+        else -> ""
+    }
 
     private fun folderRow(folder: Folder): ScreenRow.Action {
         val count = folder.podcasts.size
@@ -81,12 +92,13 @@ internal object TalksContent {
         )
     }
 
-    fun seriesRow(state: AppState, entry: AudiobookEntry): ScreenRow.Action = ScreenRow.Action(
+    fun seriesRow(state: AppState, entry: AudiobookEntry, speaker: String? = null): ScreenRow.Action = ScreenRow.Action(
         entry.name,
-        seriesDetail(entry),
+        listOfNotNull(speaker?.takeUnless { it.equals(entry.name, ignoreCase = true) }, seriesDetail(entry)).joinToString(" · "),
         SERIES_KEY + entry.folderKey,
         artworkTrackId = entry.currentChapterId ?: entry.chapterIds.firstOrNull(),
-        progress = seriesProgress(state, entry)
+        // A ring only once something has been heard; unstarted podcasts give their length instead.
+        progress = if (entry.inProgress) seriesProgress(state, entry) else null
     )
 
     /** "7 of 348 played", or "348 episodes · 9 h" before it is started. */

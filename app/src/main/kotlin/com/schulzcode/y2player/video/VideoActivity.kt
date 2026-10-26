@@ -618,7 +618,7 @@ class VideoActivity : Activity() {
         private const val EXTRA_PLAYLIST = "playlist"
         private const val EXTRA_SLEEP_REMAINING = "sleep_remaining_ms"
         private const val MENU_TIMEOUT_MS = 8_000L
-        private const val SLEEP_FADE_MS = 10_000L
+        private const val SLEEP_FADE_MS = 45_000L
         private const val SLEEP_FADE_STEP_MS = 100L
         private const val END_OF_VIDEO = -1
         /** Off, end of video, then minutes. */

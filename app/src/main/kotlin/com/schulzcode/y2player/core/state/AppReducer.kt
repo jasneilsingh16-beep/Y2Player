@@ -501,6 +501,8 @@ object AppReducer {
             key.startsWith("track_album:") -> state.library.byId[trackId]
                 ?.let { push(pop(state), Screen.AlbumSongs(it.displayAlbum, it.albumArtistName)) } ?: Reduction(state)
             key.startsWith("track_details:") -> push(state, Screen.TrackDetails(trackId))
+            key.startsWith(ScreenContent.EPISODE_UNPLAYED_KEY) || key.startsWith(ScreenContent.EPISODE_PLAYED_KEY) ->
+                markEpisode(state, trackId, played = key.startsWith(ScreenContent.EPISODE_PLAYED_KEY))
             key.startsWith("track_remove_playlist:") -> {
                 val parts = key.split(':')
                 val playlistId = parts.getOrNull(1)?.toLongOrNull() ?: return Reduction(state)
@@ -508,6 +510,22 @@ object AppReducer {
             }
             else -> Reduction(state)
         }
+    }
+
+    private fun markEpisode(state: AppState, trackId: Long, played: Boolean): Reduction {
+        val track = state.library.byId[trackId] ?: return Reduction(state)
+        val folderKey = track.audiobookFolderKey ?: return Reduction(state)
+        val entry = ScreenContent.audiobookEntry(state, folderKey) ?: return Reduction(state)
+        val index = entry.chapterIds.indexOf(trackId)
+        if (index < 0) return Reduction(state)
+        val closed = pop(state)
+        if (played) {
+            val next = entry.chapterIds.getOrNull(index + 1) ?: return Reduction(closed)
+            return Reduction(closed, listOf(SetAudiobookEpisode(folderKey, next, "Marked as played")))
+        }
+        // Unplayed from the first episode means the series was never started.
+        if (index == 0) return Reduction(closed, listOf(ClearAudiobookProgress(folderKey)))
+        return Reduction(closed, listOf(SetAudiobookEpisode(folderKey, trackId, "Marked as unplayed")))
     }
 
     private fun confirmTrackBrowse(state: AppState, screen: Screen.TrackBrowse, row: ScreenRow): Reduction {
@@ -1154,6 +1172,10 @@ object AppReducer {
                 val id = key.substringAfter(':').toLongOrNull() ?: return Reduction(state)
                 push(state, Screen.TrackDetails(id))
             }
+            key.startsWith("track_artist:") -> key.substringAfter(':').toLongOrNull()?.let(state.library.byId::get)
+                ?.let { push(pop(state), Screen.ArtistAlbums(it.primaryArtist)) } ?: Reduction(state)
+            key.startsWith("track_album:") -> key.substringAfter(':').toLongOrNull()?.let(state.library.byId::get)
+                ?.let { push(pop(state), Screen.AlbumSongs(it.displayAlbum, it.albumArtistName)) } ?: Reduction(state)
             else -> Reduction(state)
         }
     }
@@ -1165,6 +1187,10 @@ object AppReducer {
             key == "sleep_timer_end_track" -> SetSleepTimer(SleepTimerMode.END_TRACK)
             key == "sleep_timer_end_album" -> SetSleepTimer(SleepTimerMode.END_ALBUM)
             key == "sleep_timer_end_queue" -> SetSleepTimer(SleepTimerMode.END_QUEUE)
+            key == ScreenContent.SLEEP_ADD_KEY -> {
+                val left = state.playback.sleepTimerRemainingMs ?: 0L
+                SetSleepTimer(SleepTimerMode.MINUTES, ((left + 59_999L) / 60_000L).toInt() + 15)
+            }
             key.startsWith("sleep_timer_minutes:") -> {
                 val minutes = key.substringAfter(':').toIntOrNull() ?: return Reduction(state)
                 SetSleepTimer(SleepTimerMode.MINUTES, minutes)

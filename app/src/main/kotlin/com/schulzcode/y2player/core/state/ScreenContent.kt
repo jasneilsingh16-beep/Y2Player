@@ -800,10 +800,31 @@ object ScreenContent {
                 add(ScreenRow.Action("Go to ${track.primaryArtist}", null, "track_artist:$trackId"))
                 add(ScreenRow.Action("Go to Album", track.displayAlbum, "track_album:$trackId"))
             }
+            episodeMarkRows(state, track).forEach(::add)
             if (!screen.fromNowPlaying) add(ScreenRow.Action("Select Several", null, "track_multi:$trackId"))
             add(ScreenRow.Action("Details", null, "track_details:$trackId"))
         }
     }
+
+    /**
+     * An episode can be marked unplayed, for the ones that played on while you
+     * slept, or played. Episodes count as played up to the one in progress, so
+     * marking moves that point.
+     */
+    private fun episodeMarkRows(state: AppState, track: Track): List<ScreenRow> {
+        val folderKey = track.audiobookFolderKey ?: return emptyList()
+        val entry = audiobookEntry(state, folderKey) ?: return emptyList()
+        val index = entry.chapterIds.indexOf(track.id).takeIf { it >= 0 } ?: return emptyList()
+        val heard = entry.inProgress && index <= entry.startIndex
+        return listOfNotNull(
+            if (heard) ScreenRow.Action("Mark as Unplayed", "This and every later episode", "$EPISODE_UNPLAYED_KEY${track.id}") else null,
+            if (index < entry.chapterCount - 1 && !(entry.inProgress && index < entry.startIndex))
+                ScreenRow.Action("Mark as Played", "This and every earlier episode", "$EPISODE_PLAYED_KEY${track.id}") else null
+        )
+    }
+
+    const val EPISODE_UNPLAYED_KEY = "episode_unplayed:"
+    const val EPISODE_PLAYED_KEY = "episode_played:"
 
     private fun trackBrowseRows(state: AppState, trackId: Long): List<ScreenRow> {
         val track = state.library.byId[trackId]
@@ -913,42 +934,21 @@ object ScreenContent {
         }
     }
 
+    /** Hold Centre on Now Playing: only what the four tiles do not already do. */
     private fun nowPlayingOptionsRows(state: AppState): List<ScreenRow> {
         val track = state.playback.currentTrackId?.let(state.library.byId::get)
-        if (track?.isAudiobookChapter == true) {
-            val folderKey = track.audiobookFolderKey
-            return buildList {
-                if (folderKey != null) add(ScreenRow.Action(
-                    "Chapters", track.displayAlbum, "np_audiobook_chapters:$folderKey"
-                ))
-                add(ScreenRow.Action(
-                    "Queue", "${remainingLabel(state)} · Next: ${playingNextLabel(state)}", "queue"
-                ))
-                add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), "sleep_timer"))
-                add(ScreenRow.Action("Track Details", track.title, "np_track_details:${track.id}"))
-            }
-        }
+        val queue = ScreenRow.Action("Queue", "${upNextLabel(state)} · Next: ${playingNextLabel(state)}", "queue")
+        if (track == null) return listOf(queue)
         return buildList {
-            add(ScreenRow.Action("Shuffle", onOff(state.playback.shuffleEnabled), "shuffle"))
-            add(ScreenRow.Action(
-                "Repeat",
-                state.playback.repeatMode.name.lowercase(Locale.US).replaceFirstChar { it.titlecase(Locale.US) },
-                "repeat"
-            ))
-            add(ScreenRow.Action(
-                "Queue",
-                "${upNextLabel(state)} · Next: ${playingNextLabel(state)}",
-                "queue"
-            ))
-            if (track != null) {
-                // Stable title with the state in the subtitle, like Shuffle and Repeat above it.
-                add(ScreenRow.Action("Favourite", onOff(track.favorite), "np_favorite:${track.id}"))
+            val folderKey = track.audiobookFolderKey
+            if (folderKey != null) add(ScreenRow.Action("Episodes", track.displayAlbum, "np_audiobook_chapters:$folderKey"))
+            add(queue)
+            add(ScreenRow.Action("Add to Playlist", null, "np_playlist:${track.id}"))
+            if (folderKey == null) {
+                add(ScreenRow.Action("Go to ${track.primaryArtist}", null, "track_artist:${track.id}"))
+                add(ScreenRow.Action("Go to Album", track.displayAlbum, "track_album:${track.id}"))
             }
-            add(ScreenRow.Action("Sleep Timer", sleepTimerSubtitle(state), "sleep_timer"))
-            if (track != null) {
-                add(ScreenRow.Action("Add to Playlist", track.title, "np_playlist:${track.id}"))
-                add(ScreenRow.Action("Track Options", track.title, "np_track_options:${track.id}"))
-            }
+            add(ScreenRow.Action("Details", null, "np_track_details:${track.id}"))
         }
     }
 
@@ -996,33 +996,30 @@ object ScreenContent {
         fun addChoice(title: String, key: String, active: Boolean, running: String? = null) {
             add(ScreenRow.Action(title, if (active) running ?: "Active" else null, key))
         }
+        // While a countdown runs, the likeliest wish leads: a little longer.
+        if (playback.sleepTimerMode == SleepTimerMode.MINUTES) {
+            add(ScreenRow.Action(
+                "Add 15 minutes",
+                playback.sleepTimerRemainingMs?.let { "${SleepTimerPresentation.countdown(it)} left" },
+                SLEEP_ADD_KEY
+            ))
+        }
         addChoice("Off", "sleep_timer_off", false)
         addChoice(
             if (audiobook) "End of this episode" else "End of this track",
             "sleep_timer_end_track", playback.sleepTimerMode == SleepTimerMode.END_TRACK
         )
-        addChoice(
-            if (audiobook) "End of series" else "End of album",
-            "sleep_timer_end_album", playback.sleepTimerMode == SleepTimerMode.END_ALBUM
-        )
-        addChoice("End of queue", "sleep_timer_end_queue", playback.sleepTimerMode == SleepTimerMode.END_QUEUE)
         SleepTimerPresentation.PRESET_MINUTES.forEach { minutes ->
             val active = playback.sleepTimerMode == SleepTimerMode.MINUTES &&
                 playback.sleepTimerConfiguredMinutes == minutes
-            addChoice(
-                SleepTimerPresentation.durationLabel(minutes),
-                "sleep_timer_minutes:$minutes",
-                active,
-                playback.sleepTimerRemainingMs?.let { "${SleepTimerPresentation.countdown(it)} left" }
-            )
+            addChoice(SleepTimerPresentation.durationLabel(minutes), "sleep_timer_minutes:$minutes", active, "Running")
         }
     }
 
     /** One line of help under a screen's title, for screens whose rows need it. */
     fun note(state: AppState): String? = when (state.currentScreen) {
         Screen.SleepTimer -> if (state.playback.sleepTimerMode == SleepTimerMode.OFF)
-            "Playback fades out, then pauses." else "Choose Off to cancel. Playback fades out, then pauses."
-        Screen.Continue -> "Centre picks up where you left off."
+            "Fades out over 45 seconds, then pauses." else null
         Screen.Bedtime -> "Warm, softer colours from the start time until you wake."
         Screen.WakeTime -> "Normal colours return at this time."
         // How far through the series, on its own line above the episodes.
@@ -1035,15 +1032,12 @@ object ScreenContent {
     fun sleepTimerSelectionIndex(state: AppState): Int = when (state.playback.sleepTimerMode) {
         SleepTimerMode.OFF -> 0
         SleepTimerMode.END_TRACK -> 1
-        SleepTimerMode.END_ALBUM -> 2
-        SleepTimerMode.END_QUEUE -> 3
-        SleepTimerMode.MINUTES -> {
-            // A restored length that is not a preset lands on the next longer one.
-            val minutes = state.playback.sleepTimerConfiguredMinutes ?: SleepTimerPresentation.PRESET_MINUTES.first()
-            val presets = SleepTimerPresentation.PRESET_MINUTES
-            4 + (presets.indexOfFirst { it >= minutes }.takeIf { it >= 0 } ?: presets.lastIndex)
-        }
+        SleepTimerMode.END_ALBUM, SleepTimerMode.END_QUEUE -> 0
+        // A running countdown opens on Add 15 minutes.
+        SleepTimerMode.MINUTES -> 0
     }
+
+    const val SLEEP_ADD_KEY = "sleep_timer_add"
 
     private fun playingNextLabel(state: AppState): String {
         val playback = state.playback

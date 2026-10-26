@@ -19,13 +19,13 @@ class SleepTimerPresentationTest {
         assertEquals("15:00", SleepTimerPresentation.label(snapshot.sleepTimerMode, remaining))
 
         val state = AppState(
-            screenStack = listOf(ScreenEntry(Screen.NowPlayingOptions)),
+            screenStack = listOf(ScreenEntry(Screen.NowPlaying)),
             playback = snapshot.copy(sleepTimerRemainingMs = remaining)
         )
         val timerRow = ScreenContent.rows(state)
             .filterIsInstance<ScreenRow.Action>()
             .first { it.key == "sleep_timer" }
-        assertEquals("15:00", timerRow.subtitle)
+        assertEquals(SleepTimerPresentation.compact(remaining!!), timerRow.subtitle)
     }
 
     @Test fun remainingTimeIsAlwaysDerivedFromTheDeadline() {
@@ -98,7 +98,7 @@ class SleepTimerPresentationTest {
 
     @Test fun reopeningAfterExpirationReportsOff() {
         val state = AppState(
-            screenStack = listOf(ScreenEntry(Screen.NowPlayingOptions)),
+            screenStack = listOf(ScreenEntry(Screen.NowPlaying)),
             playback = PlaybackSnapshot(sleepTimerMode = SleepTimerMode.OFF)
         )
         val timerRow = ScreenContent.rows(state)

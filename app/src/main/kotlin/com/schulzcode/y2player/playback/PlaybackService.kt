@@ -108,6 +108,14 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             }
         }
 
+        fun setAudiobookEpisode(folderKey: String, trackId: Long, onComplete: (Boolean) -> Unit) = post {
+            recentAudiobookProgress[folderKey] = AudiobookProgress(trackId, 0L, System.currentTimeMillis())
+            submitPersistence("audiobook episode set") {
+                val success = runCatching { database.saveAudiobookProgress(folderKey, trackId, 0L) }.isSuccess
+                mainHandler.post { onComplete(success) }
+            }
+        }
+
         fun playCollectionShuffled(trackIds: List<Long>) = post {
             if (trackIds.isEmpty()) return@post
             releaseCurrentTrack(PlaybackExitReason.QUEUE_REPLACED)
@@ -2398,7 +2406,8 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         private const val EFFECTIVE_DUCK_VOLUME = 0.2f
         private const val SHORT_FOCUS_FADE_MS = 100L
         private const val VOLUME_FADE_STEP_MS = 25L
-        private const val SLEEP_FADE_MS = 12_000L
+        /** A slow fade is less likely to wake someone who has just fallen asleep. */
+        private const val SLEEP_FADE_MS = 45_000L
         private const val ROUTE_LOSS_MESSAGE = "Private audio output disconnected - playback paused"
         private val ACTIVE_STATUSES = setOf(PlaybackStatus.PLAYING, PlaybackStatus.PREPARING)
         private val RESUMABLE_ENGINE_STATES = setOf(

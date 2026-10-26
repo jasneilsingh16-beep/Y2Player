@@ -16,7 +16,9 @@ internal sealed interface HomePane {
         val artist: String,
         /** Always the truth about what happens next, never a guess. */
         val upNext: String,
-        val upNextIsRepeat: Boolean
+        val upNextIsRepeat: Boolean,
+        /** The next track's artist, on its own line under [upNext]. */
+        val upNextArtist: String? = null
     ) : HomePane
 
     data class Continue(val first: Item, val others: List<Item>) : HomePane
@@ -77,7 +79,8 @@ internal sealed interface HomePane {
         fun nowPlaying(state: AppState): NowPlaying? {
             val track = state.playback.currentTrackId?.let(state.library.byId::get) ?: return null
             val (upNext, repeat) = upNext(state, track)
-            return NowPlaying(track.id, track.title, artistLine(state, track), upNext, repeat)
+            val artist = if (repeat) null else nextTrack(state)?.takeIf { upNext == it.title }?.displayArtist
+            return NowPlaying(track.id, track.title, artistLine(state, track), upNext, repeat, artist)
         }
 
         fun artistLine(state: AppState, track: Track): String {
@@ -93,22 +96,36 @@ internal sealed interface HomePane {
         /** What plays after this track, said plainly. The flag marks a repeat. */
         fun upNext(state: AppState, track: Track): Pair<String, Boolean> {
             val playback = state.playback
-            val talk = track.isAudiobookChapter
-            if (playback.repeatMode == RepeatMode.ONE) {
-                return (if (talk) "This episode again" else "This track again") to true
-            }
+            if (playback.repeatMode == RepeatMode.ONE) return again(track) to true
             if (playback.sleepTimerMode == SleepTimerMode.END_TRACK) return "Sleep timer stops playback" to false
-            val nextId = playback.nextTrackId ?: playback.queue.getOrNull(
-                playback.queue.indexOfFirst { it.id == playback.currentQueueEntryId } + 1
-            )?.trackId
-            val next = nextId?.let(state.library.byId::get)
+            val next = nextTrack(state)
             if (next == null) {
                 if (playback.sleepTimerMode == SleepTimerMode.END_QUEUE) return "Sleep timer stops playback" to false
                 return "Nothing after this" to false
             }
-            if (next.id == track.id && playback.repeatMode == RepeatMode.ALL) return "This track again" to true
-            return "${next.title} · ${next.displayArtist}" to false
+            if (next.id == track.id && playback.repeatMode == RepeatMode.ALL) return again(track) to true
+            return next.title to false
         }
+
+        private fun nextTrack(state: AppState): Track? {
+            val playback = state.playback
+            val nextId = playback.nextTrackId ?: playback.queue.getOrNull(
+                playback.queue.indexOfFirst { it.id == playback.currentQueueEntryId } + 1
+            )?.trackId
+            return nextId?.let(state.library.byId::get)
+        }
+
+        /** "This shabad again" for Gurbani, "This episode again" for a talk. */
+        private fun again(track: Track): String {
+            val genre = track.genre.orEmpty().lowercase(Locale.US)
+            return when {
+                track.isAudiobookChapter -> "This episode again"
+                GURBANI_GENRES.any { it in genre } -> "This shabad again"
+                else -> "This track again"
+            }
+        }
+
+        private val GURBANI_GENRES = listOf("gurbani", "kirtan", "shabad", "nitnem", "keertan")
 
         private fun continuePane(state: AppState): Continue? {
             val items = TalksContent.continueItems(state).map(::item)

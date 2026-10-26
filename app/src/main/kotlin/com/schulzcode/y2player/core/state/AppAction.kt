@@ -148,6 +148,8 @@ sealed interface AppEffect {
     data object RefreshPlaybackHistory : AppEffect
     data object RefreshAudiobooks : AppEffect
     data class ClearAudiobookProgress(val folderKey: String) : AppEffect
+    /** Puts a series' place at the start of one episode: those before it count as played. */
+    data class SetAudiobookEpisode(val folderKey: String, val trackId: Long, val message: String) : AppEffect
     data object ClearPlaybackHistory : AppEffect
     data object ExportDiagnostics : AppEffect
     data object ClearDiagnostics : AppEffect

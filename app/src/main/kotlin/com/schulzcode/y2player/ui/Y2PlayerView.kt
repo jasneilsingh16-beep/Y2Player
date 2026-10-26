@@ -180,6 +180,7 @@ class Y2PlayerView(
     private var cachedDuration = "0:00"
     private var cachedRemaining = "−0:00"
     private var cachedNowSource = ""
+    private var cachedNowTitleSize = 0f
     private var cachedNowTitleLines: List<String> = emptyList()
     private var cachedNowArtistLines: List<String> = emptyList()
     private var nowPlayingPane: HomePane.NowPlaying? = null
@@ -285,6 +286,7 @@ class Y2PlayerView(
 
         if (!progressOnly) skinRenderer.invalidateInput()
         state = newState
+        updateNowPlayingTileIdle(oldState, newState)
         updateSleepTimerCountdownActivity(refreshRows = false)
         if (activeSkin() != null) {
             stopTextScrollCallbacks()
@@ -342,6 +344,36 @@ class Y2PlayerView(
         updateContentDescription(newState)
         invalidate()
     }
+
+    private val tileIdleRunnable = Runnable {
+        if (state.currentScreen == Screen.NowPlaying && state.selectedIndex != 0) dispatch(AppAction.SelectIndex(0))
+    }
+
+    /**
+     * On Now Playing the wheel turns the volume. Centre lends it to the tiles; Back,
+     * or five seconds without a move, gives it back. The first visit shows the
+     * volume bar once, so the link is learned.
+     */
+    private fun updateNowPlayingTileIdle(oldState: AppState, newState: AppState) {
+        val onNowPlaying = newState.currentScreen == Screen.NowPlaying
+        if (onNowPlaying && oldState.currentScreen != Screen.NowPlaying && !volumeIntroShown) {
+            volumeIntroShown = true
+            runCatching {
+                val max = skinAudioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                showVolume(100 * skinAudioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) / max)
+            }
+        }
+        if (!onNowPlaying || newState.selectedIndex == 0) {
+            removeCallbacks(tileIdleRunnable)
+            return
+        }
+        if (oldState.currentScreen != newState.currentScreen || oldState.selectedIndex != newState.selectedIndex) {
+            removeCallbacks(tileIdleRunnable)
+            postDelayed(tileIdleRunnable, NOW_TILE_IDLE_MS)
+        }
+    }
+
+    private var volumeIntroShown = false
 
     fun trimMemory() {
         artwork = null
@@ -907,9 +939,13 @@ class Y2PlayerView(
                         artSize * .5f, if (focused) palette.onFocus else palette.mutedText)
                 }
             }
+            val rowProgress = cachedProgress[slot]
+            // Finished episodes step back; the one under way says its time left in the accent.
+            val finished = rowProgress?.played == true
+            val underway = rowProgress != null && !finished && rowProgress.fraction > 0f && !isHome()
             val titleColor = when {
                 focused -> palette.onFocus
-                unavailable -> palette.mutedText
+                unavailable || finished -> palette.mutedText
                 (active && rows[index] is ScreenRow.TrackRow) || cachedAccentTitle[slot] -> palette.accent
                 else -> palette.primaryText
             }
@@ -1016,7 +1052,12 @@ class Y2PlayerView(
                 paint.style = Paint.Style.FILL
                 paint.textAlign = Paint.Align.LEFT
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
-                paint.color = if (unavailable && !focused) palette.mutedText else secondaryColor
+                paint.color = when {
+                    focused -> secondaryColor
+                    unavailable || finished -> palette.mutedText
+                    underway && listLeadingColumn -> palette.accent
+                    else -> secondaryColor
+                }
                 canvas.drawText(subtitle.orEmpty(), textLeft, top + rowHeight * .5f + 17f * density, paint)
             }
 
@@ -1066,10 +1107,7 @@ class Y2PlayerView(
     ) {
         val strong = if (focused) palette.onFocus else palette.accent
         if (progress.played) {
-            paint.style = Paint.Style.FILL
-            paint.color = if (focused) colorAtAlpha(palette.onFocus, .22f) else palette.activeSurface
-            canvas.drawCircle(centerX, centerY, radius, paint)
-            iconPainter.draw(canvas, Y2Icon.CHECK, centerX, centerY, radius * 1.15f, strong)
+            iconPainter.draw(canvas, Y2Icon.CHECK, centerX, centerY, 14f * density, strong)
             paint.style = Paint.Style.FILL
             return
         }
@@ -1562,84 +1600,105 @@ class Y2PlayerView(
 
     private fun drawNowPlayingWide(canvas: Canvas) {
         val margin = 16f * density
+        // The right edge keeps a margin of its own for the volume bar.
+        val rightEdge = width - NOW_RIGHT_MARGIN_DP * density
         val top = headerHeight + 12f * density
         val artSize = NOW_ART_DP * density
         drawCover(canvas, margin, top, artSize, artwork, 12f * density)
+        val paused = state.playback.status == PlaybackStatus.PAUSED
+        if (paused) {
+            // Paused reads from across the room: a play sign over the cover.
+            val cx = margin + artSize * .5f
+            val cy = top + artSize * .5f
+            paint.style = Paint.Style.FILL
+            paint.color = 0x73000000
+            canvas.drawCircle(cx, cy, 28f * density, paint)
+            iconPainter.draw(canvas, Y2Icon.PLAY, cx + 2f * density, cy, 22f * density, 0xFFFFFFFF.toInt())
+        }
 
         val colLeft = margin + artSize + 16f * density
-        val colRight = width - margin
-        val colWidth = colRight - colLeft
-        var y = top + 12f * density
+        val colRight = rightEdge
+        var y = top + 14f * density
         boldPaint.textAlign = Paint.Align.LEFT
         if (cachedNowSource.isNotEmpty()) {
-            boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+            boldPaint.textSize = Y2UiTheme.STATUS_SP * density
             boldPaint.color = palette.accent
             canvas.drawText(cachedNowSource, colLeft, y, boldPaint)
-            y += 26f * density
+            y += 30f * density
         } else {
-            y += 12f * density
+            y += 16f * density
         }
-        boldPaint.textSize = Y2UiTheme.NOW_TITLE_SP * density
-        boldPaint.color = palette.primaryText
+        heavyPaint.textAlign = Paint.Align.LEFT
+        heavyPaint.textSize = cachedNowTitleSize
+        heavyPaint.color = palette.primaryText
         cachedNowTitleLines.forEach { line ->
-            canvas.drawText(line, colLeft, y, boldPaint)
-            y += 27f * density
+            canvas.drawText(line, colLeft, y, heavyPaint)
+            y += cachedNowTitleSize + 4f * density
         }
         paint.style = Paint.Style.FILL
         paint.textAlign = Paint.Align.LEFT
         paint.textSize = Y2UiTheme.NOW_ARTIST_SP * density
         paint.color = palette.secondaryText
         cachedNowArtistLines.forEach { line ->
-            canvas.drawText(line, colLeft, y - 4f * density, paint)
-            y += 20f * density
+            canvas.drawText(line, colLeft, y - 2f * density, paint)
+            y += 21f * density
         }
 
-        // Up next, as a soft card along the bottom of the cover.
+        // Up next, as a soft card along the bottom of the cover: label, title, artist.
         nowPlayingPane?.let { pane ->
-            val cardTop = top + artSize - 48f * density
-            if (cardTop > y - 12f * density) {
+            val cardHeight = (if (pane.upNextArtist != null) 62f else 46f) * density
+            val cardTop = top + artSize - cardHeight
+            if (cardTop > y - 14f * density) {
                 reusableRectF.set(colLeft, cardTop, colRight, top + artSize)
                 paint.style = Paint.Style.FILL
                 paint.color = palette.surface
                 canvas.drawRoundRect(reusableRectF, 10f * density, 10f * density, paint)
-                boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+                val textLeftBase = colLeft + 10f * density
+                boldPaint.textSize = 13f * density
                 boldPaint.color = palette.mutedText
-                canvas.drawText("Up next", colLeft + 10f * density, cardTop + 18f * density, boldPaint)
-                boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+                canvas.drawText("Up next", textLeftBase, cardTop + 17f * density, boldPaint)
+                boldPaint.textSize = 15f * density
                 boldPaint.color = if (pane.upNextIsRepeat) palette.accent else palette.primaryText
-                var textLeft = colLeft + 10f * density
+                var textLeft = textLeftBase
                 if (pane.upNextIsRepeat) {
-                    iconPainter.draw(canvas, Y2Icon.REPEAT, textLeft + 7f * density, cardTop + 33f * density, 14f * density, palette.accent)
+                    iconPainter.draw(canvas, Y2Icon.REPEAT, textLeft + 7f * density, cardTop + 32f * density, 14f * density, palette.accent)
                     textLeft += 19f * density
                 }
                 canvas.drawText(ellipsize(pane.upNext, colRight - 10f * density - textLeft, boldPaint),
-                    textLeft, cardTop + 38f * density, boldPaint)
+                    textLeft, cardTop + 37f * density, boldPaint)
+                pane.upNextArtist?.let { artist ->
+                    paint.textSize = 14f * density
+                    paint.color = palette.secondaryText
+                    canvas.drawText(ellipsize(artist, colRight - 10f * density - textLeftBase, paint),
+                        textLeftBase, cardTop + 54f * density, paint)
+                }
             }
         }
 
         val barTop = top + artSize + 12f * density
-        drawThinBar(canvas, margin, width - margin, barTop, Y2UiTheme.PROGRESS_HEIGHT_DP * density,
-            Y2UiLogic.progressFraction(state.playback.positionMs, state.playback.durationMs), palette.primaryText)
+        drawThinBar(canvas, margin, rightEdge, barTop, Y2UiTheme.PROGRESS_HEIGHT_DP * density,
+            Y2UiLogic.progressFraction(state.playback.positionMs, state.playback.durationMs),
+            if (paused) palette.mutedText else palette.primaryText)
         val timesY = barTop + 23f * density
-        paint.style = Paint.Style.FILL
-        paint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
-        paint.color = palette.secondaryText
-        paint.textAlign = Paint.Align.LEFT
-        canvas.drawText(cachedElapsed, margin, timesY, paint)
-        paint.textAlign = Paint.Align.RIGHT
-        canvas.drawText(cachedRemaining, width - margin, timesY, paint)
+        mediumPaint.textSize = Y2UiTheme.STATUS_SP * density
+        mediumPaint.color = palette.secondaryText
+        mediumPaint.textAlign = Paint.Align.LEFT
+        canvas.drawText(cachedElapsed, margin, timesY, mediumPaint)
+        mediumPaint.textAlign = Paint.Align.RIGHT
+        canvas.drawText(cachedRemaining, rightEdge, timesY, mediumPaint)
+        mediumPaint.textAlign = Paint.Align.LEFT
         if (cachedStatusTag.isNotEmpty()) {
             boldPaint.textAlign = Paint.Align.CENTER
             boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
-            boldPaint.color = if (state.playback.status == PlaybackStatus.ERROR) palette.warning else palette.accent
-            canvas.drawText(cachedStatusTag, width * .5f, timesY, boldPaint)
+            boldPaint.color = if (state.playback.status == PlaybackStatus.ERROR) palette.warning else palette.secondaryText
+            canvas.drawText(cachedStatusTag, (margin + rightEdge) * .5f, timesY, boldPaint)
         }
-        drawNowPlayingTiles(canvas, margin, width - margin, height - 10f * density)
+        drawNowPlayingTiles(canvas, margin, rightEdge, height - 10f * density)
         paint.textAlign = Paint.Align.LEFT
         boldPaint.textAlign = Paint.Align.LEFT
     }
 
-    /** Four large, labelled tiles; each says its state in words. */
+    /** Four labelled tiles; each says its state in words. On is shown by the value's colour alone. */
     private fun drawNowPlayingTiles(canvas: Canvas, left: Float, right: Float, bottom: Float) {
         val tiles = rows.drop(1).take(4)
         if (tiles.isEmpty()) return
@@ -1653,30 +1712,21 @@ class Y2PlayerView(
             val on = isTileOn(row)
             reusableRectF.set(tileLeft, top, tileLeft + tileWidth, bottom)
             paint.style = Paint.Style.FILL
-            paint.color = when {
-                focused -> palette.focusFill
-                on -> palette.focusSurface
-                else -> palette.surfaceRaised
-            }
-            canvas.drawRoundRect(reusableRectF, 12f * density, 12f * density, paint)
-            val labelColor = when {
-                focused -> palette.onFocusSecondary
-                on -> palette.accent
-                else -> palette.secondaryText
-            }
-            val valueColor = when {
+            paint.color = if (focused) palette.focusFill else palette.surfaceRaised
+            canvas.drawRoundRect(reusableRectF, Y2UiTheme.ROW_RADIUS_DP * density, Y2UiTheme.ROW_RADIUS_DP * density, paint)
+            val centerX = tileLeft + tileWidth * .5f
+            mediumPaint.textAlign = Paint.Align.CENTER
+            mediumPaint.textSize = 13f * density
+            mediumPaint.color = if (focused) palette.onFocusSecondary else palette.secondaryText
+            canvas.drawText(row.title, centerX, top + 18f * density, mediumPaint)
+            mediumPaint.textAlign = Paint.Align.LEFT
+            boldPaint.textAlign = Paint.Align.CENTER
+            boldPaint.textSize = 16f * density
+            boldPaint.color = when {
                 focused -> palette.onFocus
                 on -> palette.accent
                 else -> palette.primaryText
             }
-            val centerX = tileLeft + tileWidth * .5f
-            boldPaint.textAlign = Paint.Align.CENTER
-            boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
-            boldPaint.color = labelColor
-            canvas.drawText(row.title, centerX, top + 19f * density, boldPaint)
-            boldPaint.textAlign = Paint.Align.CENTER
-            boldPaint.textSize = Y2UiTheme.BODY_SP * density
-            boldPaint.color = valueColor
             canvas.drawText(ellipsize(row.subtitle.orEmpty(), tileWidth - 8f * density, boldPaint), centerX, top + 37f * density, boldPaint)
         }
         paint.textAlign = Paint.Align.LEFT
@@ -1717,22 +1767,40 @@ class Y2PlayerView(
             return
         }
         postInvalidateOnAnimation()
-        val right = width - 5f * density
-        val left = right - 8f * density
+        // A 6 px bar in the right margin, a speaker under it, crossed out at zero.
+        val right = width - 10f * density
+        val left = right - 6f * density
         val top = headerHeight + 12f * density
-        val bottom = height - 12f * density
+        val glyphY = height - 22f * density
+        val bottom = glyphY - 16f * density
+        if (!isNowPlayingSurface()) {
+            // Elsewhere the bar sits over the list's edge, so it gets a quiet backing.
+            paint.style = Paint.Style.FILL
+            paint.color = colorAtAlpha(palette.background, .92f * alpha)
+            reusableRectF.set(left - 4f * density, top - 4f * density, right + 4f * density, height - 8f * density)
+            canvas.drawRoundRect(reusableRectF, 7f * density, 7f * density, paint)
+        }
         paint.style = Paint.Style.FILL
-        paint.color = colorAtAlpha(palette.background, .92f * alpha)
-        reusableRectF.set(left - 3f * density, top - 3f * density, right + 3f * density, bottom + 3f * density)
-        canvas.drawRoundRect(reusableRectF, 7f * density, 7f * density, paint)
         paint.color = colorAtAlpha(palette.track, alpha)
         reusableRectF.set(left, top, right, bottom)
-        canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
-        val fillTop = bottom - (bottom - top) * volumeOverlayPercent / 100f
+        canvas.drawRoundRect(reusableRectF, 3f * density, 3f * density, paint)
         if (volumeOverlayPercent > 0) {
+            val fillTop = bottom - (bottom - top) * volumeOverlayPercent / 100f
             paint.color = colorAtAlpha(palette.accent, alpha)
-            reusableRectF.set(left, fillTop.coerceAtMost(bottom - 8f * density), right, bottom)
-            canvas.drawRoundRect(reusableRectF, 4f * density, 4f * density, paint)
+            reusableRectF.set(left, fillTop.coerceAtMost(bottom - 6f * density), right, bottom)
+            canvas.drawRoundRect(reusableRectF, 3f * density, 3f * density, paint)
+        }
+        val glyphX = (left + right) * .5f
+        val glyphColor = colorAtAlpha(if (volumeOverlayPercent == 0) palette.mutedText else palette.secondaryText, alpha)
+        iconPainter.draw(canvas, Y2Icon.SPEAKER, glyphX, glyphY, 12f * density, glyphColor)
+        if (volumeOverlayPercent == 0) {
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.6f * density
+            paint.strokeCap = Paint.Cap.ROUND
+            paint.color = glyphColor
+            canvas.drawLine(glyphX - 7f * density, glyphY - 7f * density, glyphX + 7f * density, glyphY + 7f * density, paint)
+            paint.strokeCap = Paint.Cap.BUTT
+            paint.style = Paint.Style.FILL
         }
     }
 
@@ -2424,7 +2492,7 @@ class Y2PlayerView(
         cachedDuration = TimeFormat.duration(state.playback.durationMs)
         cachedRemaining = remainingLabel(state.playback.positionMs, state.playback.durationMs)
         nowPlayingPane = HomePane.nowPlaying(state)
-        val columnWidth = fallbackWidth() - (16f + NOW_ART_DP + 16f + 16f) * density
+        val columnWidth = fallbackWidth() - (16f + NOW_ART_DP + 16f + NOW_RIGHT_MARGIN_DP) * density
         boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
         val series = track?.audiobookFolderKey?.let { ScreenContent.audiobookEntry(state, it) }
         val sourceText = when {
@@ -2433,11 +2501,30 @@ class Y2PlayerView(
                 val number = series.chapterIds.indexOf(track.id) + 1
                 if (number > 0) "${series.name} · Episode $number of ${series.chapterCount}" else series.name
             }
-            else -> state.playSource.orEmpty()
+            else -> {
+                // Where you are in what is playing: "Favourites · 4 of 121", or "Track 4 of 23".
+                val queue = state.playback.queue
+                val position = queue.indexOfFirst { it.id == state.playback.currentQueueEntryId } + 1
+                val source = state.playSource
+                when {
+                    position <= 0 || queue.size < 2 -> source.orEmpty()
+                    source.isNullOrBlank() -> "Track $position of ${queue.size}"
+                    else -> "$source · $position of ${queue.size}"
+                }
+            }
         }
+        boldPaint.textSize = Y2UiTheme.STATUS_SP * density
         cachedNowSource = ellipsize(sourceText, columnWidth, boldPaint)
-        boldPaint.textSize = Y2UiTheme.NOW_TITLE_SP * density
-        cachedNowTitleLines = wrap(track?.title ?: "Nothing playing", columnWidth, boldPaint, 2)
+        // Two lines at most; a title that needs three steps down a size before it is cut.
+        val nowTitle = track?.title ?: "Nothing playing"
+        cachedNowTitleSize = Y2UiTheme.NOW_TITLE_SP * density
+        heavyPaint.textSize = cachedNowTitleSize
+        cachedNowTitleLines = wrap(nowTitle, columnWidth, heavyPaint, 2)
+        if (cachedNowTitleLines.lastOrNull()?.endsWith("…") == true) {
+            cachedNowTitleSize = NOW_TITLE_SMALL_SP * density
+            heavyPaint.textSize = cachedNowTitleSize
+            cachedNowTitleLines = wrap(nowTitle, columnWidth, heavyPaint, 2)
+        }
         paint.textSize = Y2UiTheme.NOW_ARTIST_SP * density
         // A talk's series is already named above the title, so only the speaker follows it.
         val nowArtistText = when {
@@ -2917,14 +3004,18 @@ class Y2PlayerView(
         private val CHOICE_MARKERS = setOf("Active", "Selected", "Current")
         private const val ROW_ARTWORK_SIZE_PX = 64
         private const val NOW_ART_DP = 184f
+        private const val NOW_RIGHT_MARGIN_DP = 24f
+        private const val NOW_TITLE_SMALL_SP = 21f
+        /** Tiles let go of the wheel after this long, so it turns the volume again. */
+        private const val NOW_TILE_IDLE_MS = 5_000L
         private const val POSTER_ROW_HEIGHT_DP = 60f
         private const val POSTER_WIDTH_DP = 30f
         private const val POSTER_HEIGHT_DP = 44f
         private const val POSTER_GAP_DP = 3f
-        private const val VOLUME_HOLD_MS = 1_000L
+        private const val VOLUME_HOLD_MS = 1_500L
         private const val MESSAGE_HUD = 0xFF1C1C1E.toInt()
         private const val MESSAGE_WARNING = 0xFFFF9F0A.toInt()
-        private const val VOLUME_FADE_MS = 300L
+        private const val VOLUME_FADE_MS = 250L
         private const val RADIAL_OPEN_MS = 160f
         private const val RADIAL_CLOSE_MS = 120f
         private const val SEARCH_QUERY_HEIGHT_DP = 36f
