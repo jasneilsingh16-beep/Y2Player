@@ -287,6 +287,7 @@ object AppReducer {
             Screen.Audiobooks, is Screen.TalkCollection -> confirmAudiobook(state, row)
             Screen.Continue -> confirmContinue(state, row)
             is Screen.Videos -> confirmVideos(state, screen, row)
+            is Screen.VideoOptions -> confirmVideoOptions(state, screen, row)
             is Screen.AudiobookOptions -> confirmAudiobookOptions(state, screen, row)
             is Screen.AudiobookChapters -> confirmAudiobookChapter(state, screen, row)
             Screen.Songs, Screen.Favorites, Screen.RecentlyPlayed,
@@ -394,6 +395,7 @@ object AppReducer {
                 selectedIndex = ScreenContent.sleepTimerSelectionIndex(state)
             )
             "music" -> push(state, Screen.Music)
+            ScreenContent.MUSIC_FOLDERS_KEY -> push(state, ScreenContent.musicFoldersScreen(state))
             "audiobooks" -> Reduction(pushState(state, Screen.Audiobooks), listOf(RefreshAudiobooks))
             "videos" -> Reduction(pushState(state, Screen.Videos()), listOf(LoadVideos(null), RefreshVideoProgress))
             "fm_radio" -> Reduction(pushState(state, Screen.FmRadio), listOf(FmOpen))
@@ -1191,6 +1193,24 @@ object AppReducer {
     }
 
 
+    private fun confirmVideoOptions(state: AppState, screen: Screen.VideoOptions, row: ScreenRow): Reduction {
+        val key = (row as? Action)?.key ?: return Reduction(state)
+        val closed = pop(state)
+        val parentPath = (closed.currentScreen as? Screen.Videos)?.path
+        val folderVideos = state.videos.listing(parentPath).orEmpty()
+            .filter { it.kind == VideoItemKind.VIDEO }.map { it.path }
+        val reload = listOf(LoadVideos(parentPath), RefreshVideoProgress)
+        return when (key) {
+            ScreenContent.VIDEO_OPT_PLAY -> Reduction(closed, listOf(PlayVideo(screen.path, folderVideos)))
+            ScreenContent.VIDEO_OPT_RESTART -> Reduction(closed, listOf(
+                SetVideoWatched(screen.path, watched = false, folder = false), PlayVideo(screen.path, folderVideos)
+            ))
+            ScreenContent.VIDEO_OPT_WATCHED -> Reduction(closed, listOf(SetVideoWatched(screen.path, true, screen.isFolder)) + reload)
+            ScreenContent.VIDEO_OPT_UNWATCHED -> Reduction(closed, listOf(SetVideoWatched(screen.path, false, screen.isFolder)) + reload)
+            else -> Reduction(state)
+        }
+    }
+
     private fun confirmVideos(state: AppState, screen: Screen.Videos, row: ScreenRow): Reduction {
         val key = (row as? Action)?.key ?: return Reduction(state)
         val path = key.substringAfter(':')
@@ -1319,9 +1339,24 @@ object AppReducer {
             if (key == null || !key.startsWith(ScreenContent.AUDIOBOOK_KEY_PREFIX)) Reduction(state)
             else push(state, Screen.AudiobookOptions(key.substringAfter(':')))
         }
+        is Screen.Videos -> {
+            val key = (ScreenContent.rows(state).getOrNull(state.selectedIndex) as? Action)?.key.orEmpty()
+            val item = state.videos.listing(screen.path).orEmpty().firstOrNull { key.endsWith(":" + it.path) }
+            when {
+                item == null -> Reduction(state)
+                key.startsWith(ScreenContent.VIDEO_KEY) || key.startsWith(ScreenContent.VIDEO_CONTINUE_KEY) ->
+                    push(state, Screen.VideoOptions(item.path, item.title, isFolder = false))
+                key.startsWith(ScreenContent.VIDEO_FOLDER_KEY) -> push(state, Screen.VideoOptions(item.path, item.title, isFolder = true))
+                else -> Reduction(state)
+            }
+        }
         Screen.Continue -> {
             val key = (ScreenContent.rows(state).getOrNull(state.selectedIndex) as? Action)?.key.orEmpty()
-            if (key.startsWith(TalksContent.CONTINUE_TALK_KEY)) {
+            if (key.startsWith(TalksContent.CONTINUE_VIDEO_KEY)) {
+                val path = key.removePrefix(TalksContent.CONTINUE_VIDEO_KEY)
+                val title = state.videos.inProgress.firstOrNull { it.path == path }?.title ?: java.io.File(path).nameWithoutExtension
+                push(state, Screen.VideoOptions(path, title, isFolder = false))
+            } else if (key.startsWith(TalksContent.CONTINUE_TALK_KEY)) {
                 push(state, Screen.AudiobookOptions(key.removePrefix(TalksContent.CONTINUE_TALK_KEY)))
             } else Reduction(state)
         }

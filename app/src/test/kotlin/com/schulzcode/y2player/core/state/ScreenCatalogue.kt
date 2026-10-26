@@ -18,6 +18,7 @@ object ScreenCatalogue {
         put(Screen.Music)
         put(Screen.Audiobooks)
         put(Screen.Videos())
+        put(Screen.VideoOptions("/sdcard/Videos/Film.mp4", "Film", isFolder = false))
         put(Screen.AudiobookOptions("sdcard|AUDIOBOOKS/Dune"))
         put(Screen.AudiobookChapters("sdcard|AUDIOBOOKS/Dune"))
         put(Screen.Songs)

@@ -117,7 +117,7 @@ class Y2UiLogicTest {
         val available = Y2UiTheme.TARGET_HEIGHT_PX - Y2UiTheme.HEADER_HEIGHT_DP - 4f
         val count = Y2UiLogic.visibleRowCount(available, Y2UiTheme.ROW_HEIGHT_DP)
         assertEquals(7, count)
-        assertEquals(6, Y2UiLogic.visibleRowCount(available, Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP))
+        assertEquals(5, Y2UiLogic.visibleRowCount(available, Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP))
         assertEquals(0, Y2UiLogic.firstVisibleRow(100, 0, 0, count))
         assertEquals(1, Y2UiLogic.firstVisibleRow(100, 7, 0, count))
         assertEquals(93, Y2UiLogic.firstVisibleRow(100, 99, 1, count))
@@ -203,7 +203,7 @@ class Y2UiLogicTest {
     }
 
     @Test fun mainMenuRowCalculationRemainsStableForWheelNavigation() {
-        assertEquals(6, ScreenContent.rows(AppState()).size)
+        assertEquals(7, ScreenContent.rows(AppState()).size)
     }
 
     private fun contrastRatio(first: Int, second: Int): Double {

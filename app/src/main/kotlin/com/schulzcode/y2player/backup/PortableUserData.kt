@@ -4,6 +4,7 @@ import com.schulzcode.y2player.core.model.QueueEntry
 import com.schulzcode.y2player.core.model.QueueOrigin
 import com.schulzcode.y2player.core.model.RepeatMode
 import com.schulzcode.y2player.core.model.Track
+import com.schulzcode.y2player.core.model.TrackPathMatcher
 import com.schulzcode.y2player.queue.PersistedPlaybackSession
 import java.util.Locale
 
@@ -95,8 +96,12 @@ object PortableUserDataResolver {
         var restored = 0
         var unresolved = 0
 
+        val byId = tracks.associateBy(Track::id)
+        // A backup from another card or volume name still finds its tracks by path.
+        val matcher by lazy { TrackPathMatcher(tracks) }
+
         fun resolve(identity: PortableMediaIdentity): Track? {
-            val track = tracksByKey[identity.key]
+            val track = tracksByKey[identity.key] ?: matcher.match(identity.relativePath)?.let(byId::get)
             if (track == null) unresolved += 1 else restored += 1
             return track
         }

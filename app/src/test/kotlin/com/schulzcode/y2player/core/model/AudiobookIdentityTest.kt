@@ -161,7 +161,13 @@ class AudiobookIdentityTest {
     fun `substring folder names must not match`() {
         assertNull(key("MyAudiobooks/Dune/01.mp3"))
         assertNull(key("AUDIOBOOKS_OLD/Dune/01.mp3"))
-        assertNull(key("Old AUDIOBOOKS backup/Dune/01.mp3"))
+        assertNull(key("Mytalks/Dune/01.mp3"))
+    }
+
+    @Test
+    fun `a talks word anywhere in a folder name marks it`() {
+        assertEquals("sdcard|Sikhi Talks/Jvala Singh/Japji", key("Sikhi Talks/Jvala Singh/Japji/01.mp3"))
+        assertEquals("sdcard|Plum Village/Thay/Walking", key("Plum Village/Thay/Walking/01.mp3"))
     }
 
     @Test

@@ -83,7 +83,7 @@ class AudiobookListTest {
         val tracks = listOf(chapter("AUDIOBOOKS/single-file-book.mp3", title = "The Hobbit"))
         val row = rows(state(tracks)).single()
         assertEquals("The Hobbit", row.title)
-        assertEquals("Narrator · 10 min", row.subtitle)
+        assertEquals("10 min", row.subtitle)
     }
 
     @Test fun `music outside AUDIOBOOKS never appears`() {
@@ -127,7 +127,7 @@ class AudiobookListTest {
 
     @Test fun `an unstarted series shows its episodes and total length`() {
         val tracks = (1..24).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
-        assertEquals("Narrator · 24 episodes · 4 h", rows(state(tracks)).single().subtitle)
+        assertEquals("24 episodes · 4 h", rows(state(tracks)).single().subtitle)
         assertEquals(RowProgress.UNPLAYED, rows(state(tracks)).single().progress)
     }
 
@@ -135,7 +135,7 @@ class AudiobookListTest {
         val tracks = (1..24).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[7].id, 300_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("Narrator · 7 of 24 played", row.subtitle)
+        assertEquals("7 of 24 played", row.subtitle)
         assertEquals(0.3125f, row.progress!!.fraction, 0.001f)
     }
 
@@ -143,7 +143,7 @@ class AudiobookListTest {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[0].id, 0, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("Narrator · 0 of 10 played", row.subtitle)
+        assertEquals("0 of 10 played", row.subtitle)
         assertTrue("an in-progress ring is never empty", row.progress!!.fraction > 0f)
     }
 
@@ -157,17 +157,17 @@ class AudiobookListTest {
         val tracks = listOf(chapter("AUDIOBOOKS/Dune/01.mp3", durationMs = 1_000))
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[0].id, 9_999_999, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("Narrator · In progress", row.subtitle)
+        assertEquals("In progress", row.subtitle)
         assertEquals(1f, row.progress!!.fraction, 0f)
     }
 
     @Test fun `an unknown duration drops the length instead of dividing by zero`() {
         val tracks = (1..4).map { chapter("AUDIOBOOKS/Dune/0$it.mp3", durationMs = 0) }
-        assertEquals("Narrator · 4 episodes", rows(state(tracks)).single().subtitle)
+        assertEquals("4 episodes", rows(state(tracks)).single().subtitle)
 
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[1].id, 5_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("Narrator · 1 of 4 played", row.subtitle)
+        assertEquals("1 of 4 played", row.subtitle)
         assertEquals(0.25f, row.progress!!.fraction, 0.001f)
     }
 
@@ -176,14 +176,14 @@ class AudiobookListTest {
             chapter("AUDIOBOOKS/Dune/01.mp3", durationMs = 600_000),
             chapter("AUDIOBOOKS/Dune/02.mp3", durationMs = 0)
         )
-        assertEquals("Narrator · 2 episodes", rows(state(tracks)).single().subtitle)
+        assertEquals("2 episodes", rows(state(tracks)).single().subtitle)
     }
 
     @Test fun `progress naming a deleted episode falls back to unstarted`() {
         val tracks = (1..5).map { chapter("AUDIOBOOKS/Dune/0$it.mp3") }
         val progress = mapOf(key("Dune") to AudiobookProgress(9_999L, 300_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("Narrator · 5 episodes · 50 min", row.subtitle)
+        assertEquals("5 episodes · 50 min", row.subtitle)
         assertEquals(RowProgress.UNPLAYED, row.progress)
     }
 
@@ -194,7 +194,7 @@ class AudiobookListTest {
 
     // ---- ordering ----------------------------------------------------------------
 
-    @Test fun `books in progress sort above untouched ones, most recent first`() {
+    @Test fun `podcasts keep the card's folder order whatever is in progress`() {
         val tracks = listOf("Alpha", "Beta", "Gamma").flatMap { book ->
             (1..2).map { chapter("AUDIOBOOKS/$book/0$it.mp3") }
         }
@@ -202,7 +202,7 @@ class AudiobookListTest {
             key("Gamma") to AudiobookProgress(tracks[4].id, 1_000, 500),
             key("Alpha") to AudiobookProgress(tracks[0].id, 1_000, 100)
         )
-        assertEquals(listOf("Gamma", "Alpha", "Beta"), rows(state(tracks, progress)).map { it.title })
+        assertEquals(listOf("Alpha", "Beta", "Gamma"), rows(state(tracks, progress)).map { it.title })
     }
 
     @Test fun `untouched books stay alphabetical and stable across rebuilds`() {

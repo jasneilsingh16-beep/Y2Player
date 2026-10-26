@@ -163,6 +163,19 @@ object VideoLibrary {
         }
     }
 
+    /** Every video in a folder and the folders inside it. */
+    fun videosIn(directory: File, depth: Int = 0): List<String> {
+        if (depth > MAX_DEPTH) return emptyList()
+        return directory.listFiles().orEmpty().flatMap { child ->
+            when {
+                child.name.startsWith(".") -> emptyList()
+                child.isDirectory -> videosIn(child, depth + 1)
+                isVideoFile(child.name) -> listOf(child.absolutePath)
+                else -> emptyList()
+            }
+        }
+    }
+
     private const val MAX_DEPTH = 4
 }
 
@@ -203,6 +216,16 @@ class VideoResumeStore(context: Context) {
         .remove(DURATION_PREFIX + path)
         .putBoolean(WATCHED_PREFIX + path, true)
         .apply()
+
+    /** Watched keeps it finished; unwatched also forgets its place, so it starts fresh. */
+    fun setWatched(path: String, watched: Boolean) {
+        preferences.edit().apply {
+            remove(path)
+            remove(TIME_PREFIX + path)
+            remove(DURATION_PREFIX + path)
+            if (watched) putBoolean(WATCHED_PREFIX + path, true) else remove(WATCHED_PREFIX + path)
+        }.commit()
+    }
 
     /** The most recently left video that still has a position to resume. */
     fun lastWatched(): String? = runCatching {

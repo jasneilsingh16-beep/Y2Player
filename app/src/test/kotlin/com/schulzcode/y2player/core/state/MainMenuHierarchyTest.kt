@@ -57,12 +57,12 @@ class MainMenuHierarchyTest {
     @Test fun `the idle main menu fits the split layout without scrolling`() {
         // 322 px of row area at 40 dp per row leaves room for eight destinations.
         assertTrue("main menu must not exceed the split-home row budget", ScreenContent.rows(AppState()).size <= 8)
-        assertEquals(6, ScreenContent.rows(AppState()).size)
+        assertEquals(7, ScreenContent.rows(AppState()).size)
     }
 
     @Test fun `FM is hidden from the main menu by default`() {
         assertEquals(
-            listOf("favorites", "music", "audiobooks", "videos", "search", "settings"),
+            listOf("favorites", "music", "music_folders", "audiobooks", "videos", "search", "settings"),
             keys(AppState(library = library))
         )
     }
@@ -72,13 +72,13 @@ class MainMenuHierarchyTest {
             library = library,
             preferences = PlayerPreferencesState(showFmRadio = true)
         )
-        assertEquals(listOf("favorites", "music", "audiobooks", "videos", "fm_radio", "search", "settings"), keys(state))
+        assertEquals(listOf("favorites", "music", "music_folders", "audiobooks", "videos", "fm_radio", "search", "settings"), keys(state))
     }
 
     @Test fun `a session leads with Now Playing and offers the Sleep Timer`() {
         val state = AppState(library = library, playback = playing)
         assertEquals(
-            listOf("now_playing", "favorites", "music", "audiobooks", "videos", "main_sleep_timer", "search", "settings"),
+            listOf("now_playing", "favorites", "music", "music_folders", "audiobooks", "videos", "main_sleep_timer", "search", "settings"),
             keys(state)
         )
         assertEquals(Screen.NowPlaying, open(state, "now_playing").state.currentScreen)
@@ -103,7 +103,7 @@ class MainMenuHierarchyTest {
     }
 
     @Test fun `Talks and Podcasts says when there is nothing in it yet`() {
-        val row = ScreenContent.rows(AppState(library = library))[2] as ScreenRow.Action
+        val row = ScreenContent.rows(AppState(library = library))[3] as ScreenRow.Action
         assertEquals("Talks & Podcasts", row.title)
         assertEquals("Nothing yet", row.subtitle)
     }
@@ -129,11 +129,11 @@ class MainMenuHierarchyTest {
     @Test fun `Music owns every library entry point except Favourites, which is on Home`() {
         val music = AppState(screenStack = listOf(ScreenEntry(Screen.Music)), library = library)
         assertEquals(
-            listOf("shuffle_all", "songs", "artists", "genres", "albums", "playlists", "recent", "folders"),
+            listOf("folders", "shuffle_all", "songs", "artists", "genres", "albums", "playlists", "recent"),
             keys(music)
         )
-        assertEquals("Ragis & Speakers", ScreenContent.rows(music)[2].title)
-        assertEquals("Categories", ScreenContent.rows(music)[3].title)
+        assertEquals("Ragis & Speakers", ScreenContent.rows(music)[3].title)
+        assertEquals("Categories", ScreenContent.rows(music)[4].title)
     }
 
     @Test fun `Recently Played is one Confirm from Music`() {

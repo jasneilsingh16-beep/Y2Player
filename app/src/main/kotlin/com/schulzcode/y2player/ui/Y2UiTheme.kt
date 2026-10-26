@@ -10,7 +10,7 @@ object Y2UiTheme {
     /** One line: title, and a value on the right when there is one. */
     const val ROW_HEIGHT_DP = 44f
     /** Title over a second line, or a track beside its artwork. */
-    const val TWO_LINE_ROW_HEIGHT_DP = 52f
+    const val TWO_LINE_ROW_HEIGHT_DP = 56f
     const val HOME_ROW_HEIGHT_DP = 40f
     const val DETAIL_HEADER_HEIGHT_DP = 76f
     const val EDGE_DP = 8f
@@ -36,13 +36,13 @@ object Y2UiTheme {
     const val MINI_TITLE_SP = 16f
     const val ROW_TITLE_SP = 17f
     const val TWO_LINE_TITLE_SP = 16f
-    const val ROW_SUBTITLE_SP = 13f
-    const val ROW_DETAIL_SP = 14f
+    const val ROW_SUBTITLE_SP = 14f
+    const val ROW_DETAIL_SP = 15f
     const val NAV_LABEL_SP = 13f
     const val STATUS_SP = 14f
     const val NOW_TITLE_SP = 23f
     const val NOW_ARTIST_SP = 16f
     const val NOW_ALBUM_SP = 14f
-    const val META_SP = 13f
+    const val META_SP = 14f
     const val BADGE_SP = 13f
 }

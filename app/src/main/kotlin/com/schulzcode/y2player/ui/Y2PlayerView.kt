@@ -45,12 +45,18 @@ class Y2PlayerView(
     private val artworkLoader: AlbumArtworkLoader
 ) : View(context) {
     private val density = resources.displayMetrics.density.coerceAtLeast(1f)
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans", Typeface.NORMAL)
+    private val fonts = Y2Fonts(context.assets)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        typeface = fonts.regular
         style = Paint.Style.FILL
     }
-    private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.create("sans", Typeface.BOLD)
+    /** One-line row titles. */
+    private val mediumPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        typeface = fonts.semibold
+        style = Paint.Style.FILL
+    }
+    private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+        typeface = fonts.bold
         style = Paint.Style.FILL
     }
     private val iconPainter = Y2IconPainter(paint, density)
@@ -1009,7 +1015,7 @@ class Y2PlayerView(
         drawScrollIndicator(canvas)
     }
 
-    private fun boldOrRegular(bold: Boolean): Paint = if (bold) boldPaint else paint
+    private fun boldOrRegular(bold: Boolean): Paint = if (bold) boldPaint else mediumPaint
 
     /** How far through: an arc, a tick once played, or an empty ring before it is started. */
     private fun drawProgressRing(
@@ -1481,14 +1487,15 @@ class Y2PlayerView(
                 paint.measureText(it).coerceAtMost(cardWidth * .4f)
             } ?: 0f
             paint.style = Paint.Style.FILL
-            paint.textSize = Y2UiTheme.MINI_TITLE_SP * density
-            paint.color = when {
+            mediumPaint.textAlign = Paint.Align.LEFT
+            mediumPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
+            mediumPaint.color = when {
                 focused -> palette.onFocus
                 unavailable -> palette.mutedText
                 else -> palette.primaryText
             }
-            canvas.drawText(ellipsize(row.title, valueRight - valueWidth - 12f * density - (left + pad * 2), paint),
-                left + pad * 2, rowTop + rowH * .5f + 5.5f * density, paint)
+            canvas.drawText(ellipsize(row.title, valueRight - valueWidth - 12f * density - (left + pad * 2), mediumPaint),
+                left + pad * 2, rowTop + rowH * .5f + 5.5f * density, mediumPaint)
             if (value != null) {
                 paint.textAlign = Paint.Align.RIGHT
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density

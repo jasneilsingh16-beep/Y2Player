@@ -186,6 +186,16 @@ object AudiobookIdentity {
     /** Folder names that mark everything below them as spoken word. */
     private val ROOT_SEGMENTS = setOf("audiobooks", "audiobook", "podcasts", "talks", "talks & podcasts", "katha")
 
+    /**
+     * Words that mark a folder as spoken word wherever they appear in its name:
+     * "Sikhi Talks", "Plum Village Talks", "NDEs", "Katha Collection".
+     */
+    private val ROOT_WORDS = setOf(
+        "talks", "talk", "podcast", "podcasts", "katha", "kathas", "audiobook", "audiobooks",
+        "lecture", "lectures", "sermons", "nde", "ndes", "vichar"
+    )
+    private val ROOT_PHRASES = listOf("plum village", "near death", "near-death")
+
     /** Genre tags that mark a single file as spoken word, matched whole and without case. */
     private val SPOKEN_GENRES = setOf(
         "podcast", "podcasts", "katha", "talk", "talks", "lecture", "lectures", "speech",
@@ -194,7 +204,25 @@ object AudiobookIdentity {
 
     private const val KEY_SEPARATOR = '|'
 
-    fun isRootSegment(segment: String): Boolean = segment.trim().lowercase() in ROOT_SEGMENTS
+    fun isRootSegment(segment: String): Boolean {
+        val name = segment.trim().lowercase()
+        if (name in ROOT_SEGMENTS) return true
+        if (ROOT_PHRASES.any { it in name }) return true
+        return name.split(NON_WORD).any { it in ROOT_WORDS }
+    }
+
+    private val NON_WORD = Regex("[^\\p{L}\\p{Nd}_]+")
+
+    /** The first marker folder in a path, or -1. Talks kept inside Music still count. */
+    private fun rootIndexOf(folders: List<String>): Int = folders.indexOfFirst(::isRootSegment)
+
+    /** The marker folder a series sits under, as "volume|path", or null for a tagged file. */
+    fun rootOf(folderKey: String): String? {
+        val segments = pathOf(folderKey).split('/')
+        val index = rootIndexOf(segments)
+        if (index < 0) return null
+        return volumeOf(folderKey) + KEY_SEPARATOR + segments.subList(0, index + 1).joinToString("/")
+    }
 
     fun isSpokenGenre(genre: String?): Boolean = genre?.split(';', '/', ',')
         ?.any { it.trim().lowercase() in SPOKEN_GENRES } == true
@@ -203,7 +231,7 @@ object AudiobookIdentity {
         val segments = segmentsOf(relativePath) ?: return null
         if (segments.isEmpty()) return null
         val fileIndex = segments.lastIndex
-        val rootIndex = segments.subList(0, fileIndex).indexOfFirst(::isRootSegment)
+        val rootIndex = rootIndexOf(segments.subList(0, fileIndex))
         if (rootIndex < 0 && !isSpokenGenre(genre)) return null
         var bookIndex = fileIndex - 1
         // Stops one folder below the marker: the book itself may be named "Part 1".

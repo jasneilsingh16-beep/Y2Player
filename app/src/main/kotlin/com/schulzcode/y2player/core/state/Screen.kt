@@ -15,6 +15,8 @@ sealed interface Screen {
     data object Audiobooks : Screen
     /** A folder in the Videos section; null is the section's top level. */
     data class Videos(val path: String? = null) : Screen
+    /** Hold Centre on a video or a folder of them. */
+    data class VideoOptions(val path: String, val title: String, val isFolder: Boolean) : Screen
     data class AudiobookOptions(val folderKey: String) : Screen
     /** A series in Talks & Podcasts: carry on, then its episodes. */
     data class AudiobookChapters(val folderKey: String) : Screen
@@ -119,7 +121,7 @@ data class ScreenEntry(val screen: Screen, val selectedIndex: Int = 0)
 fun Screen.isCardMenu(): Boolean =
     this == Screen.NowPlayingOptions || this == Screen.QueueManagement || this is Screen.QueueOptions ||
         this is Screen.TrackOptions || this is Screen.CollectionOptions || this is Screen.ConfirmAction ||
-        this is Screen.AudiobookOptions
+        this is Screen.AudiobookOptions || this is Screen.VideoOptions
 
 // R8 renames these classes, so simpleName logs as `b0` in release builds.
 val Screen.code: String get() = when (this) {
@@ -128,6 +130,7 @@ val Screen.code: String get() = when (this) {
     Screen.Music -> "music"
     Screen.Audiobooks -> "audiobooks"
     is Screen.Videos -> "videos"
+    is Screen.VideoOptions -> "video_options"
     is Screen.AudiobookOptions -> "audiobook_options"
     is Screen.AudiobookChapters -> "audiobook_chapters"
     is Screen.TalkCollection -> "talk_collection"

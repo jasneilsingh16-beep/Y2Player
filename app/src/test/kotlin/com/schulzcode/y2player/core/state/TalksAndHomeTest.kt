@@ -6,8 +6,10 @@ import com.schulzcode.y2player.core.model.PlaybackSnapshot
 import com.schulzcode.y2player.core.model.PlaybackStatus
 import com.schulzcode.y2player.core.model.RepeatMode
 import com.schulzcode.y2player.core.model.SleepTimerMode
+import com.schulzcode.y2player.core.model.AudiobookIdentity
 import com.schulzcode.y2player.core.model.Track
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -86,19 +88,54 @@ class TalksAndHomeTest {
 
     // ---- Talks & Podcasts -------------------------------------------------------------
 
-    @Test fun `a folder of series is a collection that opens into them`() {
+    @Test fun `talks mirror the card's folders and each lowest folder is a podcast`() {
         val talks = AppState(screenStack = listOf(ScreenEntry(Screen.Audiobooks)), library = library)
         val rows = ScreenContent.rows(talks).map { it as ScreenRow.Action }
-        assertEquals("what is under way comes first", "Suraj", rows.first().title)
-        val collection = rows.single { it.key.startsWith(TalksContent.COLLECTION_KEY) }
-        assertEquals("Basics of Sikhi", collection.title)
-        assertEquals("2 series", collection.subtitle)
+        assertEquals("folders holding only one folder open straight through, beside tagged podcasts",
+            listOf("Explained", "Japji", "Suraj"), rows.map { it.title })
 
-        val selected = talks.copy(screenStack = listOf(ScreenEntry(Screen.Audiobooks, rows.indexOf(collection))))
-        val opened = AppReducer.reduce(selected, AppAction.Confirm).state
+        val parent = talks.copy(screenStack = listOf(ScreenEntry(Screen.TalkCollection("sdcard|Talks"))))
+        val folder = ScreenContent.rows(parent).single() as ScreenRow.Action
+        assertEquals("Basics of Sikhi", folder.title)
+        assertEquals("2 podcasts", folder.subtitle)
+        val opened = AppReducer.reduce(parent, AppAction.Confirm).state
         assertEquals(Screen.TalkCollection("sdcard|Talks/Basics of Sikhi"), opened.currentScreen)
         assertEquals("Basics of Sikhi", ScreenContent.title(opened))
-        assertEquals(setOf("Japji", "Explained"), ScreenContent.rows(opened).map { it.title }.toSet())
+        assertEquals(listOf("Explained", "Japji"), ScreenContent.rows(opened).map { it.title })
+    }
+
+    @Test fun `talk folders are found by name wherever they sit`() {
+        assertTrue(AudiobookIdentity.isRootSegment("Sikhi Talks"))
+        assertTrue(AudiobookIdentity.isRootSegment("NDEs"))
+        assertTrue(AudiobookIdentity.isRootSegment("Plum Village"))
+        assertFalse(AudiobookIdentity.isRootSegment("Kirtan"))
+        assertEquals("sdcard|Sikhi Talks/Jvala Singh/Japji Sahib",
+            AudiobookIdentity.folderKey("sdcard", "Sikhi Talks/Jvala Singh/Japji Sahib/01.mp3"))
+    }
+
+    @Test fun `playlist paths match whatever their case or drive`() {
+        val matcher = com.schulzcode.y2player.core.model.TrackPathMatcher(listOf(song, next))
+        assertEquals(song.id, matcher.match("/storage/sdcard1/music/kirtan/shabad.MP3"))
+        assertEquals("a PC path finds the same file", song.id, matcher.match("E:/Music/Kirtan/Shabad.mp3"))
+        assertEquals(next.id, matcher.match("Kirtan/Next.mp3"))
+        assertNull(matcher.match("Other/Unknown.mp3"))
+    }
+
+    @Test fun `holding Centre on a video offers to mark it unwatched`() {
+        val path = "/storage/sdcard1/Videos/Film.mp4"
+        val listing = listOf(VideoItem(VideoItemKind.VIDEO, "Film", path, watched = true))
+        val videos = AppState(
+            screenStack = listOf(ScreenEntry(Screen.MainMenu), ScreenEntry(Screen.Videos())),
+            videos = VideoBrowseState(listings = mapOf(VideoBrowseState.TOP_LEVEL to listing))
+        )
+        val card = AppReducer.reduce(videos, AppAction.ConfirmLong).state
+        assertEquals(Screen.VideoOptions(path, "Film", isFolder = false), card.currentScreen)
+        val rows = ScreenContent.rows(card).map { it as ScreenRow.Action }
+        assertEquals(listOf("Play", "Mark as Unwatched"), rows.map { it.title })
+        val marked = AppReducer.reduce(card.copy(screenStack = card.screenStack.dropLast(1) +
+            card.currentEntry.copy(selectedIndex = 1)), AppAction.Confirm)
+        assertEquals(AppEffect.SetVideoWatched(path, watched = false, folder = false), marked.effects.first())
+        assertEquals(Screen.Videos(), marked.state.currentScreen)
     }
 
     @Test fun `talks never appear in Songs`() {

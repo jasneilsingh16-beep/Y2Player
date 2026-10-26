@@ -164,6 +164,8 @@ sealed interface AppEffect {
     // own full-screen activity, with music paused first.
     data class LoadVideos(val path: String?) : AppEffect
     data object RefreshVideoProgress : AppEffect
+    /** Marks a video, or every video in a folder, watched or not; unwatched forgets the place too. */
+    data class SetVideoWatched(val path: String, val watched: Boolean, val folder: Boolean) : AppEffect
     data class PlayVideo(val path: String, val folderVideos: List<String>) : AppEffect
 }
 

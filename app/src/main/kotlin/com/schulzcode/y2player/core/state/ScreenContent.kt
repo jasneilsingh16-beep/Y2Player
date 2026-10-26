@@ -105,6 +105,7 @@ object ScreenContent {
     fun title(state: AppState): String = when (val screen = state.currentScreen) {
         Screen.MainMenu -> "Home"
         is Screen.Videos -> screen.path?.let { java.io.File(it).name } ?: "Videos"
+        is Screen.VideoOptions -> screen.title
         is Screen.Search -> "Search"
         Screen.Music -> "Music"
         Screen.FmRadio -> "FM Radio"
@@ -232,6 +233,7 @@ object ScreenContent {
         is Screen.TalkCollection -> TalksContent.rows(state, screen.path)
         Screen.Continue -> TalksContent.continueRows(state)
         is Screen.Videos -> videoRows(state, screen)
+        is Screen.VideoOptions -> videoOptionRows(state, screen)
         is Screen.AudiobookOptions -> audiobookOptionRows(state, screen.folderKey)
         is Screen.AudiobookChapters -> TalksContent.episodeRows(state, screen.folderKey)
         Screen.Songs -> collectionRows(state.library.index.organization.sortTracks(
@@ -370,6 +372,7 @@ object ScreenContent {
             add(ScreenRow.Action(playlist.name, null, NITNEM_KEY + playlist.id))
         }
         add(ScreenRow.Action("Music", null, "music"))
+        add(ScreenRow.Action("Music Folders", null, MUSIC_FOLDERS_KEY))
         add(ScreenRow.Action("Talks & Podcasts", audiobookMenuSubtitle(state), "audiobooks"))
         add(ScreenRow.Action("Videos", null, "videos"))
         if (state.preferences.showFmRadio) {
@@ -393,8 +396,18 @@ object ScreenContent {
         return when {
             series.isEmpty() -> "Nothing yet"
             active > 0 -> "$active in progress"
-            else -> "${series.size} series"
+            else -> if (series.size == 1) "1 podcast" else "${series.size} podcasts"
         }
+    }
+
+    const val MUSIC_FOLDERS_KEY = "music_folders"
+
+    /** Music Folders on Home: straight into the SD card, or the list of volumes when there are two. */
+    fun musicFoldersScreen(state: AppState): Screen.Folders {
+        val volumes = state.device.storageVolumes.filter { it.available }
+        val withMusic = volumes.filter { volume -> state.library.musicTracks.any { it.volumeId == volume.id } }
+        val only = withMusic.singleOrNull() ?: withMusic.firstOrNull { it.id == "sdcard" }
+        return if (only == null) Screen.Folders() else Screen.Folders(only.id, "")
     }
 
     private fun videoRows(state: AppState, screen: Screen.Videos): List<ScreenRow> =
@@ -436,6 +449,28 @@ object ScreenContent {
                 }
             }
         }
+
+    private fun videoOptionRows(state: AppState, screen: Screen.VideoOptions): List<ScreenRow> {
+        if (screen.isFolder) return listOf(
+            ScreenRow.Action("Mark All Unwatched", "Every video in this folder", VIDEO_OPT_UNWATCHED),
+            ScreenRow.Action("Mark All Watched", null, VIDEO_OPT_WATCHED)
+        )
+        val item = state.videos.listings.values.asSequence().flatten()
+            .firstOrNull { it.kind == VideoItemKind.VIDEO && it.path == screen.path }
+        val started = (item?.resumeMs ?: 0L) > 0L
+        val watched = item?.watched == true
+        return listOfNotNull(
+            ScreenRow.Action(if (started) "Resume" else "Play", null, VIDEO_OPT_PLAY),
+            if (started) ScreenRow.Action("Play from Start", null, VIDEO_OPT_RESTART) else null,
+            if (started || watched) ScreenRow.Action("Mark as Unwatched", "Forgets where you were", VIDEO_OPT_UNWATCHED)
+            else ScreenRow.Action("Mark as Watched", null, VIDEO_OPT_WATCHED)
+        )
+    }
+
+    const val VIDEO_OPT_PLAY = "video_opt_play"
+    const val VIDEO_OPT_RESTART = "video_opt_restart"
+    const val VIDEO_OPT_WATCHED = "video_opt_watched"
+    const val VIDEO_OPT_UNWATCHED = "video_opt_unwatched"
 
     private fun videoCountLabel(count: Int): String = if (count == 1) "1 video" else "$count videos"
 
@@ -524,14 +559,14 @@ object ScreenContent {
     }
 
     private fun musicRows(state: AppState): List<ScreenRow> = listOf(
+        ScreenRow.Action("Folders", null, "folders"),
         ScreenRow.Action("Shuffle All", trackCountLabel(state.library.musicTracks.size), "shuffle_all"),
         ScreenRow.Action("Songs", null, "songs"),
         ScreenRow.Action("Ragis & Speakers", HomePane.artistCount(state).takeIf { it > 0 }?.toString(), "artists"),
         ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Albums", null, "albums"),
         ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
-        ScreenRow.Action("Recently Played", null, "recent"),
-        ScreenRow.Action("Folders", null, "folders")
+        ScreenRow.Action("Recently Played", null, "recent")
     )
 
     /** "Nitnem, Kirtan, Katha…": the categories with the most tracks. */

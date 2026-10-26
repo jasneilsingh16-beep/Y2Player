@@ -88,6 +88,8 @@ class MainActivity : Activity() {
     private lateinit var logger: DiagnosticLogger
     private lateinit var backupManager: UserDataBackupManager
     @Volatile private var pendingBackupPreview: UserDataBackupManager.Preview? = null
+    /** Restore was chosen mid-scan: it runs once the card is indexed, so its tracks can be found. */
+    private var restoreAfterScan = false
     private val mainHandler = Handler(Looper.getMainLooper())
     private val backgroundExecutor = ThreadPoolExecutor(
         1, 1, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue(8),
@@ -176,6 +178,10 @@ class MainActivity : Activity() {
 
     private val libraryListener = LibraryRepository.Listener { state ->
         store.dispatch(AppAction.LibraryChanged(state))
+        if (restoreAfterScan && !state.isScanning) {
+            restoreAfterScan = false
+            handleEffect(AppEffect.ImportBackup)
+        }
         if (state.availabilityRevision != lastAvailabilityRevision) {
             lastAvailabilityRevision = state.availabilityRevision
             playbackBinder?.reconcileAvailability(state.availableTrackIds)
@@ -704,6 +710,10 @@ class MainActivity : Activity() {
                 when {
                     binder == null -> showMessage("Playback is starting")
                     preview == null -> showMessage("Select Import Backup again to validate the file")
+                    libraryRepository.snapshot().isScanning -> {
+                        restoreAfterScan = true
+                        showMessage("Restoring when the card scan finishes")
+                    }
                     else -> binder.prepareBackupImport {
                         backgroundExecutor.execute {
                             backupManager.import(preview).onSuccess { result ->
@@ -759,6 +769,11 @@ class MainActivity : Activity() {
 
             is AppEffect.LoadVideos -> loadVideos(effect.path)
             AppEffect.RefreshVideoProgress -> refreshVideoProgress()
+            is AppEffect.SetVideoWatched -> {
+                val resume = VideoResumeStore(applicationContext)
+                if (effect.folder) VideoLibrary.videosIn(java.io.File(effect.path)).forEach { resume.setWatched(it, effect.watched) }
+                else resume.setWatched(effect.path, effect.watched)
+            }
             is AppEffect.PlayVideo -> {
                 // One output at a time: music pauses and stays exactly where it was.
                 // A running sleep timer moves to the video and comes back afterwards.

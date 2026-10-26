@@ -2,6 +2,7 @@ package com.schulzcode.y2player.library
 
 import com.schulzcode.y2player.core.model.LibraryState
 import com.schulzcode.y2player.core.model.Track
+import com.schulzcode.y2player.core.model.TrackPathMatcher
 import com.schulzcode.y2player.storage.StorageRoot
 import com.schulzcode.y2player.storage.preferredWritableRoot
 import java.io.File
@@ -13,6 +14,8 @@ class PlaylistFileManager(private val database: LibraryDatabase) {
     fun importFiles(files: List<File>): ImportResult {
         var imported = 0
         var matched = 0
+        // Built only when an exact lookup misses, then shared by every file.
+        val matcher by lazy { TrackPathMatcher(database.loadTracks()) }
         files.asSequence()
             .filter { it.isFile && it.canRead() && it.length() <= MAX_PLAYLIST_BYTES }
             .mapNotNull { runCatching { it.canonicalFile }.getOrNull() }
@@ -23,7 +26,7 @@ class PlaylistFileManager(private val database: LibraryDatabase) {
                 val resolved = runCatching {
                     forEachResolvedBatch(file) { batch ->
                         val idsByPath = database.findTrackIdsByAbsolutePaths(batch)
-                        batch.forEach { path -> idsByPath[path]?.let(trackIds::add) }
+                        batch.forEach { path -> (idsByPath[path] ?: matcher.match(path))?.let(trackIds::add) }
                     }
                 }.isSuccess
                 if (!resolved) return@forEach
