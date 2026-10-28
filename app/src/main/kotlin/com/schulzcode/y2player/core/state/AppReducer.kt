@@ -418,7 +418,7 @@ object AppReducer {
     private fun openNitnem(state: AppState, key: String): Reduction {
         val id = key.substringAfter(':').toLongOrNull() ?: return Reduction(state)
         val playlist = state.library.playlists.firstOrNull { it.id == id } ?: return Reduction(state)
-        val screen = Screen.PlaylistTracks(id, playlist.name)
+        val screen = Screen.PlaylistTracks(id, "Nitnem")
         val rows = ScreenContent.rows(pushState(state, screen))
         val due = if (ClockPresentation.isSet(state.clock)) NitnemSchedule.due(ClockPresentation.fields(state.clock).hour) else null
         val index = due?.let { word -> rows.indexOfFirst { it.title.contains(word, ignoreCase = true) } }?.takeIf { it >= 0 } ?: 0
@@ -471,7 +471,7 @@ object AppReducer {
             key.startsWith("playlist:") -> {
                 val id = key.substringAfter(':').toLongOrNull() ?: return Reduction(state)
                 val playlist = state.library.playlists.firstOrNull { it.id == id } ?: return Reduction(state)
-                push(state, Screen.PlaylistTracks(id, playlist.name))
+                push(state, Screen.PlaylistTracks(id, playlist.title))
             }
             else -> Reduction(state)
         }

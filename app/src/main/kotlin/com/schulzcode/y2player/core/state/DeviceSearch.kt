@@ -125,8 +125,8 @@ internal object DeviceSearch {
             })
         }
         library.playlists.forEach { playlist ->
-            add(entry(playlist.name) {
-                DeviceSearchResult.PlaylistResult(playlist.id, playlist.name, playlist.trackCount, it)
+            add(entry(playlist.title) {
+                DeviceSearchResult.PlaylistResult(playlist.id, playlist.title, playlist.trackCount, it)
             })
         }
         val audiobookFolders = LinkedHashMap<String, MutableList<Track>>()

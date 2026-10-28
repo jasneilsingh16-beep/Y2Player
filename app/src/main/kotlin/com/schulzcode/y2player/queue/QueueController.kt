@@ -83,6 +83,12 @@ class QueueController(
         shuffleEnabled = session?.shuffleEnabled ?: false
         shuffleSeed = session?.shuffleSeed ?: System.nanoTime()
         nextEntryId = (entries.maxOfOrNull(QueueEntry::id) ?: 0L) + 1L
+        // A shuffled queue can come back in A-Z order; what is left is shuffled afresh,
+        // so a restart never replays the start of the alphabet.
+        if (shuffleEnabled && legacyOrder == null) {
+            shuffleSeed = System.nanoTime()
+            reorderFutureContinuation(shuffled = true)
+        }
         touchEntries()
     }
 

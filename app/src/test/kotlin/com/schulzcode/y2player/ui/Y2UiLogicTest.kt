@@ -203,7 +203,7 @@ class Y2UiLogicTest {
     }
 
     @Test fun mainMenuRowCalculationRemainsStableForWheelNavigation() {
-        assertEquals(7, ScreenContent.rows(AppState()).size)
+        assertEquals(6, ScreenContent.rows(AppState()).size)
     }
 
     private fun contrastRatio(first: Int, second: Int): Double {

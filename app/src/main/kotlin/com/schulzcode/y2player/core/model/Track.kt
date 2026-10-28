@@ -320,7 +320,14 @@ data class PlaylistSummary(
     val id: Long,
     val name: String,
     val trackCount: Int
-)
+) {
+    /** The name as shown: an imported playlist is stored as "M3U · Nitnem" and shown as "Nitnem". */
+    val title: String get() = name.removePrefix(IMPORTED_PREFIX).trim().ifEmpty { name }
+
+    companion object {
+        const val IMPORTED_PREFIX = "M3U · "
+    }
+}
 
 object AudioCodecLabels {
     fun label(codec: String?, extension: String): String {

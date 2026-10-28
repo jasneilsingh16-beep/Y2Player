@@ -171,7 +171,7 @@ internal sealed interface HomePane {
             val due = if (ClockPresentation.isSet(state.clock)) NitnemSchedule.due(ClockPresentation.fields(state.clock).hour) else null
             val dueTrack = due?.let { word -> tracks.firstOrNull { it.title.contains(word, ignoreCase = true) } }
             return Collection(
-                playlist.name,
+                "Nitnem",
                 ScreenContent.trackCountLabel(tracks.size),
                 distinctArt(tracks),
                 tracks.take(3).map { Line(it.title, it.displayArtist, emphasised = it == dueTrack) },

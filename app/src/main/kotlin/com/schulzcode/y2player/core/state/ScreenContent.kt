@@ -362,10 +362,9 @@ object ScreenContent {
         }
         add(ScreenRow.Action("Favourites", state.library.favoriteMusicTracks.size.takeIf { it > 0 }?.let(::countLabel), "favorites"))
         nitnemPlaylist(state)?.let { playlist ->
-            add(ScreenRow.Action(playlist.name, nitnemSummary(state, playlist), NITNEM_KEY + playlist.id))
+            add(ScreenRow.Action("Nitnem", nitnemSummary(state, playlist), NITNEM_KEY + playlist.id))
         }
         add(ScreenRow.Action("Music", null, "music"))
-        add(ScreenRow.Action("Music Folders", null, MUSIC_FOLDERS_KEY))
         add(ScreenRow.Action("Talks & Podcasts", audiobookMenuSubtitle(state), "audiobooks"))
         add(ScreenRow.Action("Videos", state.videos.inProgress.size.takeIf { it > 0 }?.let { "$it in progress" }, "videos"))
         if (state.preferences.showFmRadio) {
@@ -405,10 +404,14 @@ object ScreenContent {
         return if (tracks.size == 1) "1 bani" else "${tracks.size} banis"
     }
 
-    /** The playlist named Nitnem, which Home offers by name. */
+    /**
+     * The playlist Home offers as Nitnem: one named exactly Nitnem (an imported
+     * "M3U · Nitnem" counts), else the shortest name with Nitnem in it, so a
+     * reciter's whole "Giani Thakur Singh Nitnem" album never wins over it.
+     */
     internal fun nitnemPlaylist(state: AppState): com.schulzcode.y2player.core.model.PlaylistSummary? =
-        state.library.playlists.firstOrNull { it.name.trim().equals("Nitnem", ignoreCase = true) }
-            ?: state.library.playlists.firstOrNull { it.name.contains("nitnem", ignoreCase = true) }
+        state.library.playlists.firstOrNull { it.title.equals("Nitnem", ignoreCase = true) }
+            ?: state.library.playlists.filter { it.title.contains("nitnem", ignoreCase = true) }.minByOrNull { it.title.length }
 
     private fun audiobookMenuSubtitle(state: AppState): String? {
         val series = audiobookEntries(state)
@@ -746,7 +749,7 @@ object ScreenContent {
                 }
             }
             add(ScreenRow.Action(
-                playlist.name,
+                playlist.title,
                 trackCountLabel(if (storedIds == null) playlist.trackCount else visibleCount),
                 "playlist:${playlist.id}",
                 artworkTrackId
@@ -852,7 +855,7 @@ object ScreenContent {
                 state.library.byId[id] != null
             }
             add(ScreenRow.Action(
-                playlist.name,
+                playlist.title,
                 trackCountLabel(playlist.trackCount),
                 "playlist_add:${playlist.id}",
                 artworkTrackId
