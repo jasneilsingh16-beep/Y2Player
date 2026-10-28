@@ -501,6 +501,7 @@ object AppReducer {
             key.startsWith("track_album:") -> state.library.byId[trackId]
                 ?.let { push(pop(state), Screen.AlbumSongs(it.displayAlbum, it.albumArtistName)) } ?: Reduction(state)
             key.startsWith("track_details:") -> push(state, Screen.TrackDetails(trackId))
+            key.startsWith(ScreenContent.EPISODE_UNPLAYED_ON_KEY) -> markEpisode(state, trackId, played = false, fromHereOn = true)
             key.startsWith(ScreenContent.EPISODE_UNPLAYED_KEY) || key.startsWith(ScreenContent.EPISODE_PLAYED_KEY) ->
                 markEpisode(state, trackId, played = key.startsWith(ScreenContent.EPISODE_PLAYED_KEY))
             key.startsWith("track_remove_playlist:") -> {
@@ -512,20 +513,21 @@ object AppReducer {
         }
     }
 
-    private fun markEpisode(state: AppState, trackId: Long, played: Boolean): Reduction {
+    private fun markEpisode(state: AppState, trackId: Long, played: Boolean, fromHereOn: Boolean = false): Reduction {
         val track = state.library.byId[trackId] ?: return Reduction(state)
         val folderKey = track.audiobookFolderKey ?: return Reduction(state)
         val entry = ScreenContent.audiobookEntry(state, folderKey) ?: return Reduction(state)
         val index = entry.chapterIds.indexOf(trackId)
         if (index < 0) return Reduction(state)
         val closed = pop(state)
-        if (played) {
-            val next = entry.chapterIds.getOrNull(index + 1) ?: return Reduction(closed)
-            return Reduction(closed, listOf(SetAudiobookEpisode(folderKey, next, "Marked as played")))
+        if (!fromHereOn) {
+            return Reduction(closed, listOf(SetEpisodesPlayed(listOf(ScreenContent.episodeKey(track)), played,
+                if (played) "Marked as played" else "Marked as unplayed")))
         }
-        // Unplayed from the first episode means the series was never started.
-        if (index == 0) return Reduction(closed, listOf(ClearAudiobookProgress(folderKey)))
-        return Reduction(closed, listOf(SetAudiobookEpisode(folderKey, trackId, "Marked as unplayed")))
+        // Everything from here on is unheard again, and Continue picks up here.
+        val keys = entry.chapterIds.drop(index).mapNotNull(state.library.byId::get).map(ScreenContent::episodeKey)
+        val resume = if (index == 0) ClearAudiobookProgress(folderKey) else SetAudiobookEpisode(folderKey, trackId, "Unplayed from here on")
+        return Reduction(closed, listOf(SetEpisodesPlayed(keys, false, "Unplayed from here on"), resume))
     }
 
     private fun confirmTrackBrowse(state: AppState, screen: Screen.TrackBrowse, row: ScreenRow): Reduction {

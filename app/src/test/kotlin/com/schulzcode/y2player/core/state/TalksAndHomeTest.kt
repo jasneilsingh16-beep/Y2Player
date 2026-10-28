@@ -113,14 +113,14 @@ class TalksAndHomeTest {
         val progress = mapOf(folder to AudiobookProgress(japji[2].id, 1_000, 10))
         val state = AppState(
             screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(folder)), ScreenEntry(Screen.TrackOptions(japji[1].id))),
-            library = library.copy(audiobookProgress = progress)
+            library = library.copy(audiobookProgress = progress, playedEpisodes = setOf(ScreenContent.episodeKey(japji[1])))
         )
         val rows = ScreenContent.rows(state).map { it as ScreenRow.Action }
         val unplayed = rows.indexOfFirst { it.key.startsWith(ScreenContent.EPISODE_UNPLAYED_KEY) }
-        assertTrue(unplayed >= 0)
+        assertEquals("the card leads with it", 0, unplayed)
         val result = AppReducer.reduce(state.copy(screenStack = state.screenStack.dropLast(1) +
             state.currentEntry.copy(selectedIndex = unplayed)), AppAction.Confirm)
-        assertEquals(AppEffect.SetAudiobookEpisode(folder, japji[1].id, "Marked as unplayed"), result.effects.single())
+        assertEquals(AppEffect.SetEpisodesPlayed(listOf(ScreenContent.episodeKey(japji[1])), false, "Marked as unplayed"), result.effects.single())
         assertEquals(Screen.AudiobookChapters(folder), result.state.currentScreen)
     }
 

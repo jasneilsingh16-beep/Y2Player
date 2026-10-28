@@ -135,7 +135,7 @@ class AudiobookListTest {
         val tracks = (1..24).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[7].id, 300_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("7 of 24 played", row.subtitle)
+        assertEquals("0 of 24 played", row.subtitle)
         assertEquals(0.3125f, row.progress!!.fraction, 0.001f)
     }
 
@@ -167,7 +167,7 @@ class AudiobookListTest {
 
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[1].id, 5_000, 99))
         val row = rows(state(tracks, progress)).single()
-        assertEquals("1 of 4 played", row.subtitle)
+        assertEquals("0 of 4 played", row.subtitle)
         assertEquals(0.25f, row.progress!!.fraction, 0.001f)
     }
 
@@ -283,7 +283,7 @@ class AudiobookListTest {
         val tracks = (1..10).map { chapter("AUDIOBOOKS/Dune/%02d.mp3".format(it)) }
         val progress = mapOf(key("Dune") to AudiobookProgress(tracks[4].id, 60_000, 99))
         val before = state(tracks, progress)
-        assertTrue(rows(before).single().subtitle!!.contains("4 of 10 played"))
+        assertTrue(rows(before).single().subtitle!!.contains("0 of 10 played"))
 
         // What a scan produces: a new index and bumped revisions, everything else carried.
         val rescanned = before.copy(
@@ -295,7 +295,7 @@ class AudiobookListTest {
         )
         assertTrue(
             "a rescan must not reset the series to unstarted",
-            rows(rescanned).single().subtitle!!.contains("4 of 10 played")
+            rows(rescanned).single().subtitle!!.contains("0 of 10 played")
         )
     }
 
@@ -362,6 +362,6 @@ class AudiobookListTest {
         val after = before.copy(library = before.library.copy(revision = 1, audiobookProgress = progress))
         val row = ScreenContent.rows(after).single() as ScreenRow.Action
         assertNotNull(row.subtitle)
-        assertTrue("progress must invalidate the cached rows", row.subtitle!!.contains("2 of 4 played"))
+        assertTrue("progress must invalidate the cached rows", row.subtitle!!.contains("0 of 4 played"))
     }
 }

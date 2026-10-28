@@ -200,7 +200,10 @@ class AudiobookOptionsTest {
     }
 
     @Test fun `earlier episodes read as played and later ones as unplayed`() {
-        val page = AppState(screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(dune))), library = library(startedAtChapter(4)))
+        val base = library(startedAtChapter(4))
+        // Only episodes heard to the end count as played.
+        val heard = base.availableTracks.filter { it.audiobookFolderKey == dune }.take(3).map(ScreenContent::episodeKey).toSet()
+        val page = AppState(screenStack = listOf(ScreenEntry(Screen.AudiobookChapters(dune))), library = base.copy(playedEpisodes = heard))
         val rows = ScreenContent.rows(page).map { it as ScreenRow.Action }
         assertEquals("Played", rows[1].subtitle)
         assertEquals(RowProgress.PLAYED, rows[3].progress)

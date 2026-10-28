@@ -52,6 +52,8 @@ data class LibraryState(
     val playlistTrackIds: Map<Long, List<Long>> = emptyMap(),
     val recentlyPlayedIds: List<Long> = emptyList(),
     val audiobookProgress: Map<String, AudiobookProgress> = emptyMap(),
+    /** Episodes heard to the end, as "volume|path". */
+    val playedEpisodes: Set<String> = emptySet(),
     val isScanning: Boolean = false,
     val scanProgress: LibraryScanProgress = LibraryScanProgress(),
     val lastScanAt: Long? = null,

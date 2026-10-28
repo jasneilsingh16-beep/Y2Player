@@ -650,11 +650,13 @@ object ScreenContent {
         val revision = state.library.revision
         val identity = System.identityHashCode(state.library.index)
         val progress = state.library.audiobookProgress
-        if (cachedBookRevision == revision && cachedBookIdentity == identity && cachedBookProgress === progress) return cachedBooks
+        if (cachedBookRevision == revision && cachedBookIdentity == identity && cachedBookProgress === progress &&
+            cachedBookPlayed === state.library.playedEpisodes) return cachedBooks
         val entries = buildAudiobookEntries(state)
         cachedBookRevision = revision
         cachedBookIdentity = identity
         cachedBookProgress = progress
+        cachedBookPlayed = state.library.playedEpisodes
         cachedBooks = entries
         return entries
     }
@@ -663,6 +665,7 @@ object ScreenContent {
     private var cachedBookIdentity = 0
     private var cachedBookProgress: Map<String, com.schulzcode.y2player.core.model.AudiobookProgress>? = null
     private var cachedBooks: List<AudiobookEntry> = emptyList()
+    private var cachedBookPlayed: Set<String>? = null
 
     private fun buildAudiobookEntries(state: AppState): List<AudiobookEntry> {
         val groups = LinkedHashMap<String, MutableList<Track>>()
@@ -701,6 +704,7 @@ object ScreenContent {
                     folderKey = key,
                     name = if (looseFile) ordered.first().title else lastSegment,
                     chapterIds = ordered.map { it.id },
+                    playedCount = ordered.count { episodeKey(it) in state.library.playedEpisodes },
                     chapterCount = ordered.size,
                     totalDurationMs = if (everyDurationKnown) total else 0L,
                     chapterNumber = if (index >= 0) index + 1 else null,
@@ -789,7 +793,9 @@ object ScreenContent {
         val trackId = screen.trackId
         val track = state.library.byId[trackId] ?: return listOf(ScreenRow.Group("Track unavailable", null, "missing"))
         return buildList {
-            if (!screen.fromNowPlaying) {
+            // An episode's card leads with what it is for: played or not.
+            if (track.isAudiobookChapter) episodeMarkRows(state, track).forEach(::add)
+            if (!screen.fromNowPlaying && !track.isAudiobookChapter) {
                 add(ScreenRow.Action("Play Next", null, "track_next:$trackId"))
                 add(ScreenRow.Action("Add to Up Next", null, "track_queue:$trackId"))
             }
@@ -802,29 +808,30 @@ object ScreenContent {
                 add(ScreenRow.Action("Go to ${track.primaryArtist}", null, "track_artist:$trackId"))
                 add(ScreenRow.Action("Go to Album", track.displayAlbum, "track_album:$trackId"))
             }
-            episodeMarkRows(state, track).forEach(::add)
-            if (!screen.fromNowPlaying) add(ScreenRow.Action("Select Several", null, "track_multi:$trackId"))
+            if (!screen.fromNowPlaying && !track.isAudiobookChapter) add(ScreenRow.Action("Select Several", null, "track_multi:$trackId"))
             add(ScreenRow.Action("Details", null, "track_details:$trackId"))
         }
     }
 
     /**
-     * An episode can be marked unplayed, for the ones that played on while you
-     * slept, or played. Episodes count as played up to the one in progress, so
-     * marking moves that point.
+     * Hold Centre on an episode: mark it played or unplayed, or unplayed from here
+     * on, for the ones that played on while you slept.
      */
     private fun episodeMarkRows(state: AppState, track: Track): List<ScreenRow> {
         val folderKey = track.audiobookFolderKey ?: return emptyList()
         val entry = audiobookEntry(state, folderKey) ?: return emptyList()
-        val index = entry.chapterIds.indexOf(track.id).takeIf { it >= 0 } ?: return emptyList()
-        val heard = entry.inProgress && index <= entry.startIndex
-        return listOfNotNull(
-            if (heard) ScreenRow.Action("Mark as Unplayed", "This and every later episode", "$EPISODE_UNPLAYED_KEY${track.id}") else null,
-            if (index < entry.chapterCount - 1 && !(entry.inProgress && index < entry.startIndex))
-                ScreenRow.Action("Mark as Played", "This and every earlier episode", "$EPISODE_PLAYED_KEY${track.id}") else null
+        if (track.id !in entry.chapterIds) return emptyList()
+        val played = episodeKey(track) in state.library.playedEpisodes
+        return listOf(
+            if (played) ScreenRow.Action("Mark as Unplayed", null, "$EPISODE_UNPLAYED_KEY${track.id}")
+            else ScreenRow.Action("Mark as Played", null, "$EPISODE_PLAYED_KEY${track.id}"),
+            ScreenRow.Action("Unplayed from Here On", "This and every later episode", "$EPISODE_UNPLAYED_ON_KEY${track.id}")
         )
     }
 
+    fun episodeKey(track: Track): String = track.volumeId + "|" + track.relativePath
+
+    const val EPISODE_UNPLAYED_ON_KEY = "episode_unplayed_on:"
     const val EPISODE_UNPLAYED_KEY = "episode_unplayed:"
     const val EPISODE_PLAYED_KEY = "episode_played:"
 
@@ -1028,7 +1035,7 @@ object ScreenContent {
         // How far through the series, on its own line above the episodes.
         is Screen.AudiobookChapters -> audiobookEntry(state, (state.currentScreen as Screen.AudiobookChapters).folderKey)
             ?.takeIf { it.chapterCount > 1 }
-            ?.let { if (it.inProgress) "${it.startIndex} of ${it.chapterCount} played" else "${it.chapterCount} episodes, none played yet" }
+            ?.let { if (it.playedCount > 0) "${it.playedCount} of ${it.chapterCount} played" else "${it.chapterCount} episodes, none played yet" }
         else -> null
     }
 
@@ -2096,7 +2103,9 @@ internal data class AudiobookEntry(
     /** Where the current episode was left; 0 when nothing has been played. */
     val positionMs: Long = 0L,
     /** The speaker or podcast when every episode shares one. */
-    val artist: String? = null
+    val artist: String? = null,
+    /** Episodes heard to the end. */
+    val playedCount: Int = 0
 ) {
     val inProgress: Boolean get() = chapterNumber != null
     val currentChapterId: Long? get() = chapterIds.getOrNull(startIndex)

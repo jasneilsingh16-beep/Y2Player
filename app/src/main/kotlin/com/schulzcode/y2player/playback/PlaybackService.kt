@@ -1,5 +1,7 @@
 package com.schulzcode.y2player.playback
 
+import com.schulzcode.y2player.library.PlayedEpisodeStore
+
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -1508,7 +1510,13 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         submitPersistence("audiobook progress") {
             database.saveAudiobookProgress(folderKey, track.id, storedPosition)
         }
+        // Heard to 90%: this episode counts as played, and only this one.
+        if (durationMs > 0 && positionMs >= durationMs * PLAYED_FRACTION &&
+            playedEpisodes.set(listOf(PlayedEpisodeStore.keyOf(track)), true)
+        ) libraryRepository.refreshAudiobookProgress()
     }
+
+    private val playedEpisodes by lazy { PlayedEpisodeStore(this) }
 
     private fun clearAudiobookProgressForCurrent() {
         val folderKey = currentTrack?.audiobookFolderKey ?: return
@@ -2423,6 +2431,7 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         private const val VOLUME_FADE_STEP_MS = 25L
         /** A slow fade is less likely to wake someone who has just fallen asleep. */
         private const val SLEEP_FADE_MS = 45_000L
+        private const val PLAYED_FRACTION = .9
         private const val ROUTE_LOSS_MESSAGE = "Private audio output disconnected - playback paused"
         private val ACTIVE_STATUSES = setOf(PlaybackStatus.PLAYING, PlaybackStatus.PREPARING)
         private val RESUMABLE_ENGINE_STATES = setOf(

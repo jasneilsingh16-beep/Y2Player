@@ -24,7 +24,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class LibraryRepository(
-    appContext: Context,
+    private val appContext: Context,
     private val database: LibraryDatabase,
     private val scanner: LibraryScanner = LibraryScanner(),
     private val logger: DiagnosticLogger,
@@ -361,14 +361,17 @@ class LibraryRepository(
         }
     }
 
+    private val playedEpisodes by lazy { PlayedEpisodeStore(appContext) }
+
     fun refreshAudiobookProgress() = stateExecutor.execute {
         val progress = runCatching { database.loadAllAudiobookProgress() }.getOrElse { error ->
             logger.warn("Library", "audiobook progress unavailable (${error.javaClass.simpleName})")
             return@execute
         }
-        if (progress == current.audiobookProgress) return@execute
+        val played = playedEpisodes.all()
+        if (progress == current.audiobookProgress && played == current.playedEpisodes) return@execute
         revision += 1
-        publish(current.copy(revision = revision, audiobookProgress = progress))
+        publish(current.copy(revision = revision, audiobookProgress = progress, playedEpisodes = played))
     }
 
     fun toggleFavorite(trackId: Long) = stateExecutor.execute {

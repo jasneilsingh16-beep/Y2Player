@@ -106,8 +106,8 @@ internal object TalksContent {
         val parts = ArrayList<String>(2)
         if (entry.chapterCount == 1) {
             parts += if (entry.inProgress) "In progress" else (duration(entry.totalDurationMs) ?: "1 episode")
-        } else if (entry.inProgress) {
-            parts += "${entry.startIndex} of ${entry.chapterCount} played"
+        } else if (entry.inProgress || entry.playedCount > 0) {
+            parts += "${entry.playedCount} of ${entry.chapterCount} played"
         } else {
             parts += listOfNotNull("${entry.chapterCount} episodes", duration(entry.totalDurationMs)).joinToString(" · ")
         }
@@ -153,8 +153,9 @@ internal object TalksContent {
                 ))
             }
             episodes.forEachIndexed { index, episode ->
-                val played = entry.inProgress && index < entry.startIndex
                 val playing = entry.inProgress && index == entry.startIndex
+                // Played means heard to the end; nothing before it is assumed.
+                val played = !playing && ScreenContent.episodeKey(episode) in state.library.playedEpisodes
                 add(ScreenRow.Action(
                     episode.title,
                     when {

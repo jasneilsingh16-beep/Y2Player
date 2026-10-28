@@ -675,6 +675,11 @@ class MainActivity : Activity() {
                     } else showMessage("Could not clear progress")
                 }
             }
+            is AppEffect.SetEpisodesPlayed -> backgroundExecutor.execute {
+                com.schulzcode.y2player.library.PlayedEpisodeStore(applicationContext).set(effect.keys, effect.played)
+                libraryRepository.refreshAudiobookProgress()
+                showMessage(effect.message)
+            }
             is AppEffect.SetAudiobookEpisode -> {
                 val binder = playbackBinder
                 if (binder == null) showMessage("Playback is starting") else binder.setAudiobookEpisode(effect.folderKey, effect.trackId) { success ->
