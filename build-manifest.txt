@@ -1,0 +1,80 @@
+Y2Player system-image build manifest
+====================================
+
+Build date (UTC)     : 2026-10-28 21:25:24
+Git commit           : 837ffad5813062eb2106fe4ea116d62f5799ba55
+Working tree dirty   : yes
+Build ID             : 20261028-212515-837ffad58130-dirty
+
+Application
+-----------
+Gradle command       : ./gradlew clean testDebugUnitTest lintDebug assembleRelease
+Tests/lint status    : passed
+APK source path      : /home/runner/work/Y2Player/Y2Player/app/build/outputs/apk/release/app-release.apk
+APK output path      : /home/runner/work/Y2Player/Y2Player/out/firmware/Y2Player.apk
+APK SHA-256          : ba03e698515612f52b268c495604ac98f3832f95cdc3280d99710cbb1c1f34a8
+Native source path   : /home/runner/work/Y2Player/Y2Player/app/src/main/jniLibs/armeabi-v7a/liby2audio.so
+Native size          : 1464568 bytes
+Native SHA-256       : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+{
+  "version": 3,
+  "artifactType": {
+    "type": "APK",
+    "kind": "Directory"
+  },
+  "applicationId": "com.schulzcode.y2player",
+  "variantName": "release",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 19,
+      "versionName": "2.5",
+      "outputFile": "app-release.apk"
+    }
+  ],
+  "elementType": "File",
+  "minSdkVersionForDexing": 19
+}
+System image
+------------
+Base path            : /home/runner/work/Y2Player/Y2Player/y2_v3.2.0_FM-20260813/system.img
+Base SHA-256         : 49cb4d40f053390e04641f135818bd2a479a545322026aae6442bf505a646d85
+Output path          : /home/runner/work/Y2Player/Y2Player/out/firmware/system.img
+Base sparse size     : 499930676 bytes
+Output sparse size   : 369420236 bytes
+Output SHA-256       : b961ddae0dc87379ea497f3517aa22ab3346e02860ffdc51e34fce28886f92dd
+Format               : Android sparse (ext4 payload)
+Package profile      : conservative Y2Player appliance
+Optional packages    : 35 APK/ODEX sets pruned
+Critical guards      : 26 retained APKs verified
+Provision.apk        : retained for blank-userdata first boot
+Freed ext4 blocks    : cleared and independently verified as zero
+APK install path     : /system/priv-app/Y2Player.apk
+Native install path  : /system/lib/liby2audio.so
+Primary HAL path     : /system/lib/libaudio.primary.default.so
+Stock HAL             : exact supported variant verified during integration
+Patched HAL           : exact variant-specific digest verified after patching
+DAC rate hook        : guarded 44100/48000 Hz, ioctl 0x40044305 by value
+Keypad layout path   : /system/usr/keylayout/mtk-kpd.kl
+Stock keypad SHA-256 : de48544bbfd465ac844bff2fd9f30c5793738041b6da6f228eeb8c40e9d444a7
+Patched keypad SHA   : b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+Volume scan mapping  : 115=MEDIA_FAST_FORWARD, 114=MEDIA_REWIND
+Verification         : passed
+
+Tool versions
+-------------
+python3              : Python 3.12.3
+debugfs              : debugfs 1.47.0 (5-Feb-2023)
+e2fsck               : e2fsck 1.47.0 (5-Feb-2023)
+
+Diagnostics
+-----------
+app log (device)     : /data/data/com.schulzcode.y2player/files/logs/
+app log mirror       : /storage/sdcard1/Y2Player/logs/ (best effort)
+watch live           : adb logcat
+
+Safety
+------
+Only system.img was rebuilt. No device operation was performed.

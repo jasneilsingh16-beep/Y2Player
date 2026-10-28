@@ -1,0 +1,936 @@
+install prefix            /home/runner/work/Y2Player/Y2Player/build/native/ffmpeg/armeabi-v7a
+source path               src
+C compiler                /home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang
+C library                 bionic
+host C compiler           gcc
+host C library            glibc
+ARCH                      arm (armv7-a)
+big-endian                no
+runtime cpu detection     yes
+ARMv5TE enabled           yes
+ARMv6 enabled             yes
+ARMv6T2 enabled           yes
+VFP enabled               yes
+NEON enabled              no
+THUMB enabled             no
+debug symbols             no
+strip symbols             yes
+optimize for size         yes
+optimizations             yes
+static                    yes
+shared                    no
+network support           no
+threading support         pthreads
+safe bitstream reader     yes
+texi2html enabled         no
+perl enabled              yes
+pod2man enabled           yes
+makeinfo enabled          yes
+makeinfo supports HTML    yes
+experimental features     yes
+xmllint enabled           no
+
+External libraries:
+
+External libraries providing hardware acceleration:
+
+Libraries:
+avcodec                 avutil
+avformat                swresample
+
+Programs:
+
+Enabled decoders:
+aac                     pcm_f64le               pcm_s32le
+alac                    pcm_s16be               pcm_s8
+flac                    pcm_s16le               pcm_u8
+mp3                     pcm_s24be               vorbis
+opus                    pcm_s24le
+pcm_f32le               pcm_s32be
+
+Enabled encoders:
+
+Enabled hwaccels:
+
+Enabled parsers:
+aac                     mpegaudio               vorbis
+flac                    opus
+
+Enabled demuxers:
+aac                     flac                    ogg
+aiff                    mov                     wav
+asf                     mp3
+
+Enabled muxers:
+
+Enabled protocols:
+file
+
+Enabled filters:
+
+Enabled bsfs:
+
+Enabled indevs:
+
+Enabled outdevs:
+
+License: LGPL version 2.1 or later
+config.h is unchanged
+config_components.h is unchanged
+libavutil/avconfig.h is unchanged
+libavfilter/filter_list.c is unchanged
+libavcodec/codec_list.c is unchanged
+libavcodec/parser_list.c is unchanged
+libavcodec/bsf_list.c is unchanged
+libavformat/demuxer_list.c is unchanged
+libavformat/muxer_list.c is unchanged
+libavdevice/indev_list.c is unchanged
+libavdevice/outdev_list.c is unchanged
+libavformat/protocol_list.c is unchanged
+GEN	libavformat/libavformat.pc
+GEN	libavcodec/libavcodec.pc
+GEN	libswresample/libswresample.pc
+GEN	libavutil/libavutil.pc
+INSTALL	src/doc/examples/avio_http_serve_files.c
+INSTALL	src/doc/examples/avio_list_dir.c
+INSTALL	src/doc/examples/avio_read_callback.c
+INSTALL	src/doc/examples/decode_audio.c
+INSTALL	src/doc/examples/decode_filter_audio.c
+INSTALL	src/doc/examples/decode_filter_video.c
+INSTALL	src/doc/examples/decode_video.c
+INSTALL	src/doc/examples/demux_decode.c
+INSTALL	src/doc/examples/encode_audio.c
+INSTALL	src/doc/examples/encode_video.c
+INSTALL	src/doc/examples/extract_mvs.c
+INSTALL	src/doc/examples/filter_audio.c
+INSTALL	src/doc/examples/hw_decode.c
+INSTALL	src/doc/examples/mux.c
+INSTALL	src/doc/examples/qsv_decode.c
+INSTALL	src/doc/examples/qsv_transcode.c
+INSTALL	src/doc/examples/remux.c
+INSTALL	src/doc/examples/resample_audio.c
+INSTALL	src/doc/examples/scale_video.c
+INSTALL	src/doc/examples/show_metadata.c
+INSTALL	src/doc/examples/transcode.c
+INSTALL	src/doc/examples/transcode_aac.c
+INSTALL	src/doc/examples/vaapi_encode.c
+INSTALL	src/doc/examples/vaapi_transcode.c
+INSTALL	src/doc/examples/README
+INSTALL	src/doc/examples/Makefile
+INSTALL	src/doc/examples/avio_http_serve_files.c
+INSTALL	src/doc/examples/avio_list_dir.c
+INSTALL	src/doc/examples/avio_read_callback.c
+INSTALL	src/doc/examples/decode_audio.c
+INSTALL	src/doc/examples/decode_filter_audio.c
+INSTALL	src/doc/examples/decode_filter_video.c
+INSTALL	src/doc/examples/decode_video.c
+INSTALL	src/doc/examples/demux_decode.c
+INSTALL	src/doc/examples/encode_audio.c
+INSTALL	src/doc/examples/encode_video.c
+INSTALL	src/doc/examples/extract_mvs.c
+INSTALL	src/doc/examples/filter_audio.c
+INSTALL	src/doc/examples/hw_decode.c
+INSTALL	src/doc/examples/mux.c
+INSTALL	src/doc/examples/qsv_decode.c
+INSTALL	src/doc/examples/qsv_transcode.c
+INSTALL	src/doc/examples/remux.c
+INSTALL	src/doc/examples/resample_audio.c
+INSTALL	src/doc/examples/scale_video.c
+INSTALL	src/doc/examples/show_metadata.c
+INSTALL	src/doc/examples/transcode.c
+INSTALL	src/doc/examples/transcode_aac.c
+INSTALL	src/doc/examples/vaapi_encode.c
+INSTALL	src/doc/examples/vaapi_transcode.c
+INSTALL	src/doc/examples/README
+INSTALL	src/doc/examples/Makefile
+INSTALL	libavformat/libavformat.a
+INSTALL	libavcodec/libavcodec.a
+INSTALL	libswresample/libswresample.a
+INSTALL	libavutil/libavutil.a
+INSTALL	src/libavformat/avformat.h
+INSTALL	src/libavformat/avio.h
+INSTALL	src/libavformat/version.h
+INSTALL	src/libavformat/version_major.h
+INSTALL	libavformat/libavformat.pc
+INSTALL	src/libavcodec/ac3_parser.h
+INSTALL	src/libavcodec/adts_parser.h
+INSTALL	src/libavcodec/avcodec.h
+INSTALL	src/libavcodec/avdct.h
+INSTALL	src/libavcodec/bsf.h
+INSTALL	src/libavcodec/codec.h
+INSTALL	src/libavcodec/codec_desc.h
+INSTALL	src/libavcodec/codec_id.h
+INSTALL	src/libavcodec/codec_par.h
+INSTALL	src/libavcodec/d3d11va.h
+INSTALL	src/libavcodec/defs.h
+INSTALL	src/libavcodec/dirac.h
+INSTALL	src/libavcodec/dv_profile.h
+INSTALL	src/libavcodec/dxva2.h
+INSTALL	src/libavcodec/exif.h
+INSTALL	src/libavcodec/jni.h
+INSTALL	src/libavcodec/mediacodec.h
+INSTALL	src/libavcodec/packet.h
+INSTALL	src/libavcodec/qsv.h
+INSTALL	src/libavcodec/smpte_436m.h
+INSTALL	src/libavcodec/vdpau.h
+INSTALL	src/libavcodec/version.h
+INSTALL	src/libavcodec/version_major.h
+INSTALL	src/libavcodec/videotoolbox.h
+INSTALL	src/libavcodec/vorbis_parser.h
+INSTALL	libavcodec/libavcodec.pc
+INSTALL	src/libswresample/swresample.h
+INSTALL	src/libswresample/version.h
+INSTALL	src/libswresample/version_major.h
+INSTALL	libswresample/libswresample.pc
+INSTALL	src/libavutil/adler32.h
+INSTALL	src/libavutil/aes.h
+INSTALL	src/libavutil/aes_ctr.h
+INSTALL	src/libavutil/ambient_viewing_environment.h
+INSTALL	src/libavutil/attributes.h
+INSTALL	src/libavutil/audio_fifo.h
+INSTALL	src/libavutil/avassert.h
+INSTALL	src/libavutil/avstring.h
+INSTALL	src/libavutil/avutil.h
+INSTALL	src/libavutil/base64.h
+INSTALL	src/libavutil/blowfish.h
+INSTALL	src/libavutil/bprint.h
+INSTALL	src/libavutil/bswap.h
+INSTALL	src/libavutil/buffer.h
+INSTALL	src/libavutil/cast5.h
+INSTALL	src/libavutil/camellia.h
+INSTALL	src/libavutil/channel_layout.h
+INSTALL	src/libavutil/common.h
+INSTALL	src/libavutil/container_fifo.h
+INSTALL	src/libavutil/cpu.h
+INSTALL	src/libavutil/crc.h
+INSTALL	src/libavutil/csp.h
+INSTALL	src/libavutil/des.h
+INSTALL	src/libavutil/detection_bbox.h
+INSTALL	src/libavutil/dict.h
+INSTALL	src/libavutil/display.h
+INSTALL	src/libavutil/dovi_meta.h
+INSTALL	src/libavutil/downmix_info.h
+INSTALL	src/libavutil/encryption_info.h
+INSTALL	src/libavutil/error.h
+INSTALL	src/libavutil/eval.h
+INSTALL	src/libavutil/executor.h
+INSTALL	src/libavutil/fifo.h
+INSTALL	src/libavutil/file.h
+INSTALL	src/libavutil/film_grain_params.h
+INSTALL	src/libavutil/frame.h
+INSTALL	src/libavutil/hash.h
+INSTALL	src/libavutil/hdr_dynamic_metadata.h
+INSTALL	src/libavutil/hdr_dynamic_vivid_metadata.h
+INSTALL	src/libavutil/hmac.h
+INSTALL	src/libavutil/hwcontext.h
+INSTALL	src/libavutil/hwcontext_cuda.h
+INSTALL	src/libavutil/hwcontext_d3d11va.h
+INSTALL	src/libavutil/hwcontext_d3d12va.h
+INSTALL	src/libavutil/hwcontext_drm.h
+INSTALL	src/libavutil/hwcontext_dxva2.h
+INSTALL	src/libavutil/hwcontext_amf.h
+INSTALL	src/libavutil/hwcontext_qsv.h
+INSTALL	src/libavutil/hwcontext_mediacodec.h
+INSTALL	src/libavutil/hwcontext_opencl.h
+INSTALL	src/libavutil/hwcontext_oh.h
+INSTALL	src/libavutil/hwcontext_vaapi.h
+INSTALL	src/libavutil/hwcontext_videotoolbox.h
+INSTALL	src/libavutil/hwcontext_vdpau.h
+INSTALL	src/libavutil/hwcontext_vulkan.h
+INSTALL	src/libavutil/iamf.h
+INSTALL	src/libavutil/imgutils.h
+INSTALL	src/libavutil/intfloat.h
+INSTALL	src/libavutil/intreadwrite.h
+INSTALL	src/libavutil/lfg.h
+INSTALL	src/libavutil/log.h
+INSTALL	src/libavutil/lzo.h
+INSTALL	src/libavutil/macros.h
+INSTALL	src/libavutil/mathematics.h
+INSTALL	src/libavutil/mastering_display_metadata.h
+INSTALL	src/libavutil/md5.h
+INSTALL	src/libavutil/mem.h
+INSTALL	src/libavutil/motion_vector.h
+INSTALL	src/libavutil/murmur3.h
+INSTALL	src/libavutil/opt.h
+INSTALL	src/libavutil/parseutils.h
+INSTALL	src/libavutil/pixdesc.h
+INSTALL	src/libavutil/pixelutils.h
+INSTALL	src/libavutil/pixfmt.h
+INSTALL	src/libavutil/random_seed.h
+INSTALL	src/libavutil/rc4.h
+INSTALL	src/libavutil/rational.h
+INSTALL	src/libavutil/refstruct.h
+INSTALL	src/libavutil/replaygain.h
+INSTALL	src/libavutil/ripemd.h
+INSTALL	src/libavutil/samplefmt.h
+INSTALL	src/libavutil/sha.h
+INSTALL	src/libavutil/sha512.h
+INSTALL	src/libavutil/spherical.h
+INSTALL	src/libavutil/stereo3d.h
+INSTALL	src/libavutil/tdrdi.h
+INSTALL	src/libavutil/threadmessage.h
+INSTALL	src/libavutil/time.h
+INSTALL	src/libavutil/timecode.h
+INSTALL	src/libavutil/timestamp.h
+INSTALL	src/libavutil/tree.h
+INSTALL	src/libavutil/twofish.h
+INSTALL	src/libavutil/uuid.h
+INSTALL	src/libavutil/version.h
+INSTALL	src/libavutil/video_enc_params.h
+INSTALL	src/libavutil/xtea.h
+INSTALL	src/libavutil/tea.h
+INSTALL	src/libavutil/tx.h
+INSTALL	src/libavutil/video_hint.h
+INSTALL	libavutil/avconfig.h
+INSTALL	libavutil/ffversion.h
+INSTALL	libavutil/libavutil.pc
+Y2Player native audio build
+FFmpeg version: 8.1.2
+FFmpeg SHA-256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
+FFmpeg signing key: FCF986EA15E6E293A5644F10B4322F04D67658D8
+NDK version: 25.2.9519653
+NDK archive SHA-256: 769ee342ea75f80619d985c2da990c48b3d8eaf45f48783a2d48870d04b46108
+Target API: 19
+ABI: armeabi-v7a
+NEON enabled: 0 (runtime-dispatched; C fallback retained)
+FFmpeg patches: 2
+  0001-mov-initialise-chnl-return-value.patch 287218de6d2726c20ecc7c4e34901e44f4538ff1bfe37dcbc7fc8f8c4a88607b
+  0002-skip-attached-picture-payloads.patch 04873f1c3c32c9edb6a2cbd62e03fc12c6e65adfe60968bebdd03ef96ccd0755
+Configure identity: 065358545597436c22df7e2f6d202eb59ddd642323fcf6ef0f9c8042d015ec93
+Configure flags:
+  --target-os=android
+  --arch=arm
+  --cpu=armv7-a
+  --enable-cross-compile
+  --cc=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang
+  --cxx=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi19-clang++
+  --ar=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar
+  --nm=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm
+  --ranlib=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ranlib
+  --strip=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip
+  --sysroot=/home/runner/.cache/y2player/android-ndk-r25c/toolchains/llvm/prebuilt/linux-x86_64/sysroot
+  --disable-everything
+  --disable-autodetect
+  --disable-programs
+  --disable-doc
+  --disable-debug
+  --disable-network
+  --disable-avdevice
+  --disable-avfilter
+  --disable-swscale
+  --disable-encoders
+  --disable-muxers
+  --disable-iconv
+  --disable-zlib
+  --disable-bzlib
+  --disable-lzma
+  --disable-symver
+  --disable-neon
+  --enable-small
+  --enable-static
+  --disable-shared
+  --enable-pic
+  --enable-avformat
+  --enable-avcodec
+  --enable-avutil
+  --enable-swresample
+  --enable-protocol=file
+  --enable-demuxer=aac,aiff,asf,flac,mov,mp3,ogg,wav
+  --enable-decoder=aac,alac,flac,mp3,opus,vorbis,pcm_f32le,pcm_f64le,pcm_s8,pcm_s16be,pcm_s16le,pcm_s24be,pcm_s24le,pcm_s32be,pcm_s32le,pcm_u8
+  --enable-parser=aac,flac,mpegaudio,opus,vorbis
+  --extra-cflags=-Os
+Artifact SHA-256: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+Artifact size: 1464568 bytes
+File identity: /home/runner/work/Y2Player/Y2Player/build/native/output/armeabi-v7a/liby2audio.so: ELF 32-bit LSB shared object, ARM, EABI5 version 1 (SYSV), dynamically linked, stripped
+Android ABI note: API 19 verified
+Imported shared libraries:
+  liblog.so
+  libdl.so
+  libm.so
+  libc.so
+Undefined platform symbols:
+           U __android_log_vprint
+           U __assert2@LIBC
+           U __cxa_atexit@LIBC
+           U __cxa_finalize@LIBC
+           U __errno@LIBC
+           U __mmap2@LIBC
+           U __sF@LIBC
+           U __sched_cpucount@LIBC
+           U _exit@LIBC
+           U abort@LIBC
+           U access@LIBC
+           U acos@LIBC
+           U arc4random_buf@LIBC
+           U asin@LIBC
+           U atan2@LIBC
+           U atan2f@LIBC
+           U atan@LIBC
+           U atanf@LIBC
+           U atoi@LIBC
+           U bsearch@LIBC
+           U calloc@LIBC
+           U cbrt@LIBC
+           U cbrtf@LIBC
+           U ceil@LIBC
+           U clock_gettime@LIBC
+           U close@LIBC
+           U closedir@LIBC
+           U cos@LIBC
+           U cosh@LIBC
+           U dladdr@LIBC
+           U exp2@LIBC
+           U exp2f@LIBC
+           U exp@LIBC
+           U fabs@LIBC
+           U fclose@LIBC
+           U fcntl@LIBC
+           U fdopen@LIBC
+           U fgets@LIBC
+           U floor@LIBC
+           U fmax@LIBC
+           U fmod@LIBC
+           U fopen@LIBC
+           U fprintf@LIBC
+           U fputc@LIBC
+           U fputs@LIBC
+           U fread@LIBC
+           U free@LIBC
+           U frexp@LIBC
+           U fstat@LIBC
+           U fsync@LIBC
+           U ftruncate@LIBC
+           U fwrite@LIBC
+           U getauxval@LIBC
+           U getenv@LIBC
+           U getpid@LIBC
+           U gettimeofday@LIBC
+           U gmtime_r@LIBC
+           U hypot@LIBC
+           U isatty@LIBC
+           U ldexpf@LIBC
+           U llrint@LIBC
+           U llrintf@LIBC
+           U localtime_r@LIBC
+           U log10@LIBC
+           U log2f@LIBC
+           U log@LIBC
+           U lrint@LIBC
+           U lrintf@LIBC
+           U lseek64@LIBC
+           U lstat@LIBC
+           U malloc@LIBC
+           U memchr@LIBC
+           U memcmp@LIBC
+           U memcpy@LIBC
+           U memmove@LIBC
+           U memset@LIBC
+           U mkdir@LIBC
+           U mkstemp@LIBC
+           U mktime@LIBC
+           U munmap@LIBC
+           U nanosleep@LIBC
+           U open@LIBC
+           U opendir@LIBC
+           U posix_memalign@LIBC
+           U pow@LIBC
+           U powf@LIBC
+           U prctl@LIBC
+           U pthread_cond_broadcast@LIBC
+           U pthread_cond_destroy@LIBC
+           U pthread_cond_init@LIBC
+           U pthread_cond_signal@LIBC
+           U pthread_cond_wait@LIBC
+           U pthread_create@LIBC
+           U pthread_getspecific@LIBC
+           U pthread_join@LIBC
+           U pthread_key_create@LIBC
+           U pthread_key_delete@LIBC
+           U pthread_mutex_destroy@LIBC
+           U pthread_mutex_init@LIBC
+           U pthread_mutex_lock@LIBC
+           U pthread_mutex_unlock@LIBC
+           U pthread_once@LIBC
+           U pthread_setspecific@LIBC
+           U qsort@LIBC
+           U read@LIBC
+           U readdir@LIBC
+           U realloc@LIBC
+           U rename@LIBC
+           U rint@LIBC
+           U rmdir@LIBC
+           U round@LIBC
+           U scalbn@LIBC
+           U sched_getaffinity@LIBC
+           U sigaction@LIBC
+           U sin@LIBC
+           U sincos@LIBC
+           U sincosf@LIBC
+           U sinf@LIBC
+           U sinh@LIBC
+           U snprintf@LIBC
+           U sscanf@LIBC
+           U strchr@LIBC
+           U strcmp@LIBC
+           U strcpy@LIBC
+           U strcspn@LIBC
+           U strerror_r@LIBC
+           U strftime@LIBC
+           U strlen@LIBC
+           U strncmp@LIBC
+           U strnlen@LIBC
+           U strrchr@LIBC
+           U strspn@LIBC
+           U strstr@LIBC
+           U strtod@LIBC
+           U strtol@LIBC
+           U strtoll@LIBC
+           U strtoul@LIBC
+           U strtoull@LIBC
+           U syscall@LIBC
+           U tan@LIBC
+           U tanh@LIBC
+           U trunc@LIBC
+           U unlink@LIBC
+           U vsnprintf@LIBC
+           U write@LIBC
+native source stamp: c7a18077a1161bb7867a342f391a1609df6f98fae371eba23c77309bc6a18e7b
+
+Welcome to Gradle 9.3.1!
+
+Here are the highlights of this release:
+ - Test reporting improvements
+ - Error and warning improvements
+ - Build authoring improvements
+
+For more details see https://docs.gradle.org/9.3.1/release-notes.html
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.3.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :app:clean UP-TO-DATE
+> Task :app:verifyNativeAudioStamp
+> Task :app:preBuild
+> Task :app:preDebugBuild
+> Task :app:generateDebugBuildConfig
+> Task :app:generateDebugResources
+> Task :app:packageDebugResources
+> Task :app:processDebugNavigationResources
+> Task :app:parseDebugLocalResources
+> Task :app:generateDebugRFile
+> Task :app:compileDebugKotlin
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:49:16 'constructor(p0: Int, p1: Int, p2: Int, p3: Int, p4: Int, p5: Int): AudioTrack' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:131:50 'var isWiredHeadsetOn: Boolean' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:160:41 'fun requestAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!, p1: Int, p2: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:228:24 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:300:28 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/debug/kotlin/com/schulzcode/y2player/debug/FmProbeService.kt:348:58 'fun abandonAudioFocus(p0: AudioManager.OnAudioFocusChangeListener!): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/fm/FmController.kt:131:20 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/skin/SkinRenderer.kt:207:59 'fun saveLayerAlpha(p0: Float, p1: Float, p2: Float, p3: Float, p4: Int, p5: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoActivity.kt:208:74 'static field MEDIA_MIMETYPE_TEXT_SUBRIP: String' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileDebug
+> Task :app:compileDebugJavaWithJavac
+> Task :app:checkDebugAarMetadata
+> Task :app:mapDebugSourceSetPaths
+> Task :app:compileDebugNavigationResources
+> Task :app:mergeDebugResources
+> Task :app:createDebugCompatibleScreenManifests
+> Task :app:extractDeepLinksDebug
+> Task :app:processDebugMainManifest
+> Task :app:processDebugManifest
+> Task :app:processDebugManifestForPackage
+> Task :app:processDebugResources
+> Task :app:bundleDebugClassesToRuntimeJar
+> Task :app:bundleDebugClassesToCompileJar
+> Task :app:preDebugUnitTestBuild
+> Task :app:compileDebugUnitTestKotlin
+> Task :app:javaPreCompileDebugUnitTest
+> Task :app:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDebugJavaRes
+> Task :app:processDebugUnitTestJavaRes
+> Task :app:testDebugUnitTest
+> Task :app:preDebugAndroidTestBuild SKIPPED
+> Task :app:generateDebugAndroidTestLintModel
+> Task :app:extractProguardFiles
+> Task :app:generateDebugLintReportModel
+> Task :app:generateDebugUnitTestLintModel
+> Task :app:lintAnalyzeDebug
+> Task :app:lintAnalyzeDebugAndroidTest
+> Task :app:lintAnalyzeDebugUnitTest
+
+> Task :app:lintReportDebug
+Wrote HTML report to file:///home/runner/work/Y2Player/Y2Player/app/build/reports/lint-results-debug.html
+
+> Task :app:lintDebug
+> Task :app:preReleaseBuild
+> Task :app:mergeReleaseJniLibFolders
+> Task :app:mergeReleaseNativeLibs
+> Task :app:stripReleaseDebugSymbols
+> Task :app:extractReleaseNativeSymbolTables
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+> Task :app:checkReleaseDuplicateClasses
+> Task :app:generateReleaseBuildConfig
+> Task :app:generateReleaseResources
+> Task :app:packageReleaseResources
+> Task :app:processReleaseNavigationResources
+> Task :app:parseReleaseLocalResources
+> Task :app:generateReleaseRFile
+> Task :app:compileReleaseKotlin
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/fm/FmController.kt:131:20 'fun setAudioStreamType(p0: Int): Unit' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/skin/SkinRenderer.kt:207:59 'fun saveLayerAlpha(p0: Float, p1: Float, p2: Float, p3: Float, p4: Int, p5: Int): Int' is deprecated. Deprecated in Java.
+w: file:///home/runner/work/Y2Player/Y2Player/app/src/main/kotlin/com/schulzcode/y2player/video/VideoActivity.kt:208:74 'static field MEDIA_MIMETYPE_TEXT_SUBRIP: String' is deprecated. Deprecated in Java.
+
+> Task :app:javaPreCompileRelease
+> Task :app:compileReleaseJavaWithJavac
+> Task :app:mergeReleaseArtProfile
+> Task :app:checkReleaseAarMetadata
+> Task :app:mapReleaseSourceSetPaths
+> Task :app:compileReleaseNavigationResources
+> Task :app:mergeReleaseResources
+> Task :app:createReleaseCompatibleScreenManifests
+> Task :app:extractDeepLinksRelease
+> Task :app:processReleaseMainManifest
+> Task :app:processReleaseManifest
+> Task :app:processReleaseManifestForPackage
+> Task :app:processReleaseResources
+> Task :app:expandReleaseArtProfileWildcards
+> Task :app:mergeReleaseGeneratedProguardFiles
+> Task :app:processReleaseJavaRes
+> Task :app:mergeReleaseJavaResource
+> Task :app:mergeReleaseStartupProfile
+> Task :app:minifyReleaseWithR8
+> Task :app:compileReleaseArtProfile
+> Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:mergeReleaseAssets
+> Task :app:compressReleaseAssets
+> Task :app:extractReleaseVersionControlInfo
+> Task :app:generateReleaseLintVitalReportModel
+> Task :app:lintVitalAnalyzeRelease
+> Task :app:lintVitalReportRelease
+> Task :app:lintVitalRelease
+> Task :app:convertShrunkResourcesToBinaryRelease
+> Task :app:optimizeReleaseResources
+> Task :app:collectReleaseDependencies
+> Task :app:sdkReleaseDependencyData
+> Task :app:validateSigningRelease
+> Task :app:writeReleaseAppMetadata
+> Task :app:writeReleaseSigningConfigVersions
+> Task :app:packageRelease
+> Task :app:createReleaseApkListingFileRedirect
+> Task :app:assembleRelease
+
+BUILD SUCCESSFUL in 5m 10s
+85 actionable tasks: 84 executed, 1 up-to-date
+Verifies
+Verified using v1 scheme (JAR signing): true
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v3.2 scheme (APK Signature Scheme v3.2): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+V2 Signer: certificate DN: CN=Y2Player Videos, O=Personal build
+V2 Signer: certificate SHA-256 digest: e35649207c2009c05595ebe69db80118547f72a41728986edadba90acf8e394a
+V2 Signer: certificate SHA-1 digest: defc152c4d7b3b94cb474f9e84bab23ef82bc961
+V2 Signer: certificate MD5 digest: 624a8f6a9e75c8452bf0663c4d81ca9f
+V2 Signer: key algorithm: RSA
+V2 Signer: key size (bits): 2048
+V2 Signer: public key SHA-256 digest: c04589ee13a754b275305af893e397127ad1e199ce0436b4c05976a09e7468cd
+V2 Signer: public key SHA-1 digest: 2a2b8424659ae0b04ecb0f3b66c42c13d24f5662
+V2 Signer: public key MD5 digest: 33d649f3337b453efb4167e33bd6c6b0
+WARNING: META-INF/com/android/build/gradle/app-metadata.properties not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+WARNING: META-INF/version-control-info.textproto not protected by signature. Unauthorized modifications to this JAR entry will not be detected. Delete or move the entry outside of META-INF/.
+Release APK: /home/runner/work/Y2Player/Y2Player/dist/firmware/Y2Player.apk
+
+=== Validating system-image environment ===
+      found python3
+      found debugfs
+      found e2fsck
+      found dumpe2fs
+      found sha256sum
+      system.img format: Android sparse
+      base system.img: 499930676 bytes
+      APK install path: /system/priv-app/Y2Player.apk
+      native install path: /system/lib/liby2audio.so
+      patched HAL path: /system/lib/libaudio.primary.default.so
+      patched keypad path: /system/usr/keylayout/mtk-kpd.kl
+      package profile: conservative Y2Player appliance
+      optional packages pruned: 35
+      critical package guards: 26
+      boot.img: not used and not emitted
+
+=== Integrating Y2Player into system.img ===
+=== Y2Player firmware integration (system partition only) ===
+stock system.img : /home/runner/work/Y2Player/Y2Player/y2_v3.2.0_FM-20260813/system.img
+  sha256         : 49cb4d40f053390e04641f135818bd2a479a545322026aae6442bf505a646d85
+payload APK      : /home/runner/work/Y2Player/Y2Player/app/build/outputs/apk/release/app-release.apk (1471343 bytes)
+  sha256         : ba03e698515612f52b268c495604ac98f3832f95cdc3280d99710cbb1c1f34a8
+native library   : /home/runner/work/Y2Player/Y2Player/app/src/main/jniLibs/armeabi-v7a/liby2audio.so (1464568 bytes)
+  sha256         : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+  ELF/ABI        : ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+  APK entry      : lib/armeabi-v7a/liby2audio.so (byte-identical)
+
+[1/6] expanding sparse image
+      859832320 bytes (209920 blocks x 4096)
+
+[2/6] verifying stock contents and preparing guarded system patches
+      found /priv-app/MyLauncher.apk
+      audited SystemUI: 2122282 bytes, SHA-256 c6320280eb36efe358aaad23379bb2e1fb80711d13dbd88322e5c3b58dcbefa4
+      package profile: conservative Y2Player appliance (35 optional packages)
+        prune stock media applications: 8
+        prune standalone utilities: 8
+        prune wallpapers and dreams: 10
+        prune unused phone user interfaces: 3
+        prune engineering and desktop tools: 6
+      removable payload: 74 files, 71488475 bytes
+      required package guard: 26 APKs
+      stock HAL (Y2 v3.2.0 FM): 757172 bytes, SHA-256 409430ce670538326110f8f991ead095b0c16df1274fab2e14a8988b69cc4304
+      patched HAL: 757172 bytes, SHA-256 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      DAC frequency hook: guarded numeric 44100/48000-Hz ioctl
+      stock keypad: 1680 bytes, SHA-256 de48544bbfd465ac844bff2fd9f30c5793738041b6da6f228eeb8c40e9d444a7
+      patched keypad: 1684 bytes, SHA-256 b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      physical volume scan codes 115/114: app-owned FF/REW surrogates
+      free space before: 329207808 bytes
+
+[3/6] pruning optional packages and installing Y2Player runtime
+      removing 35 optional packages and 5 private support libraries
+
+[4/6] reconciling filesystem and clearing freed blocks
+      e2fsck -E discard exit 0 (clean)
+      zeroed 112239 free blocks (459730944 bytes) across 28 ext4 ranges
+      post-zero e2fsck -fn exit 0
+
+[5/6] verifying result
+      /priv-app/Y2Player.apk: Inode: 13   Type: regular    Mode:  0644   Flags: 0x80000 User:     0   Group:     0   Project:     0   Size: 1471343
+      selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /lib/liby2audio.so: Inode: 14   Type: regular    Mode:  0644   Flags: 0x80000 Size: 1464568 SHA-256: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      native selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /lib/libaudio.primary.default.so: Inode: 17   Type: regular    Mode:  0644   Flags: 0x80000 Size: 757172 SHA-256: 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      HAL selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /usr/keylayout/mtk-kpd.kl: Inode: 18   Type: regular    Mode:  0644   Flags: 0x80000 Size: 1684 SHA-256: b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      keypad selinux: security.selinux (26) = "u:object_r:system_file:s0\000"
+      /media/audio/ui/battery_y2player_suppressed: Size: 2
+      free space after: 459730944 bytes
+      filesystem space recovered: 130523136 bytes
+      all checks passed
+
+[6/6] re-encoding sparse image
+      /home/runner/work/Y2Player/Y2Player/build/work/system/system.img: 369420236 bytes, 164 chunks
+      sha256: b961ddae0dc87379ea497f3517aa22ab3346e02860ffdc51e34fce28886f92dd
+
+RESULT: system image ready to flash (ANDROID partition only).
+
+report written to /home/runner/work/Y2Player/Y2Player/build/work/system/system-report.txt
+
+=== Reopening and verifying system.img ===
+=== Independent system.img verification ===
+      ok   compiled native library is ELF
+      ok   compiled native library ABI is ELF32 little-endian ARM EABI5
+      native ELF : ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      native size: 1464568 bytes
+      native sha : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      ok   APK contains exactly lib/armeabi-v7a/liby2audio.so
+      ok   APK native library size and SHA-256 match compiled artifact
+      ok   scatter declares the ANDROID partition size
+      file    : /home/runner/work/Y2Player/Y2Player/build/work/system/system.img (369420236 bytes)
+      sha256  : b961ddae0dc87379ea497f3517aa22ab3346e02860ffdc51e34fce28886f92dd
+      expands : 859832320 bytes (209920 x 4096); sparse format valid
+      ok   ext4 size matches ANDROID partition (859832320 bytes)
+      ok   ext4 structure is sound (e2fsck -fn exit 0)
+      ok   all ext4 free blocks are zero (112239 blocks / 459730944 bytes)
+      ok   /priv-app/Y2Player.apk exists
+      ok   embedded APK size matches output APK
+      ok   embedded APK can be read back
+      ok   embedded APK SHA-256 matches output APK
+      ok   APK mode is 0644
+      ok   APK ownership is root:root
+      ok   APK SELinux context is system_file
+      ok   /lib/liby2audio.so exists
+      ok   runtime library size matches compiled artifact (1464568 bytes)
+      ok   runtime library can be read back
+      ok   runtime library SHA-256 matches compiled and APK copies
+      ok   runtime library ABI is ELF32 little-endian ARM EABI5
+      runtime sha: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      runtime ELF: ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      ok   runtime library mode is 0644
+      ok   runtime library ownership is root:root
+      ok   runtime library SELinux context is system_file
+      ok   /lib/libaudio.primary.default.so exists
+      ok   patched primary-audio HAL size matches a supported variant
+      ok   patched primary-audio HAL mode is 0644
+      ok   patched primary-audio HAL ownership is root:root
+      ok   patched primary-audio HAL SELinux context is system_file
+      ok   patched primary-audio HAL can be read back
+      ok   patched primary-audio HAL SHA-256 and code match an audited patch
+      ok   patched primary-audio HAL ABI is ELF32 little-endian ARM EABI5
+      HAL sha    : 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      HAL ELF    : ELF32 little-endian ARM EABI5 (e_flags=0x05000000)
+      ok   /usr/keylayout/mtk-kpd.kl exists
+      ok   patched keypad layout size is 1684 bytes
+      ok   patched keypad layout mode is 0644
+      ok   patched keypad layout ownership is root:root
+      ok   patched keypad layout SELinux context is system_file
+      ok   patched keypad layout can be read back
+      ok   patched keypad layout SHA-256 matches the audited patch
+      ok   physical volume scan codes map to app-owned media surrogates
+      ok   framework volume mappings are absent for physical scan codes 115/114
+      keypad sha : b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      ok   /media/audio/ui/battery_y2player_suppressed exists
+      ok   battery-warning suppression marker is 2 bytes
+      ok   battery-warning suppression marker can be read back
+      ok   battery-warning suppression marker matches the audited payload
+      ok   stock SystemUI size remains unchanged
+      ok   stock SystemUI can be read back
+      ok   stock SystemUI matches the audited battery-warning implementation
+      ok   liby2audio.so exists exactly once under /system/lib
+      ok   no conflicting runtime library exists under /system/vendor/lib
+      ok   no conflicting runtime library exists under /system/lib64
+      ok   no conflicting runtime library exists under /system/vendor/lib64
+      ok   stock MyLauncher.apk is absent
+      ok   stale MyLauncher.odex is absent
+      ok   optional package FMRadio and its ODEX are absent
+      ok   optional package Gallery2 and its ODEX are absent
+      ok   optional package Music and its ODEX are absent
+      ok   optional package SoundRecorder and its ODEX are absent
+      ok   optional package VideoEditor and its ODEX are absent
+      ok   optional package VideoFavorites and its ODEX are absent
+      ok   optional package Videos and its ODEX are absent
+      ok   optional package MusicFX and its ODEX are absent
+      ok   optional package ApplicationGuide and its ODEX are absent
+      ok   optional package Calculator and its ODEX are absent
+      ok   optional package DeskClock and its ODEX are absent
+      ok   optional package FileManager and its ODEX are absent
+      ok   optional package PrintSpooler and its ODEX are absent
+      ok   optional package Protips and its ODEX are absent
+      ok   optional package QuickSearchBox and its ODEX are absent
+      ok   optional package Todos and its ODEX are absent
+      ok   optional package BasicDreams and its ODEX are absent
+      ok   optional package Galaxy4 and its ODEX are absent
+      ok   optional package HoloSpiralWallpaper and its ODEX are absent
+      ok   optional package LiveWallpapers and its ODEX are absent
+      ok   optional package LiveWallpapersPicker and its ODEX are absent
+      ok   optional package MagicSmokeWallpapers and its ODEX are absent
+      ok   optional package NoiseField and its ODEX are absent
+      ok   optional package PhaseBeam and its ODEX are absent
+      ok   optional package VisualizationWallpapers and its ODEX are absent
+      ok   optional package MtkVideoLiveWallpaper and its ODEX are absent
+      ok   optional package Contacts and its ODEX are absent
+      ok   optional package Dialer and its ODEX are absent
+      ok   optional package Mms and its ODEX are absent
+      ok   optional package EngineerCode and its ODEX are absent
+      ok   optional package EngineerMode and its ODEX are absent
+      ok   optional package EngineerModeSim and its ODEX are absent
+      ok   optional package MTKAndroidSuiteDaemon and its ODEX are absent
+      ok   optional package MTKLogger and its ODEX are absent
+      ok   optional package CDS_INFO and its ODEX are absent
+      ok   private VideoEditor support libraries are absent
+      ok   required package /app/BatteryWarning.apk is retained
+      ok   required package /app/Bluetooth.apk is retained
+      ok   required package /app/CellConnService.apk is retained
+      ok   required package /app/CertInstaller.apk is retained
+      ok   required package /app/DocumentsUI.apk is retained
+      ok   required package /app/DownloadProviderUi.apk is retained
+      ok   required package /app/KeyChain.apk is retained
+      ok   required package /app/LatinIME.apk is retained
+      ok   required package /app/MTKThermalManager.apk is retained
+      ok   required package /app/MtkBt.apk is retained
+      ok   required package /app/PackageInstaller.apk is retained
+      ok   required package /app/PermissionControl.apk is retained
+      ok   required package /app/Provision.apk is retained
+      ok   required package /app/TelephonyProvider.apk is retained
+      ok   required package /priv-app/DefaultContainerService.apk is retained
+      ok   required package /priv-app/DownloadProvider.apk is retained
+      ok   required package /priv-app/ExternalStorageProvider.apk is retained
+      ok   required package /priv-app/InputDevices.apk is retained
+      ok   required package /priv-app/Keyguard.apk is retained
+      ok   required package /priv-app/MediaProvider.apk is retained
+      ok   required package /priv-app/OneTimeInitializer.apk is retained
+      ok   required package /priv-app/Settings.apk is retained
+      ok   required package /priv-app/SettingsProvider.apk is retained
+      ok   required package /priv-app/Shell.apk is retained
+      ok   required package /priv-app/SystemUI.apk is retained
+      ok   required package /priv-app/TeleService.apk is retained
+      ok   Y2Player.apk exists exactly once under /system/priv-app
+      ok   no duplicate Y2Player exists under /system/app
+      ok   /bin/y2bridged is absent
+      ok   /bin/y2powerd is absent
+
+=== Result ===
+All system-image content, package-policy, metadata, hash, filesystem, and size checks passed.
+Device boot and stock-UMS behavior still require hardware validation.
+
+=== Assembling current artifacts ===
+
+=== Build complete ===
+      output directory: /home/runner/work/Y2Player/Y2Player/out/firmware
+      total 362232
+      drwxr-xr-x 2 runner runner      4096 Oct 28 21:25 .
+      drwxr-xr-x 3 runner runner      4096 Oct 28 21:25 ..
+      -rw-r--r-- 1 runner runner   1471343 Oct 28 21:25 Y2Player.apk
+      -rw-r--r-- 1 runner runner      3274 Oct 28 21:25 build-manifest.txt
+      -rw-r--r-- 1 runner runner       331 Oct 28 21:25 checksums.txt
+      -rw-r--r-- 1 runner runner 369420236 Oct 28 21:25 system.img
+      -rw-r--r-- 1 runner runner      8315 Oct 28 21:25 verification-report.txt
+unpacked 859832320 bytes (209920 x 4096)
+unpacked 132120576 bytes (32256 x 4096)
+unpacked 837812224 bytes (204544 x 4096)
+adding boot.img
+adding BromAdapterTool.ini
+adding cache.img
+adding console_mode.xsd
+adding console_readback.xml
+adding CustPT.ini
+adding DA_PL.bin
+adding DA_PL_CRYPTO20.bin
+adding DA_SWSEC.bin
+adding DA_SWSEC_CRYPTO20.bin
+adding dl_without_scatter.xml
+adding download_scene.ini
+adding EBR1
+adding EBR2
+adding factory.ini
+adding flash_tool.exe
+adding flashtool.qch
+adding flashtool.qhc
+adding FlashToolLib.dll
+adding FlashToolLib.v1.dll
+adding FlashtoollibEx.dll
+adding history.ini
+adding hwparam.json
+adding key.ini
+adding lk.bin
+adding logo.bin
+adding MBR
+adding msvcp90.dll
+adding msvcr90.dll
+adding MT6582_Android_scatter.txt
+adding MTK_AllInOne_DA.bin
+adding option.ini
+adding phonon4.dll
+adding platform.xml
+adding preloader_eastaeon82_wet_kk.bin
+adding QtCLucene4.dll
+adding QtCore4.dll
+adding QtGui4.dll
+adding QtHelp4.dll
+adding QtNetwork4.dll
+adding QtSql4.dll
+adding QtWebKit4.dll
+adding QtXml4.dll
+adding QtXmlPatterns4.dll
+adding rb_without_scatter.xml
+adding readback.log
+adding readback.xml
+adding readback_ui_bak.xsd
+adding recovery.img
+adding registry.ini
+adding secro.img
+adding SLA_Challenge.dll
+adding sp_readback.xml
+adding storage_setting.xml
+adding system.img
+adding usb_setting.xml
+adding userdata.img
+Full updater package: /home/runner/work/Y2Player/Y2Player/out/updater/rom_y2.zip
+WARNING: installing this package erases user data.

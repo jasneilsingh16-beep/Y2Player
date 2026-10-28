@@ -1,0 +1,79 @@
+Releases matching 3.2.0-fm in y1-community/y1-stock-rom:
+3.2.1	rom_y2.zip (355560849), updater.jpg (30612)
+3.2.0-fm	rom_y2.zip (355558382), updater.jpg (30612)
+ADB-2.1.9	com.innioasis.y1_2.1.9.apk (50514056), rom.zip (241163025), updater.jpg (30612)
+Assets in 3.2.0-fm:
+rom_y2.zip	https://github.com/y1-community/y1-stock-rom/releases/download/3.2.0-fm/rom_y2.zip
+updater.jpg	https://github.com/y1-community/y1-stock-rom/releases/download/3.2.0-fm/updater.jpg
+Using rom_y2.zip
+total 347236
+drwxr-xr-x 2 runner runner      4096 Oct 28 21:19 .
+drwxr-xr-x 4 runner runner      4096 Oct 28 21:19 ..
+-rw-r--r-- 1 runner runner 355558382 Oct 28 21:19 rom_y2.zip
+build/stock/unpacked
+build/stock/unpacked/recovery.img
+build/stock/unpacked/userdata.img
+build/stock/unpacked/previous_build_config.mk
+build/stock/unpacked/MT6582_Android_scatter.txt
+build/stock/unpacked/custom_build_verno
+build/stock/unpacked/boot.img
+build/stock/unpacked/preloader_eastaeon82_wet_kk.bin
+build/stock/unpacked/logo.bin
+build/stock/unpacked/secro.img
+build/stock/unpacked/EBR1
+build/stock/unpacked/appsboot.raw
+build/stock/unpacked/cache.img
+build/stock/unpacked/MBR
+build/stock/unpacked/ramdisk.img
+build/stock/unpacked/EBR2
+build/stock/unpacked/system.img
+build/stock/unpacked/clean_steps.mk
+build/stock/unpacked/appsboot.mbn
+build/stock/unpacked/lk.bin
+build/stock/unpacked/android-info.txt
+build/stock/unpacked/kernel
+build/stock/unpacked/kernel_eastaeon82_wet_kk.bin
+build/stock/unpacked/installed-files.txt
+build/stock/unpacked/ramdisk-recovery.img
+system.img magic: 00000000
+stock system.img is raw; converting to sparse
+packed 499930676 bytes in 130 chunks
+ext4: 859832320 bytes (4096-byte blocks); file: 859826928 bytes
+padded 5392 trailing zero bytes
+OriginalFirmware:
+total 884872
+drwxr-xr-x  2 runner runner      4096 Oct 28 21:19 .
+drwxr-xr-x 14 runner runner      4096 Oct 28 21:19 ..
+-rwxrwxrwx  1 runner runner       512 Aug 13 13:59 EBR1
+-rwxrwxrwx  1 runner runner       512 Aug 13 13:59 EBR2
+-rwxrwxrwx  1 runner runner       512 Aug 13 13:59 MBR
+-rwxrwxrwx  1 runner runner      7666 Aug 13 13:59 MT6582_Android_scatter.txt
+-rwxrwxrwx  1 runner runner         7 Aug 13 13:59 android-info.txt
+-rwxrwxrwx  1 runner runner    242480 Aug 13 13:59 appsboot.mbn
+-rwxrwxrwx  1 runner runner    242440 Aug 13 13:59 appsboot.raw
+-rwxrwxrwx  1 runner runner   5656576 Aug 13 13:59 boot.img
+-rwxrwxrwx  1 runner runner   6316180 Aug 13 13:59 cache.img
+-rwxrwxrwx  1 runner runner     40847 Aug 13 13:59 clean_steps.mk
+-rwxrwxrwx  1 runner runner        10 Aug 13 13:59 custom_build_verno
+-rwxrwxrwx  1 runner runner     80833 Aug 13 13:59 installed-files.txt
+-rwxrwxrwx  1 runner runner   4944888 Aug 13 13:59 kernel
+-rwxrwxrwx  1 runner runner   4944888 Aug 13 13:59 kernel_eastaeon82_wet_kk.bin
+-rwxrwxrwx  1 runner runner    242440 Aug 13 13:59 lk.bin
+-rwxrwxrwx  1 runner runner    102593 Aug 13 13:59 logo.bin
+-rwxrwxrwx  1 runner runner    120384 Aug 13 13:59 preloader_eastaeon82_wet_kk.bin
+-rwxrwxrwx  1 runner runner       111 Aug 13 13:59 previous_build_config.mk
+-rwxrwxrwx  1 runner runner   1092308 Aug 13 13:59 ramdisk-recovery.img
+-rwxrwxrwx  1 runner runner    707837 Aug 13 13:59 ramdisk.img
+-rwxrwxrwx  1 runner runner   6041600 Aug 13 13:59 recovery.img
+-rwxrwxrwx  1 runner runner    135168 Aug 13 13:59 secro.img
+-rw-r--r--  1 runner runner 859826928 Sep 13 13:19 system.img
+-rwxrwxrwx  1 runner runner  15290768 Aug 13 13:59 userdata.img
+
+y2_v3.2.0_FM-20260813:
+total 488236
+drwxr-xr-x  2 runner runner      4096 Oct 28 21:19 .
+drwxr-xr-x 14 runner runner      4096 Oct 28 21:19 ..
+-rwxr-xr-x  1 runner runner      7666 Oct 28 21:19 MT6582_Android_scatter.txt
+-rw-r--r--  1 runner runner 499930676 Oct 28 21:19 system.img
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root       145G   53G   92G  37% /

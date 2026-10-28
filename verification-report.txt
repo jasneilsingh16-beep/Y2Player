@@ -1,0 +1,135 @@
+=== Independent system.img verification ===
+      ok   compiled native library is ELF
+      ok   compiled native library ABI is ELF32 little-endian ARM EABI5
+      native ELF : ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      native size: 1464568 bytes
+      native sha : 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      ok   APK contains exactly lib/armeabi-v7a/liby2audio.so
+      ok   APK native library size and SHA-256 match compiled artifact
+      ok   scatter declares the ANDROID partition size
+      file    : /home/runner/work/Y2Player/Y2Player/build/work/system/system.img (369420236 bytes)
+      sha256  : b961ddae0dc87379ea497f3517aa22ab3346e02860ffdc51e34fce28886f92dd
+      expands : 859832320 bytes (209920 x 4096); sparse format valid
+      ok   ext4 size matches ANDROID partition (859832320 bytes)
+      ok   ext4 structure is sound (e2fsck -fn exit 0)
+      ok   all ext4 free blocks are zero (112239 blocks / 459730944 bytes)
+      ok   /priv-app/Y2Player.apk exists
+      ok   embedded APK size matches output APK
+      ok   embedded APK can be read back
+      ok   embedded APK SHA-256 matches output APK
+      ok   APK mode is 0644
+      ok   APK ownership is root:root
+      ok   APK SELinux context is system_file
+      ok   /lib/liby2audio.so exists
+      ok   runtime library size matches compiled artifact (1464568 bytes)
+      ok   runtime library can be read back
+      ok   runtime library SHA-256 matches compiled and APK copies
+      ok   runtime library ABI is ELF32 little-endian ARM EABI5
+      runtime sha: 4a589a01b54cb86c305fc9ad891ca599472fcacc8c74f9b40f5b38c6f90ec736
+      runtime ELF: ELF32 little-endian ARM EABI5 (e_flags=0x05000200)
+      ok   runtime library mode is 0644
+      ok   runtime library ownership is root:root
+      ok   runtime library SELinux context is system_file
+      ok   /lib/libaudio.primary.default.so exists
+      ok   patched primary-audio HAL size matches a supported variant
+      ok   patched primary-audio HAL mode is 0644
+      ok   patched primary-audio HAL ownership is root:root
+      ok   patched primary-audio HAL SELinux context is system_file
+      ok   patched primary-audio HAL can be read back
+      ok   patched primary-audio HAL SHA-256 and code match an audited patch
+      ok   patched primary-audio HAL ABI is ELF32 little-endian ARM EABI5
+      HAL sha    : 5e4b3c85b6cb6a65058eaa2a9685a1e003b62d45771a75e0321e968543d8d0b5
+      HAL ELF    : ELF32 little-endian ARM EABI5 (e_flags=0x05000000)
+      ok   /usr/keylayout/mtk-kpd.kl exists
+      ok   patched keypad layout size is 1684 bytes
+      ok   patched keypad layout mode is 0644
+      ok   patched keypad layout ownership is root:root
+      ok   patched keypad layout SELinux context is system_file
+      ok   patched keypad layout can be read back
+      ok   patched keypad layout SHA-256 matches the audited patch
+      ok   physical volume scan codes map to app-owned media surrogates
+      ok   framework volume mappings are absent for physical scan codes 115/114
+      keypad sha : b85deb46f0ac9ebeb49f22a442ef442fc7adc612dbf075e52ddf178695969ec4
+      ok   /media/audio/ui/battery_y2player_suppressed exists
+      ok   battery-warning suppression marker is 2 bytes
+      ok   battery-warning suppression marker can be read back
+      ok   battery-warning suppression marker matches the audited payload
+      ok   stock SystemUI size remains unchanged
+      ok   stock SystemUI can be read back
+      ok   stock SystemUI matches the audited battery-warning implementation
+      ok   liby2audio.so exists exactly once under /system/lib
+      ok   no conflicting runtime library exists under /system/vendor/lib
+      ok   no conflicting runtime library exists under /system/lib64
+      ok   no conflicting runtime library exists under /system/vendor/lib64
+      ok   stock MyLauncher.apk is absent
+      ok   stale MyLauncher.odex is absent
+      ok   optional package FMRadio and its ODEX are absent
+      ok   optional package Gallery2 and its ODEX are absent
+      ok   optional package Music and its ODEX are absent
+      ok   optional package SoundRecorder and its ODEX are absent
+      ok   optional package VideoEditor and its ODEX are absent
+      ok   optional package VideoFavorites and its ODEX are absent
+      ok   optional package Videos and its ODEX are absent
+      ok   optional package MusicFX and its ODEX are absent
+      ok   optional package ApplicationGuide and its ODEX are absent
+      ok   optional package Calculator and its ODEX are absent
+      ok   optional package DeskClock and its ODEX are absent
+      ok   optional package FileManager and its ODEX are absent
+      ok   optional package PrintSpooler and its ODEX are absent
+      ok   optional package Protips and its ODEX are absent
+      ok   optional package QuickSearchBox and its ODEX are absent
+      ok   optional package Todos and its ODEX are absent
+      ok   optional package BasicDreams and its ODEX are absent
+      ok   optional package Galaxy4 and its ODEX are absent
+      ok   optional package HoloSpiralWallpaper and its ODEX are absent
+      ok   optional package LiveWallpapers and its ODEX are absent
+      ok   optional package LiveWallpapersPicker and its ODEX are absent
+      ok   optional package MagicSmokeWallpapers and its ODEX are absent
+      ok   optional package NoiseField and its ODEX are absent
+      ok   optional package PhaseBeam and its ODEX are absent
+      ok   optional package VisualizationWallpapers and its ODEX are absent
+      ok   optional package MtkVideoLiveWallpaper and its ODEX are absent
+      ok   optional package Contacts and its ODEX are absent
+      ok   optional package Dialer and its ODEX are absent
+      ok   optional package Mms and its ODEX are absent
+      ok   optional package EngineerCode and its ODEX are absent
+      ok   optional package EngineerMode and its ODEX are absent
+      ok   optional package EngineerModeSim and its ODEX are absent
+      ok   optional package MTKAndroidSuiteDaemon and its ODEX are absent
+      ok   optional package MTKLogger and its ODEX are absent
+      ok   optional package CDS_INFO and its ODEX are absent
+      ok   private VideoEditor support libraries are absent
+      ok   required package /app/BatteryWarning.apk is retained
+      ok   required package /app/Bluetooth.apk is retained
+      ok   required package /app/CellConnService.apk is retained
+      ok   required package /app/CertInstaller.apk is retained
+      ok   required package /app/DocumentsUI.apk is retained
+      ok   required package /app/DownloadProviderUi.apk is retained
+      ok   required package /app/KeyChain.apk is retained
+      ok   required package /app/LatinIME.apk is retained
+      ok   required package /app/MTKThermalManager.apk is retained
+      ok   required package /app/MtkBt.apk is retained
+      ok   required package /app/PackageInstaller.apk is retained
+      ok   required package /app/PermissionControl.apk is retained
+      ok   required package /app/Provision.apk is retained
+      ok   required package /app/TelephonyProvider.apk is retained
+      ok   required package /priv-app/DefaultContainerService.apk is retained
+      ok   required package /priv-app/DownloadProvider.apk is retained
+      ok   required package /priv-app/ExternalStorageProvider.apk is retained
+      ok   required package /priv-app/InputDevices.apk is retained
+      ok   required package /priv-app/Keyguard.apk is retained
+      ok   required package /priv-app/MediaProvider.apk is retained
+      ok   required package /priv-app/OneTimeInitializer.apk is retained
+      ok   required package /priv-app/Settings.apk is retained
+      ok   required package /priv-app/SettingsProvider.apk is retained
+      ok   required package /priv-app/Shell.apk is retained
+      ok   required package /priv-app/SystemUI.apk is retained
+      ok   required package /priv-app/TeleService.apk is retained
+      ok   Y2Player.apk exists exactly once under /system/priv-app
+      ok   no duplicate Y2Player exists under /system/app
+      ok   /bin/y2bridged is absent
+      ok   /bin/y2powerd is absent
+
+=== Result ===
+All system-image content, package-policy, metadata, hash, filesystem, and size checks passed.
+Device boot and stock-UMS behavior still require hardware validation.
