@@ -262,7 +262,12 @@ class MainActivity : Activity() {
                     ?: false
             },
             appVersion = BuildConfig.VERSION_NAME,
-            rootsProvider = Y2StoragePaths::availableRoots
+            rootsProvider = Y2StoragePaths::availableRoots,
+            playedEpisodes = { com.schulzcode.y2player.library.PlayedEpisodeStore(applicationContext).all() },
+            restorePlayedEpisodes = { keys ->
+                com.schulzcode.y2player.library.PlayedEpisodeStore(applicationContext).set(keys, true)
+                libraryRepository.refreshAudiobookProgress()
+            }
         )
         safeModeManager = container.safeModeManager
         val startupSafeMode = safeModeManager.beginUiStartup()

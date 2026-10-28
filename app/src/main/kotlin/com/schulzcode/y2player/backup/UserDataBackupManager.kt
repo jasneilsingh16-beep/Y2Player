@@ -12,7 +12,10 @@ class UserDataBackupManager(
     private val preferences: AppPreferences,
     private val history: HistoryStore,
     private val appVersion: String,
-    private val rootsProvider: () -> List<StorageRoot>
+    private val rootsProvider: () -> List<StorageRoot>,
+    /** Episodes heard to the end, carried in the backup so a reflash keeps them. */
+    private val playedEpisodes: () -> Set<String> = { emptySet() },
+    private val restorePlayedEpisodes: (Set<String>) -> Unit = {}
 ) {
     interface HistoryStore {
         fun records(): List<String>
@@ -44,7 +47,8 @@ class UserDataBackupManager(
         val document = BackupDocument(
             appVersion = appVersion,
             createdAtUtcMs = nowUtcMs,
-            settings = PreferenceBackup.encode(preferences.snapshot()),
+            settings = PreferenceBackup.encode(preferences.snapshot()) +
+                (PLAYED_EPISODES_KEY to playedEpisodes().joinToString("\n")),
             userData = userData,
             listeningHistory = historyRecords
         )
@@ -75,7 +79,14 @@ class UserDataBackupManager(
             rollbackHistory = { history.replace(oldHistory) },
             rollbackSettings = { preferences.restore(oldSettings) }
         )
+        current.settings[PLAYED_EPISODES_KEY]?.let { joined ->
+            runCatching { restorePlayedEpisodes(joined.split('\n').filter { it.isNotBlank() }.toSet()) }
+        }
         ImportResult(resolved.restoredReferences, resolved.unresolvedReferences)
+    }
+
+    private companion object {
+        const val PLAYED_EPISODES_KEY = "played_episodes"
     }
 
     private fun backupFile(requireExisting: Boolean = false): File {
