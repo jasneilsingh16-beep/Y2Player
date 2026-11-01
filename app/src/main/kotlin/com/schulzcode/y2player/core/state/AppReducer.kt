@@ -305,12 +305,16 @@ object AppReducer {
             is Screen.Folders -> when (row) {
                 is Folder -> push(state, Screen.Folders(row.volumeId, row.relativePath))
                 is TrackRow -> playSelected(state)
+                is Action -> if (row.key == ScreenContent.COLLECTION_SHUFFLE_KEY) shuffleCollection(state) else Reduction(state)
                 else -> Reduction(state)
             }
             Screen.Playlists -> confirmPlaylists(state, row)
             is Screen.PlaylistTracks -> when {
                 row is TrackRow -> playSelected(state)
                 (row as? Action)?.key == ScreenContent.COLLECTION_SHUFFLE_KEY -> shuffleCollection(state)
+                (row as? Action)?.key == ScreenContent.PLAY_IN_ORDER_KEY -> ScreenContent.playableTrackIds(state).let { ids ->
+                    if (ids.isEmpty()) Reduction(state) else Reduction(toNowPlaying(state), listOf(PlayCollection(ids, 0)))
+                }
                 else -> confirmPlaylistAction(state, screen, row)
             }
             is Screen.TrackOptions -> confirmTrackOptions(state, screen, row)

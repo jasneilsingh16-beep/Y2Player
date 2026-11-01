@@ -325,6 +325,12 @@ object ScreenContent {
     }
 
     fun playableTrackIds(state: AppState): List<Long> {
+        (state.currentScreen as? Screen.Folders)?.takeIf { it.volumeId != null }?.let { screen ->
+            val prefix = screen.relativePath.trim('/').let { if (it.isEmpty()) "" else "$it/" }
+            return albumSorted(state.library.musicTracks.filter {
+                it.volumeId == screen.volumeId && it.relativePath.startsWith(prefix) && it.available && !it.decodeFailed
+            }).map(Track::id)
+        }
         val rows = rows(state)
         val ids = ArrayList<Long>(rows.size)
         rows.forEach { row ->
@@ -585,9 +591,9 @@ object ScreenContent {
     }
 
     private fun musicRows(state: AppState): List<ScreenRow> = listOf(
-        // In the order they are used: Folders most of all.
-        ScreenRow.Action("Folders", null, "folders"),
+        // Every list of tracks leads with its play row; then in the order they are used.
         ScreenRow.Action("Shuffle All", trackCountLabel(state.library.musicTracks.size), "shuffle_all"),
+        ScreenRow.Action("Folders", null, "folders"),
         ScreenRow.Action("Playlists", state.library.playlists.size.takeIf { it > 0 }?.toString(), "playlists"),
         ScreenRow.Action("Categories", categoriesSummary(state), "genres"),
         ScreenRow.Action("Songs", null, "songs"),
@@ -766,7 +772,11 @@ object ScreenContent {
         val tracks = state.library.playlistTrackIds[screen.playlistId].orEmpty()
             .mapNotNull(state.library.byId::get)
         if (tracks.isEmpty()) add(ScreenRow.Group("Playlist is empty", "Hold Centre on a track, then Add to Playlist", "playlist_empty"))
-        else if (screen.name.contains("nitnem", ignoreCase = true)) tracks.forEach { add(ScreenRow.TrackRow(it)) }
+        else if (screen.name.contains("nitnem", ignoreCase = true)) {
+            // Banis are read in order, so Nitnem's play row keeps it.
+            if (tracks.size > 1) add(ScreenRow.Action("Play in Order", trackCountLabel(tracks.size), PLAY_IN_ORDER_KEY))
+            tracks.forEach { add(ScreenRow.TrackRow(it)) }
+        }
         else collectionRows(tracks).forEach(::add)
         add(ScreenRow.Action("Delete Playlist", "Removes this playlist, not its music", "playlist_delete:${screen.playlistId}"))
     }
@@ -1879,6 +1889,8 @@ object ScreenContent {
             if (separator >= 0) folders += remainder.substring(0, separator) else directTracks += track
         }
         return buildList {
+            // Like every other list of tracks, a folder leads with Shuffle; it takes in its subfolders too.
+            if (matching.count { it.available && !it.decodeFailed } > 1) add(shuffleCollectionRow(matching.size))
             folders.sortedWith(::compareText).forEach { add(ScreenRow.Folder(it, screen.volumeId, (prefix + it).trim('/'))) }
             albumSorted(directTracks).forEach { add(ScreenRow.TrackRow(it)) }
         }
@@ -2063,6 +2075,7 @@ object ScreenContent {
     private const val EQ_BAND_STEP_MB = 100
 
     const val COLLECTION_SHUFFLE_KEY = "collection_shuffle"
+    const val PLAY_IN_ORDER_KEY = "collection_in_order"
     const val AUDIOBOOK_KEY_PREFIX = "audiobook:"
     const val VIDEO_KEY = "video:"
     const val VIDEO_CONTINUE_KEY = "video_continue:"

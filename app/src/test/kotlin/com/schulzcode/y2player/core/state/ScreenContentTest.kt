@@ -100,7 +100,9 @@ class ScreenContentTest {
                 library = LibraryState(tracks = tracks.shuffled())
             )
         )
-        assertEquals(listOf("Zebra", "Apple", "Mango"), rows.map { it.title })
+        // Like every list of tracks, a folder leads with Shuffle.
+        assertEquals(listOf("Shuffle", "Zebra", "Apple", "Mango"), rows.map { it.title })
+        assertEquals(ScreenContent.COLLECTION_SHUFFLE_KEY, (rows.first() as ScreenRow.Action).key)
     }
 
     @Test fun naturalOrderComparesDigitRunsByValue() {
