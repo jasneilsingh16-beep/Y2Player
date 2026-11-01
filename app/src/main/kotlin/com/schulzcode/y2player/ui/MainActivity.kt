@@ -90,6 +90,12 @@ class MainActivity : Activity() {
     @Volatile private var pendingBackupPreview: UserDataBackupManager.Preview? = null
     /** Restore was chosen mid-scan: it runs once the card is indexed, so its tracks can be found. */
     private var restoreAfterScan = false
+    /** The card's automatic backup: kept up to date as the player is used, offered back once after an install. */
+    private val cardMirror by lazy { getSharedPreferences("card_mirror", Context.MODE_PRIVATE) }
+    private var restoreCheckRunning = false
+    private var lastAutoBackupAt = Long.MIN_VALUE / 2
+    /** Unbinding happens before a backup started on the way out has read the history. */
+    @Volatile private var lastPlaybackBinder: PlaybackService.LocalBinder? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private val backgroundExecutor = ThreadPoolExecutor(
         1, 1, 0L, TimeUnit.MILLISECONDS, LinkedBlockingQueue(8),
@@ -185,6 +191,7 @@ class MainActivity : Activity() {
 
     private val libraryListener = LibraryRepository.Listener { state ->
         store.dispatch(AppAction.LibraryChanged(state))
+        if (!state.isScanning && state.lastScanAt != null) offerCardRestore()
         if (restoreAfterScan && !state.isScanning) {
             restoreAfterScan = false
             handleEffect(AppEffect.ImportBackup)
@@ -222,6 +229,7 @@ class MainActivity : Activity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             if (!playbackBound || !uiStarted) return
             playbackBinder = service as? PlaybackService.LocalBinder
+            playbackBinder?.let { lastPlaybackBinder = it }
             playbackBinder?.addListener(playbackListener)
             playbackBinder?.setFmListener(fmListener)
             playbackBinder?.applyPreferences(preferences.snapshot())
@@ -256,7 +264,7 @@ class MainActivity : Activity() {
             database = container.database,
             preferences = preferences,
             history = object : UserDataBackupManager.HistoryStore {
-                override fun records(): List<String> = playbackBinder?.historyRecords()
+                override fun records(): List<String> = (playbackBinder ?: lastPlaybackBinder)?.historyRecords()
                     ?: error("Playback is starting")
                 override fun replace(records: List<String>): Boolean = playbackBinder?.replaceHistoryRecords(records)
                     ?: false
@@ -397,6 +405,8 @@ class MainActivity : Activity() {
 
     override fun onStop() {
         eventLog.debug(Sub.ACTIVITY, Ev.ACTIVITY_STOP)
+        // The screen going off stops the activity too, so this runs many times a day.
+        autoBackup("stop")
         uiStarted = false
         evaluateBluetoothUi()
         unbindPlaybackServiceIfNeeded()
@@ -1017,6 +1027,55 @@ class MainActivity : Activity() {
         showMessage(if (applied) "Time set" else "The time could not be set")
     }
 
+    /**
+     * Once, after the first full scan of a fresh install: put back what the card's
+     * newest backup holds (settings, playlists, progress, history, the time zone),
+     * since the install wiped them. Until this has run, nothing is backed up
+     * automatically, so the card's copy is never overwritten by an empty player.
+     */
+    private fun offerCardRestore() {
+        if (restoreCheckRunning || cardMirror.getBoolean(KEY_RESTORE_CHECKED, false)) return
+        if (playbackBinder == null) return
+        restoreCheckRunning = true
+        backgroundExecutor.execute {
+            val preview = backupManager.newestPreview().getOrNull()
+            mainHandler.post {
+                restoreCheckRunning = false
+                cardMirror.edit().putBoolean(KEY_RESTORE_CHECKED, true).apply()
+                logger.info("Backup", "install restore offered=${preview != null} file=${preview?.file?.name}")
+                if (destroyed || preview == null) return@post
+                restoreTimeZone(preview.document.settings[UserDataBackupManager.TIME_ZONE_KEY])
+                pendingBackupPreview = preview
+                handleEffect(AppEffect.ImportBackup)
+            }
+        }
+    }
+
+    private fun restoreTimeZone(id: String?) {
+        if (id.isNullOrBlank() || id == java.util.TimeZone.getDefault().id) return
+        runCatching {
+            (getSystemService(Context.ALARM_SERVICE) as AlarmManager).setTimeZone(id)
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone(id))
+        }.onFailure { logger.warn("Clock", "restore zone failed: ${it.javaClass.simpleName}") }
+        publishClock()
+    }
+
+    /** Refreshes the card's automatic backup, at most every few minutes. */
+    private fun autoBackup(reason: String) {
+        if (!cardMirror.getBoolean(KEY_RESTORE_CHECKED, false) || pendingBackupPreview != null) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastAutoBackupAt < AUTO_BACKUP_INTERVAL_MS) return
+        val binder = playbackBinder ?: return
+        lastAutoBackupAt = now
+        binder.prepareBackupExport {
+            backgroundExecutor.execute {
+                backupManager.export(automatic = true)
+                    .onSuccess { logger.info("Backup", "automatic reason=$reason references=${it.references}") }
+                    .onFailure { logger.warn("Backup", "automatic failed reason=$reason: ${it.message}") }
+            }
+        }
+    }
+
     private fun clockNear(target: Long): Boolean = kotlin.math.abs(System.currentTimeMillis() - target) < 60_000L
 
     private fun setTimeZone(id: String) {
@@ -1083,6 +1142,8 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        private const val KEY_RESTORE_CHECKED = "install_restore_checked"
+        private const val AUTO_BACKUP_INTERVAL_MS = 3 * 60_000L
         private const val SAFE_MODE_KEY_WINDOW_MS = 5_000L
         private const val VOLUME_LOG_WINDOW_MS = 5_000L
         private const val WHEEL_LOG_WINDOW_MS = 1_000L

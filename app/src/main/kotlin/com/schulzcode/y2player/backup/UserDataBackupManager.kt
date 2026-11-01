@@ -40,15 +40,23 @@ class UserDataBackupManager(
     data class ExportResult(val file: File, val references: Int)
     data class ImportResult(val restoredReferences: Int, val unresolvedReferences: Int)
 
-    fun export(nowUtcMs: Long = System.currentTimeMillis()): Result<ExportResult> = runCatching {
-        val file = backupFile()
+    /**
+     * Writes a backup. [automatic] writes the card's own copy, kept up to date as
+     * the player is used, so a firmware install, which wipes the app's data, can
+     * be undone without remembering to export first. It never touches the file
+     * Export Backup writes.
+     */
+    fun export(nowUtcMs: Long = System.currentTimeMillis(), automatic: Boolean = false): Result<ExportResult> = runCatching {
+        val file = backupFile(name = if (automatic) AUTO_FILE_NAME else BackupFormat.FILE_NAME)
         val userData = database.exportPortableUserData()
         val historyRecords = history.records()
         val document = BackupDocument(
             appVersion = appVersion,
             createdAtUtcMs = nowUtcMs,
             settings = PreferenceBackup.encode(preferences.snapshot()) +
-                (PLAYED_EPISODES_KEY to playedEpisodes().joinToString("\n")),
+                (PLAYED_EPISODES_KEY to playedEpisodes().joinToString("\n")) +
+                // Android keeps the zone with the system, which an install resets to GMT.
+                (TIME_ZONE_KEY to java.util.TimeZone.getDefault().id),
             userData = userData,
             listeningHistory = historyRecords
         )
@@ -56,12 +64,20 @@ class UserDataBackupManager(
         ExportResult(file, referenceCount(userData))
     }
 
-    fun preview(): Result<Preview> = runCatching {
-        val file = backupFile(requireExisting = true)
+    fun preview(): Result<Preview> = runCatching { preview(backupFile(requireExisting = true)) }
+
+    /** The newer of the automatic and the exported backup, for restoring after an install. */
+    fun newestPreview(): Result<Preview> = runCatching {
+        listOf(AUTO_FILE_NAME, BackupFormat.FILE_NAME)
+            .mapNotNull { name -> runCatching { preview(backupFile(name = name, requireExisting = true)) }.getOrNull() }
+            .maxByOrNull { it.document.createdAtUtcMs } ?: error("No backup on the card")
+    }
+
+    private fun preview(file: File): Preview {
         val document = BackupFormat.read(file)
         val settings = PreferenceBackup.decode(document.settings)
         val resolved = PortableUserDataResolver.resolve(document.userData, database.loadTracks())
-        Preview(file, document, settings, resolved)
+        return Preview(file, document, settings, resolved)
     }
 
     fun import(preview: Preview): Result<ImportResult> = runCatching {
@@ -85,13 +101,15 @@ class UserDataBackupManager(
         ImportResult(resolved.restoredReferences, resolved.unresolvedReferences)
     }
 
-    private companion object {
-        const val PLAYED_EPISODES_KEY = "played_episodes"
+    companion object {
+        private const val PLAYED_EPISODES_KEY = "played_episodes"
+        const val TIME_ZONE_KEY = "system_time_zone"
+        const val AUTO_FILE_NAME = "Y2Player-auto.y2backup"
     }
 
-    private fun backupFile(requireExisting: Boolean = false): File {
+    private fun backupFile(name: String = BackupFormat.FILE_NAME, requireExisting: Boolean = false): File {
         val root = preferredWritableRoot(rootsProvider()) ?: error("No writable storage is mounted")
-        val file = File(root.directory, "Y2Player/Backups/${BackupFormat.FILE_NAME}")
+        val file = File(root.directory, "Y2Player/Backups/$name")
         if (requireExisting && !file.isFile) error("No backup found at ${file.absolutePath}")
         return file
     }
