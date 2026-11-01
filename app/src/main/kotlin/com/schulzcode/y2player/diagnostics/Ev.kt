@@ -34,6 +34,7 @@ enum class Ev(val code: String) {
 
     VOLUME_MODE("volume_mode"),
     VOLUME_LEVEL("volume_level"),
+    VOLUME_STREAM("volume_stream"),
     PLAYBACK_OPEN("playback_open"),
     PLAYBACK_PREPARED("playback_prepared"),
     PLAYBACK_START("playback_start"),

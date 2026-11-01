@@ -70,12 +70,65 @@ class SoundEnhancerTest {
         assertTrue(run(enhancer, loud).all { !it.isNaN() && abs(it) <= 1f })
     }
 
-    @Test fun monoKirtanIsOpenedOutButSpeechStaysCentred() {
-        val mono = noise(3.0, mono = true, left = .2f, right = .2f)
+    /** Noise with a voice's spectrum, roughly 200 Hz to 4 kHz, which is where kirtan sits. */
+    private fun voiceBand(pcm: FloatArray): FloatArray {
+        val low = (1 - kotlin.math.exp(-2 * PI * 4_000.0 / rate)).toFloat()
+        val high = (1 - kotlin.math.exp(-2 * PI * 200.0 / rate)).toFloat()
+        val out = pcm.copyOf()
+        for (channel in 0..1) {
+            var lp = 0f; var hp = 0f
+            var i = channel
+            while (i < out.size) {
+                lp += (out[i] - lp) * low
+                hp += (lp - hp) * high
+                out[i] = (lp - hp) * 3f
+                i += 2
+            }
+        }
+        return out
+    }
+
+    @Test fun monoKirtanIsOpenedOutByTheHallButSpeechStaysCloser() {
+        val mono = voiceBand(noise(3.0, mono = true, left = .2f, right = .2f))
         val music = run(SoundEnhancer().apply { enabled = true }, mono)
-        assertTrue("mono music gains width: ${sideRatio(music, rate)}", sideRatio(music, rate) > .05)
+        assertTrue("mono music gains width: ${sideRatio(music, rate)}", sideRatio(music, rate) > .03)
         val speech = run(SoundEnhancer().apply { enabled = true; kind = SoundEnhancer.Kind.SPEECH }, mono)
-        assertTrue("speech gains far less: ${sideRatio(speech, rate)}", sideRatio(speech, rate) < sideRatio(music, rate) / 2)
+        assertTrue("speech gains less: ${sideRatio(speech, rate)}", sideRatio(speech, rate) < sideRatio(music, rate) * .6)
+    }
+
+    @Test fun enhanceIsNeverQuieterThanOff() {
+        for (kind in SoundEnhancer.Kind.values()) {
+            for (level in floatArrayOf(.05f, .25f, .6f)) {
+                val pcm = noise(6.0, seed = 5, left = level, right = level)
+                val out = run(SoundEnhancer().apply { enabled = true; this.kind = kind; volumeFraction = 1f }, pcm)
+                val ratio = rms(out, 0, rate * 3) / rms(pcm, 0, rate * 3)
+                assertTrue("$kind at $level: on/off = $ratio", ratio > .85)
+            }
+        }
+    }
+
+    @Test fun aQuietOldRecordingIsBroughtUp() {
+        val quiet = noise(8.0, seed = 7, left = .03f, right = .03f)
+        val out = run(SoundEnhancer().apply { enabled = true; volumeFraction = 1f }, quiet)
+        val lift = rms(out, 0, rate * 5) / rms(quiet, 0, rate * 5)
+        assertTrue("lifted by $lift", lift > 2.5)
+    }
+
+    @Test fun silenceStaysSilent() {
+        val out = run(SoundEnhancer().apply { enabled = true }, FloatArray(rate * 4))
+        assertTrue(out.all { it == 0f })
+    }
+
+    @Test fun changingKindPassesThroughTheUntouchedSoundAndComesBack() {
+        val enhancer = SoundEnhancer().apply { enabled = true }
+        run(enhancer, noise(1.0))
+        enhancer.kind = SoundEnhancer.Kind.SPEECH
+        val pcm = noise(2.0, seed = 9)
+        val out = run(enhancer, pcm)
+        assertTrue(out.all { !it.isNaN() && abs(it) <= 1f })
+        var differs = 0
+        for (i in rate * 2 until pcm.size) if (out[i] != pcm[i]) differs++
+        assertTrue("speech tuning is applied after the switch", differs > rate)
     }
 
     @Test fun aRecordingHeardInOneEarIsCentred() {

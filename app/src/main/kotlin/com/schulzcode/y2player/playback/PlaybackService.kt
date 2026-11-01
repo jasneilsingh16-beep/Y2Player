@@ -1006,11 +1006,16 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             }
         } else {
             val before = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            audioManager.adjustStreamVolume(
-                AudioManager.STREAM_MUSIC,
-                if (normalizedDirection > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER,
-                0
-            )
+            val direction = if (normalizedDirection > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+            // Stuck below the top on the way up: KitKat's safe headphone limit. See setMusicStreamVolume.
+            if (normalizedDirection > 0 && audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) == before &&
+                before < audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) && disableSafeMediaVolume()
+            ) {
+                audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+                eventLog.info(Sub.PLAYBACK, Ev.VOLUME_STREAM, "from" to before, "safe_volume_off" to true,
+                    "reached" to audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+            }
             audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) != before
         }
         if (accepted) hapticController.acceptedAction()
@@ -1966,11 +1971,35 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         val target = requestedIndex.coerceIn(0, maximum.coerceAtLeast(0))
         val current = runCatching { audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrNull()
         if (current == target) return true
-        return runCatching { audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0) }
-            .onSuccess { logger.info("Volume", "music stream transferred ${current ?: "?"}/$maximum -> $target/$maximum") }
+        val set = runCatching { audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0) }
             .onFailure { logger.warn("Volume", "unable to set music-stream volume: ${it.javaClass.simpleName}") }
             .isSuccess
+        if (!set) return false
+        var reached = runCatching { audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(-1)
+        // KitKat's "safe headphone volume" silently refuses to raise a wired output
+        // past about two thirds until someone accepts a warning that this app never
+        // shows, which left everything far quieter than the wheel said. A priv-app
+        // may switch the limit off; then the raise is tried again.
+        val disabledSafeVolume = reached in 0 until target && disableSafeMediaVolume()
+        if (disabledSafeVolume) {
+            runCatching { audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0) }
+            reached = runCatching { audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) }.getOrDefault(-1)
+        }
+        logger.info("Volume", "music stream ${current ?: "?"}/$maximum -> $reached/$maximum wanted=$target safeVolumeOff=$disabledSafeVolume")
+        eventLog.info(
+            Sub.PLAYBACK, Ev.VOLUME_STREAM,
+            "from" to current, "wanted" to target, "reached" to reached, "max" to maximum,
+            "safe_volume_off" to disabledSafeVolume
+        )
+        return reached == target
     }
+
+    /** Hidden on KitKat, and unguarded there; false if this build lacks it or refuses. */
+    private fun disableSafeMediaVolume(): Boolean = runCatching {
+        AudioManager::class.java.getMethod("disableSafeMediaVolume").invoke(audioManager)
+        true
+    }.onFailure { logger.warn("Volume", "safe volume could not be switched off: ${it.javaClass.simpleName}") }
+        .getOrDefault(false)
 
     private fun appVolumeGain(): Float =
         if (currentPreferences.volumeMode == VolumeMode.PERCEPTUAL) {
