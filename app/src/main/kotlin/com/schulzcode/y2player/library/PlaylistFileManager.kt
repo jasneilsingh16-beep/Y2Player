@@ -11,6 +11,20 @@ class PlaylistFileManager(private val database: LibraryDatabase) {
     data class ImportResult(val imported: Int, val matchedTracks: Int)
     data class ExportResult(val exported: Int, val directory: File?)
 
+    /** The tracks [file] names, in its order, each once; null if it cannot be read. */
+    fun resolveTrackIds(file: File): List<Long>? {
+        if (!file.isFile || !file.canRead() || file.length() > MAX_PLAYLIST_BYTES) return null
+        val matcher by lazy { TrackPathMatcher(database.loadTracks()) }
+        val trackIds = LinkedHashSet<Long>()
+        return runCatching {
+            forEachResolvedBatch(file) { batch ->
+                val idsByPath = database.findTrackIdsByAbsolutePaths(batch)
+                batch.forEach { path -> (idsByPath[path] ?: matcher.match(path))?.let(trackIds::add) }
+            }
+            trackIds.toList()
+        }.getOrNull()
+    }
+
     fun importFiles(files: List<File>): ImportResult {
         var imported = 0
         var matched = 0

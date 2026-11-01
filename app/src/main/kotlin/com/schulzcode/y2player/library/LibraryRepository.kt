@@ -200,9 +200,11 @@ class LibraryRepository(
                         throw error
                     }
                 }
-                if (!localCancellation.isCancelled() && discoveredPlaylists.isNotEmpty()) {
+                if (!localCancellation.isCancelled() && allVolumesComplete) syncFavouritesFile()
+                val ordinaryPlaylists = discoveredPlaylists.filterNot(FavouritesFile::isFavouritesFile)
+                if (!localCancellation.isCancelled() && ordinaryPlaylists.isNotEmpty()) {
                     val playlistStarted = profiler.start()
-                    val result = playlistFiles.importFiles(discoveredPlaylists)
+                    val result = playlistFiles.importFiles(ordinaryPlaylists)
                     profiler.stop(ScanPhase.PLAYLIST_IMPORT, playlistStarted)
                     logger.info("Playlist", "automatic M3U import files=${result.imported} tracks=${result.matchedTracks}")
                 }
@@ -374,10 +376,74 @@ class LibraryRepository(
         publish(current.copy(revision = revision, audiobookProgress = progress, playedEpisodes = played))
     }
 
+    private val favouritesFile = FavouritesFile { Y2StoragePaths.availableRoots() }
+    private val favouritesState by lazy {
+        appContext.applicationContext.getSharedPreferences("favourites_file", Context.MODE_PRIVATE)
+    }
+    /** The file's order as last read or written, so a rewrite keeps it. */
+    @Volatile private var favouritesOrder: List<Long> = emptyList()
+    /** Until the first full scan has read the file, changes wait here rather than overwrite it. */
+    @Volatile private var favouritesSynced = false
+    private val pendingFavourites = java.util.concurrent.ConcurrentHashMap<Long, Boolean>()
+
+    /** Writes the favourites to the card; if that fails, the next scan writes them instead of reading the file. */
+    private fun writeFavouritesFile() {
+        val favourites = database.loadFavoriteIds()
+        val order = FavouritesFile.ordered(favouritesOrder, favourites)
+        val byId = current.byId
+        val tracks = order.mapNotNull { byId[it] ?: database.findTrack(it) }
+        val written = favouritesFile.write(tracks)
+        if (written) favouritesOrder = order
+        favouritesState.edit().putBoolean(KEY_FAVOURITES_AHEAD, !written).apply()
+        logger.info("Library", "favourites file written=$written tracks=${tracks.size}")
+    }
+
+    /**
+     * After a full scan: the card's favourites file wins, unless the app could not
+     * write its last change, in which case the app's favourites are written out.
+     * The first time, both are kept, so nothing favourited before this is lost.
+     */
+    private fun syncFavouritesFile() {
+        runCatching {
+            val (_, file) = favouritesFile.locate() ?: return
+            database.deleteImportedPlaylist(file.absolutePath)
+            val ahead = favouritesState.getBoolean(KEY_FAVOURITES_AHEAD, false)
+            val fromFile = if (file.isFile) playlistFiles.resolveTrackIds(file) else null
+            val inApp = database.loadFavoriteIds()
+            val merged = !favouritesState.getBoolean(KEY_FAVOURITES_MERGED, false)
+            when {
+                fromFile == null || ahead -> {
+                    if (fromFile != null) favouritesOrder = fromFile
+                    writeFavouritesFile()
+                }
+                merged -> {
+                    favouritesOrder = fromFile
+                    database.replaceFavorites(fromFile + inApp)
+                    writeFavouritesFile()
+                }
+                else -> {
+                    favouritesOrder = fromFile
+                    if (fromFile.toSet() != inApp) database.replaceFavorites(fromFile)
+                }
+            }
+            favouritesState.edit().putBoolean(KEY_FAVOURITES_MERGED, true).apply()
+            if (pendingFavourites.isNotEmpty()) {
+                pendingFavourites.forEach { (id, favourite) -> database.setFavorite(id, favourite) }
+                pendingFavourites.clear()
+                writeFavouritesFile()
+            }
+            favouritesSynced = true
+            logger.info("Library", "favourites synced file=${fromFile?.size} app=${inApp.size} ahead=$ahead first=$merged")
+        }.onFailure { logger.warn("Library", "favourites sync failed (${it.javaClass.simpleName})") }
+    }
+
     fun toggleFavorite(trackId: Long) = stateExecutor.execute {
         val track = current.byId[trackId] ?: database.findTrack(trackId) ?: return@execute
         val favorite = !track.favorite
         database.setFavorite(trackId, favorite)
+        if (!favouritesSynced) pendingFavourites[trackId] = favorite
+        else runCatching { writeFavouritesFile() }
+            .onFailure { favouritesState.edit().putBoolean(KEY_FAVOURITES_AHEAD, true).apply() }
         logger.info("Library", "favorite track=$trackId value=$favorite")
         revision += 1
         val updatedTracks = replaceTrack(current.tracks, track.copy(favorite = favorite))
@@ -474,6 +540,9 @@ class LibraryRepository(
     }
 
     fun reloadUserData(onComplete: () -> Unit = {}) = stateExecutor.execute {
+        // A restored backup sets the favourites; the card's file follows it.
+        if (favouritesSynced) runCatching { writeFavouritesFile() }
+        else favouritesState.edit().putBoolean(KEY_FAVOURITES_AHEAD, true).apply()
         val progress = runCatching { database.loadAllAudiobookProgress() }.getOrDefault(emptyMap())
         publish(loadState(isScanning = current.isScanning, lastScanAt = current.lastScanAt).copy(
             audiobookProgress = progress
@@ -670,6 +739,8 @@ class LibraryRepository(
     }
 
     companion object {
+        private const val KEY_FAVOURITES_AHEAD = "app_ahead_of_file"
+        private const val KEY_FAVOURITES_MERGED = "first_merge_done"
         private const val PROGRESS_INTERVAL_MS = 250L
         private const val NATIVE_PROFILE_SIZE = 37
         private const val NATIVE_PHASE_BASE = 7

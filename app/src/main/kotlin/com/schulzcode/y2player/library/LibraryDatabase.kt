@@ -341,6 +341,32 @@ class LibraryDatabase(private val appContext: Context) : SQLiteOpenHelper(
         )
     }
 
+    fun loadFavoriteIds(): Set<Long> = readableDatabase.query(
+        "tracks", arrayOf("id"), "favorite = 1", null, null, null, null
+    ).use { cursor -> buildSet { while (cursor.moveToNext()) add(cursor.getLong(0)) } }
+
+    /** Makes exactly [trackIds] the favourites. */
+    fun replaceFavorites(trackIds: Collection<Long>) {
+        writableDatabase.transaction {
+            update("tracks", ContentValues().apply { put("favorite", 0) }, "favorite = 1", null)
+            val favorite = compileStatement("UPDATE tracks SET favorite = 1 WHERE id = ?")
+            try {
+                trackIds.forEach { id ->
+                    favorite.clearBindings()
+                    favorite.bindLong(1, id)
+                    favorite.executeUpdateDelete()
+                }
+            } finally {
+                favorite.close()
+            }
+        }
+    }
+
+    /** Drops a playlist imported from [sourcePath], such as the favourites file before it became the favourites. */
+    fun deleteImportedPlaylist(sourcePath: String) {
+        writableDatabase.delete("playlists", "source_path = ? COLLATE NOCASE", arrayOf(sourcePath))
+    }
+
     fun saveQueueState(entries: List<QueueEntry>, session: PersistedPlaybackSession) {
         writableDatabase.transaction {
             replaceQueueRows(this, entries)
