@@ -4,7 +4,8 @@ import android.content.res.AssetManager
 import android.graphics.Typeface
 
 /**
- * Inter, the face the Porcelain boards were drawn in. KitKat's Roboto has only
+ * Inter, the face the Porcelain boards were drawn in, cut by tools/fonts/build-inter.py
+ * at the sizes the Y2 uses them, so it looks as it does on the boards. KitKat's Roboto has only
  * regular and bold. Each weight has one job: regular for second lines and values,
  * medium for row titles, semibold for screen titles and labels, bold for the Now
  * Playing title alone. Letters Inter lacks, such as Gurmukhi, fall back to the

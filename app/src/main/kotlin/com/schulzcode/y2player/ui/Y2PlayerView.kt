@@ -46,24 +46,30 @@ class Y2PlayerView(
 ) : View(context) {
     private val density = resources.displayMetrics.density.coerceAtLeast(1f)
     private val fonts = Y2Fonts(context.assets)
+    // Unhinted, as a browser draws them: the bundled faces carry no hints, and
+    // FreeType would otherwise invent its own and snap the stems.
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.regular
         style = Paint.Style.FILL
+        hinting = Paint.HINTING_OFF
     }
     /** Row titles. */
     private val mediumPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.medium
         style = Paint.Style.FILL
+        hinting = Paint.HINTING_OFF
     }
     /** Screen titles, labels and tile values. */
     private val boldPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.semibold
         style = Paint.Style.FILL
+        hinting = Paint.HINTING_OFF
     }
     /** The Now Playing title only. */
     private val heavyPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = fonts.bold
         style = Paint.Style.FILL
+        hinting = Paint.HINTING_OFF
     }
     private val iconPainter = Y2IconPainter(paint, density)
     private val accessibilityManager =
