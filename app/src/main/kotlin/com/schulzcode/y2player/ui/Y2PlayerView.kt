@@ -581,8 +581,11 @@ class Y2PlayerView(
 
     private fun isNowPlayingSurface(): Boolean = state.currentScreen == Screen.NowPlaying
 
-    /** Home was once a list beside a preview pane; it is now one column, as on the final board. */
-    private fun isSplitHome(): Boolean = false
+    /**
+     * Home is a list beside a pane that follows the focused row (board B of the
+     * comparison). The list carries names only; the pane says what each opens.
+     */
+    private fun isSplitHome(): Boolean = isHome()
 
     private fun isHome(): Boolean = state.currentScreen == Screen.MainMenu
 
@@ -929,7 +932,7 @@ class Y2PlayerView(
             val active = cachedActive[slot]
             val unavailable = cachedUnavailable[slot]
             if (focused) drawFocus(canvas, top, bottom)
-            val nowPlayingRow = isHome() && (rows[index] as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
+            val nowPlayingRow = isHome() && !isSplitHome() && (rows[index] as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
             val textLeft = if (nowPlayingRow) baseTextLeft + (HOME_ART_DP + 12f) * density else baseTextLeft
             if (nowPlayingRow) {
                 val artSize = HOME_ART_DP * density
@@ -1054,7 +1057,11 @@ class Y2PlayerView(
             val twoLine = (listTwoLine || nowPlayingRow) && subtitle != null
             val title = if (nowPlayingRow) boldPaint else mediumPaint
             title.textAlign = Paint.Align.LEFT
-            title.textSize = (if (listTwoLine || nowPlayingRow) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
+            title.textSize = when {
+                listTwoLine || nowPlayingRow -> Y2UiTheme.TWO_LINE_TITLE_SP
+                isSplitHome() -> HOME_SPLIT_TITLE_SP
+                else -> Y2UiTheme.ROW_TITLE_SP
+            } * density
             title.color = titleColor
             val titleBaseline = if (twoLine) top + rowHeight * .5f - 4f * density else top + rowHeight * .5f + 7f * density
             val fullTitle = rows[index].title
@@ -1955,7 +1962,8 @@ class Y2PlayerView(
         boldPaint.textAlign = Paint.Align.LEFT
         boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
         boldPaint.color = palette.accent
-        canvas.drawText("Up next", textLeft, top + 12f * density, boldPaint)
+        boldPaint.textSize = Y2UiTheme.BADGE_SP * density
+        canvas.drawText("Resume", textLeft, top + 12f * density, boldPaint)
         boldPaint.textSize = Y2UiTheme.MINI_TITLE_SP * density
         boldPaint.color = palette.primaryText
         val titleLines = wrap(first.title, right - textLeft, boldPaint, 2)
@@ -1972,20 +1980,18 @@ class Y2PlayerView(
             val text = "$label left"
             paint.textAlign = Paint.Align.RIGHT
             canvas.drawText(text, right, y + 5f * density, paint)
-            drawThinBar(canvas, left, right - paint.measureText(text) - 8f * density, y, 4f * density, first.fraction, palette.accent)
+            drawThinBar(canvas, left, right - paint.measureText(text) - 8f * density, y, 5f * density, first.fraction, palette.accent)
             paint.textAlign = Paint.Align.LEFT
         }
-        y += 18f * density
-        // Play resumes the top item; Right opens the full Continue page.
-        drawPill(canvas, left, y, "Play to resume · › for all", chevron = false)
-        y += 40f * density
+        // Play resumes the top item and Centre opens the list, as everywhere; no key legend.
+        y += 30f * density
         if (pane.others.isEmpty()) return
         paint.color = palette.divider
         canvas.drawRect(left, y - 8f * density, right, y - 7f * density, paint)
-        boldPaint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
+        boldPaint.textSize = Y2UiTheme.BADGE_SP * density
         boldPaint.color = palette.mutedText
         canvas.drawText("Also in progress", left, y + 8f * density, boldPaint)
-        y += 28f * density
+        y += 30f * density
         pane.others.forEach { item ->
             if (y > bottom) return
             paint.textAlign = Paint.Align.RIGHT
@@ -1993,11 +1999,11 @@ class Y2PlayerView(
             paint.color = palette.secondaryText
             val left2 = item.left.orEmpty()
             canvas.drawText(left2, right, y, paint)
-            boldPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
-            boldPaint.color = palette.primaryText
-            canvas.drawText(ellipsize(item.title, right - left - paint.measureText(left2) - 10f * density, boldPaint), left, y, boldPaint)
-            drawThinBar(canvas, left, right, y + 6f * density, 3f * density, item.fraction, palette.mutedText)
-            y += 30f * density
+            mediumPaint.textAlign = Paint.Align.LEFT
+            mediumPaint.textSize = Y2UiTheme.ROW_DETAIL_SP * density
+            mediumPaint.color = palette.primaryText
+            canvas.drawText(ellipsize(item.title, right - left - paint.measureText(left2) - 10f * density, mediumPaint), left, y, mediumPaint)
+            y += 24f * density
         }
         paint.textAlign = Paint.Align.LEFT
     }
@@ -2033,7 +2039,7 @@ class Y2PlayerView(
             y += 18f * density
             canvas.drawText(ellipsize(it, right - left, paint), left, y, paint)
         }
-        val hintTop = if (pane.hint != null) bottom - 28f * density else bottom
+        val hintTop = bottom
         y += 8f * density
         pane.lines.forEach { line ->
             if (y + 22f * density > hintTop) return@forEach
@@ -2052,7 +2058,7 @@ class Y2PlayerView(
                 paint.textAlign = Paint.Align.LEFT
             }
         }
-        pane.hint?.let { drawPill(canvas, left, hintTop, it, chevron = false, maxRight = right) }
+        // What Centre opens is already the emphasised line; no hint pill.
     }
 
     private fun drawLibraryPane(canvas: Canvas, left: Float, right: Float, top: Float, bottom: Float) {
@@ -2859,6 +2865,7 @@ class Y2PlayerView(
         })
         if (listPosterColumn) listTwoLine = true
         rowHeight = when {
+            home && isSplitHome() -> HOME_SPLIT_ROW_HEIGHT_DP
             home -> Y2UiTheme.HOME_ROW_HEIGHT_DP
             listPosterColumn -> POSTER_ROW_HEIGHT_DP
             listTwoLine -> Y2UiTheme.TWO_LINE_ROW_HEIGHT_DP
@@ -2878,6 +2885,7 @@ class Y2PlayerView(
         cachedRowStart = visibleStart
         cachedRowEnd = end
         val home = isHome()
+        val split = isSplitHome()
         val textLeft = rowTextLeft()
         val surfaceRight = rowSurfaceRight()
         for (slot in cachedTitles.indices) {
@@ -2885,15 +2893,18 @@ class Y2PlayerView(
                 val row = rows[visibleStart + slot]
                 val active = isActive(row)
                 val navigation = trailingIconFor(row, active) == Y2Icon.CHEVRON
-                val nowPlayingRow = home && (row as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
-                val rawSubtitle = rowSubtitle(row)
+                val playingKey = home && (row as? ScreenRow.Action)?.key == ScreenContent.NOW_PLAYING_KEY
+                val nowPlayingRow = playingKey && !split
+                // Beside the pane, Home rows are names alone: the pane carries their values.
+                val rowTitle = if (playingKey && split) "Now Playing" else row.title
+                val rawSubtitle = if (split) null else rowSubtitle(row)
                 // A chosen option gets a tick; a switch already says On or Off in words.
                 val choiceMarked = (active || rawSubtitle?.let(::isChoiceMarker) == true) && !navigation && row !is ScreenRow.TrackRow &&
                     (row as? ScreenRow.Action)?.progress == null && rawSubtitle?.let(::isSwitchWord) != true
                 // Shuffle at the top of a track list is one blue line, its count on the right.
                 val shuffleRow = (row as? ScreenRow.Action)?.key == ScreenContent.COLLECTION_SHUFFLE_KEY
                 val subtitle = rawSubtitle?.takeUnless { (choiceMarked && isChoiceMarker(it)) || shuffleRow }
-                val progress = (row as? ScreenRow.Action)?.progress
+                val progress = if (split) null else (row as? ScreenRow.Action)?.progress
                 val trailingIcon = when {
                     nowPlayingRow -> if (state.playback.status == PlaybackStatus.PLAYING) Y2Icon.PAUSE else Y2Icon.PLAY
                     // Every Home row leads somewhere, so each carries the chevron, after any ring.
@@ -2916,10 +2927,14 @@ class Y2PlayerView(
                 val maxWidth = (surfaceRight - 10f * density - trailingIconWidth - trailingTextWidth - rowTextLeft)
                     .coerceAtLeast(36f * density)
                 val titlePaint = if (nowPlayingRow) boldPaint else mediumPaint
-                titlePaint.textSize = (if (listTwoLine || nowPlayingRow) Y2UiTheme.TWO_LINE_TITLE_SP else Y2UiTheme.ROW_TITLE_SP) * density
-                cachedTitleWidths[slot] = titlePaint.measureText(row.title)
+                titlePaint.textSize = when {
+                    listTwoLine || nowPlayingRow -> Y2UiTheme.TWO_LINE_TITLE_SP
+                    split -> HOME_SPLIT_TITLE_SP
+                    else -> Y2UiTheme.ROW_TITLE_SP
+                } * density
+                cachedTitleWidths[slot] = titlePaint.measureText(rowTitle)
                 cachedTitleAvailableWidths[slot] = maxWidth
-                cachedTitles[slot] = ellipsize(row.title, maxWidth, titlePaint)
+                cachedTitles[slot] = ellipsize(rowTitle, maxWidth, titlePaint)
                 paint.textSize = Y2UiTheme.ROW_SUBTITLE_SP * density
                 cachedSubtitles[slot] = subtitle?.takeIf { listTwoLine || nowPlayingRow }?.let {
                     ellipsize(it, surfaceRight - 10f * density - trailingIconWidth - rowTextLeft, paint)
@@ -3051,6 +3066,8 @@ class Y2PlayerView(
         private const val ROW_ARTWORK_SIZE_DP = 38f
         private const val TRAILING_SUBTITLE_MAX_CHARS = 24
         private const val HOME_LIST_WIDTH_DP = 252f
+        private const val HOME_SPLIT_ROW_HEIGHT_DP = 42f
+        private const val HOME_SPLIT_TITLE_SP = 18f
         private const val HOME_ART_DP = 36f
         /** Six quiet tints, about 20% saturation, for tiles without a cover. */
         private val TILE_TINTS = intArrayOf(

@@ -28,11 +28,15 @@ from fontTools.subset import Options, Subsetter
 from fontTools.ttLib import TTFont, newTable
 from fontTools.varLib.instancer import instantiateVariableFont
 
-# name, weight, optical size, letter-spacing in em
+# name, weight, optical size, letter-spacing in em. The optical size is the px
+# size each face is mostly drawn at on the Y2, which is what a browser would pick.
 FACES = [
-    ("inter_regular.ttf", 400, 17, 0.0),
-    ("inter_medium.ttf", 500, 17, 0.0),
-    ("inter_semibold.ttf", 600, 17, 0.0),
+    # Second lines, values, times and the status bar: 14-15 px.
+    ("inter_regular.ttf", 400, 15, 0.0),
+    # Row titles: 17-19 px.
+    ("inter_medium.ttf", 500, 18, 0.0),
+    # Screen titles, pane titles and labels: 14-17 px.
+    ("inter_semibold.ttf", 600, 16, 0.0),
     # The Now Playing title alone: 23-24 px, -0.4 px on the boards.
     ("inter_bold.ttf", 700, 24, -0.017),
 ]
