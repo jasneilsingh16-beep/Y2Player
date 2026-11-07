@@ -960,6 +960,8 @@ object ScreenContent {
         if (track == null) return listOf(queue)
         return buildList {
             val folderKey = track.audiobookFolderKey
+            // Gurbani first: what is being sung, in Gurmukhi with its English.
+            add(ScreenRow.Action("Shabad", "Gurmukhi and English", SHABAD_KEY))
             if (folderKey != null) add(ScreenRow.Action("Episodes", track.displayAlbum, "np_audiobook_chapters:$folderKey"))
             add(ScreenRow.Action("Enhance", enhanceSummary(state), ENHANCE_KEY))
             add(queue)
@@ -2076,6 +2078,7 @@ object ScreenContent {
 
     const val COLLECTION_SHUFFLE_KEY = "collection_shuffle"
     const val PLAY_IN_ORDER_KEY = "collection_in_order"
+    const val SHABAD_KEY = "np_shabad"
     const val AUDIOBOOK_KEY_PREFIX = "audiobook:"
     const val VIDEO_KEY = "video:"
     const val VIDEO_CONTINUE_KEY = "video_continue:"

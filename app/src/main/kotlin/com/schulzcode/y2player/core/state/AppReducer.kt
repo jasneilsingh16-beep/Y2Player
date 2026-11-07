@@ -1158,6 +1158,7 @@ object AppReducer {
             key == "queue" -> push(state, Screen.Queue, selectedIndex = 1)
             // Stays open, so on and off can be compared with one press each.
             key == ScreenContent.ENHANCE_KEY -> Reduction(state, listOf(ToggleEnhanceSound))
+            key == ScreenContent.SHABAD_KEY -> Reduction(pop(state), listOf(OpenShabad))
             key.startsWith("np_audiobook_chapters:") -> {
                 val folderKey = key.substringAfter(':')
                 val episode = state.playback.currentTrackId

@@ -94,7 +94,7 @@ class AppReducerNowPlayingTest {
     @Test fun nowPlayingOptionsHoldOnlyWhatTheTilesDoNot() {
         val base = optionsState()
         assertEquals(
-            listOf("enhance", "queue", "np_playlist:1", "track_artist:1", "track_album:1", "np_track_details:1"),
+            listOf("np_shabad", "enhance", "queue", "np_playlist:1", "track_artist:1", "track_album:1", "np_track_details:1"),
             ScreenContent.rows(base).map { (it as ScreenRow.Action).key }
         )
         val album = optionsReductionFor("track_album:1").state
@@ -316,8 +316,10 @@ class AppReducerNowPlayingTest {
             )
         )
         val keys = ScreenContent.rows(state).filterIsInstance<ScreenRow.Action>().map { it.key }
-        assertTrue(keys.first().startsWith("np_audiobook_chapters:"))
-        assertEquals(listOf("enhance", "queue", "np_playlist:${audiobook.id}"), keys.drop(1).take(3))
+        // The Shabad page leads, as for every track: Sehaj Paath is read with it.
+        assertEquals(ScreenContent.SHABAD_KEY, keys.first())
+        assertTrue(keys[1].startsWith("np_audiobook_chapters:"))
+        assertEquals(listOf("enhance", "queue", "np_playlist:${audiobook.id}"), keys.drop(2).take(3))
         assertEquals("np_track_details:${audiobook.id}", keys.last())
         val details = AppReducer.reduce(
             state.copy(screenStack = listOf(ScreenEntry(Screen.NowPlayingOptions, keys.lastIndex))),

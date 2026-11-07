@@ -67,6 +67,16 @@
             android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
             tools:ignore="DiscouragedApi,LockedOrientationActivity" />
 
+        <!-- The Shabad page: Gurmukhi and English for what is playing, opened from Now Playing. -->
+        <activity
+            android:name=".gurbani.ShabadActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|touchscreen|uiMode|locale|fontScale|mcc|mnc"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@android:style/Theme.Light.NoTitleBar.Fullscreen"
+            tools:ignore="DiscouragedApi,LockedOrientationActivity" />
+
         <service
             android:name=".playback.PlaybackService"
             android:exported="false"

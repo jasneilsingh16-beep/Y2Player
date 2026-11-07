@@ -172,6 +172,7 @@ sealed interface AppEffect {
     /** Marks a video, or every video in a folder, watched or not; unwatched forgets the place too. */
     data class SetVideoWatched(val path: String, val watched: Boolean, val folder: Boolean) : AppEffect
     data class PlayVideo(val path: String, val folderVideos: List<String>) : AppEffect
+    data object OpenShabad : AppEffect
 }
 
 data class Reduction(val state: AppState, val effects: List<AppEffect> = emptyList())

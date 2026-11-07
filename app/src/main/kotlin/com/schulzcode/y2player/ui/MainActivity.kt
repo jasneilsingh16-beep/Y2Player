@@ -811,6 +811,7 @@ class MainActivity : Activity() {
                 if (effect.folder) VideoLibrary.videosIn(java.io.File(effect.path)).forEach { resume.setWatched(it, effect.watched) }
                 else resume.setWatched(effect.path, effect.watched)
             }
+            AppEffect.OpenShabad -> startActivity(Intent(this, com.schulzcode.y2player.gurbani.ShabadActivity::class.java))
             is AppEffect.PlayVideo -> {
                 // One output at a time: music pauses and stays exactly where it was.
                 // A running sleep timer moves to the video and comes back afterwards.
