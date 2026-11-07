@@ -16,13 +16,15 @@ English string from the English files, as export_sehaj_paath.py does.
 Writes on the card, in Y2Player/Gurbani/:
   sggs.db             lines, shabads and the recording-to-Gurbani table the player reads
   to-check.csv        recordings whose shabad is not certain, with the best candidates
-  overrides.tsv       (yours to edit) path <TAB> line id, or path <TAB> - for none;
-                      read on every run and always wins
+  overrides.tsv       path <TAB> line id, path <TAB> - for none, or path <TAB> * to undo
+                      an earlier choice; the last line for a path counts. Read on every run and
+                      always wins. The player adds to it when a shabad is confirmed or
+                      corrected while it plays, so choices made either side are kept.
 
-A recording is matched only when it is certain: the title must read like one line
-of the Granth, clearly better than any line of another shabad. Anything less goes
-to to-check.csv and shows no text on the player, because a wrong shabad is worse
-than none.
+A recording is matched as certain only when the title reads like one line of the
+Granth, clearly better than any line of another shabad. A likely but uncertain
+match is still written, marked unconfirmed with its other candidates, and the
+player says so plainly and lets it be confirmed or changed while it plays.
 """
 import csv
 import difflib
@@ -347,7 +349,7 @@ class Matcher:
 
 
 # ---------------------------------------------------------------- output
-def write_db(path, rows, units, tracks):
+def write_db(path, rows, units, tracks, candidates):
     if os.path.exists(path):
         os.remove(path)
     con = sqlite3.connect(path)
@@ -357,7 +359,9 @@ def write_db(path, rows, units, tracks):
             gurmukhi TEXT, english TEXT, nosrc INTEGER, section TEXT, author TEXT, shabad INTEGER);
         CREATE TABLE shabads (shabad INTEGER PRIMARY KEY, first_seq INTEGER, last_seq INTEGER);
         CREATE TABLE tracks (path TEXT PRIMARY KEY COLLATE NOCASE, kind TEXT,
-            first_seq INTEGER, last_seq INTEGER, focus_seq INTEGER, label TEXT);
+            first_seq INTEGER, last_seq INTEGER, focus_seq INTEGER, label TEXT, confident INTEGER);
+        CREATE TABLE candidates (path TEXT COLLATE NOCASE, rank INTEGER, focus_seq INTEGER,
+            line_id TEXT, score REAL, PRIMARY KEY (path, rank));
     """)
     unit_of = {}
     for number, (a, b) in enumerate(units):
@@ -367,13 +371,15 @@ def write_db(path, rows, units, tracks):
     con.executemany("INSERT INTO lines VALUES (?,?,?,?,?,?,?,?,?,?)", [
         (r["seq"], r["id"], r["ang"], r["kind"], r["gurmukhi"], r["english"], r["nosrc"],
          r["section"], r["author"], unit_of[r["seq"]]) for r in rows])
-    con.executemany("INSERT INTO tracks VALUES (?,?,?,?,?,?)", tracks)
+    con.executemany("INSERT INTO tracks VALUES (?,?,?,?,?,?,?)", tracks)
+    con.executemany("INSERT INTO candidates VALUES (?,?,?,?,?)", candidates)
     con.executemany("INSERT INTO info VALUES (?,?)", [
-        ("version", "1"),
+        ("version", "2"),
         ("english", "Condensed English of Prof. Sahib Singh's arth, AI-rendered, not yet checked line by line"),
         ("lines", str(len(rows))),
     ])
     con.execute("CREATE INDEX lines_ang ON lines(ang)")
+    con.execute("CREATE INDEX lines_id ON lines(id)")
     con.commit()
     con.execute("VACUUM")
     con.close()
@@ -413,23 +419,23 @@ def main():
         first_of_ang.setdefault(r["ang"], r["seq"])
         last_of_ang[r["ang"]] = r["seq"]
 
-    tracks, check, counts = [], [], defaultdict(int)
+    tracks, check, candidates, counts = [], [], [], defaultdict(int)
     for rel, path in recordings(card):
         low = rel.lower()
         name = os.path.basename(low)
-        if low in overrides:
+        if low in overrides and overrides[low] != "*":
             target = overrides[low]
             if target != "-" and target in seq_of_id:
                 seq = seq_of_id[target]
                 a, b = units[unit_of[seq]]
-                tracks.append((rel, "shabad", a, b, seq, None))
+                tracks.append((rel, "shabad", a, b, seq, None, 1))
                 counts["override"] += 1
             continue
         if low.startswith("sehaj paath/"):
             m = ANG_RANGE.search(name)
             if m and 1 <= int(m.group(1)) <= int(m.group(2)) <= max_ang:
                 a, b = int(m.group(1)), int(m.group(2))
-                tracks.append((rel, "angs", first_of_ang[a], last_of_ang[b], None, f"Angs {a}–{b}" if a != b else f"Ang {a}"))
+                tracks.append((rel, "angs", first_of_ang[a], last_of_ang[b], None, f"Angs {a}–{b}" if a != b else f"Ang {a}", 1))
                 counts["sehaj paath"] += 1
             continue
         if any(low.startswith(f"{s}/") for s in SPOKEN):
@@ -438,7 +444,7 @@ def main():
             bani = next((key for word, key in BANI_NAMES if word in name), None)
             if bani:
                 a, b = banis[bani]
-                tracks.append((rel, "bani", a, b, None, None))
+                tracks.append((rel, "bani", a, b, None, None, 1))
                 counts["bani"] += 1
             continue
         title = title_of(path)
@@ -462,18 +468,23 @@ def main():
         sure = best >= needed and margin >= SURE_MARGIN and floor >= WORD_FLOOR
         if sure:
             a, b = units[unit_of[seq]]
-            tracks.append((rel, "shabad", a, b, seq, None))
+            tracks.append((rel, "shabad", a, b, seq, None, 1))
             counts["matched"] += 1
         elif best >= CHECK_SCORE:
             check.append([rel, title] + [f"{rows[s]['id']} · {score:.2f} · Ang {rows[s]['ang']} · {rows[s]['gurmukhi']}"
                                          for score, s in ranked])
+            # Shown, but marked as not confirmed, with the other candidates to try on the player.
+            a, b = units[unit_of[seq]]
+            tracks.append((rel, "shabad", a, b, seq, None, 0))
+            for rank, (score, s) in enumerate(ranked):
+                candidates.append((rel, rank, s, rows[s]["id"], round(score, 3)))
             counts["to check"] += 1
         else:
             counts["no match"] += 1
 
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(TITLE_CACHE, f, ensure_ascii=False)
-    write_db(os.path.join(out_dir, "sggs.db"), rows, units, tracks)
+    write_db(os.path.join(out_dir, "sggs.db"), rows, units, tracks, candidates)
     with open(os.path.join(out_dir, "to-check.csv"), "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
         w.writerow(["path", "title", "best", "second", "third"])

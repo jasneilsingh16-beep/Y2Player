@@ -45,8 +45,17 @@ class ShabadView(context: Context) : View(context) {
     private val titlePaint = text(fonts.semibold, 17f, INK)
     private val headerPaint = text(fonts.medium, 13f, SECONDARY)
     private val footerPaint = text(fonts.regular, 12f, FOOTER)
+    private val bannerPaint = text(fonts.semibold, 13f, WARNING_INK)
+    private val menuPaint = text(fonts.medium, 17f, INK)
+    private val menuFocusPaint = text(fonts.medium, 17f, 0xFFFFFFFF.toInt())
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
+
+    /** Choices over the page (confirm, another shabad, none), or null. */
+    var menu: List<String>? = null
+        private set
+    var menuFocus = 0
+        private set
 
     private var passage: GurbaniText.Passage? = null
     private var attribution = ""
@@ -64,6 +73,7 @@ class ShabadView(context: Context) : View(context) {
         passage = value
         attribution = english
         message = null
+        menu = null
         title = when (value.kind) {
             GurbaniText.Kind.SHABAD -> "Shabad"
             GurbaniText.Kind.ANGS -> value.label ?: "Sehaj Paath"
@@ -75,7 +85,25 @@ class ShabadView(context: Context) : View(context) {
         invalidate()
     }
 
+    fun openMenu(items: List<String>) {
+        menu = items
+        menuFocus = 0
+        invalidate()
+    }
+
+    fun moveMenu(delta: Int) {
+        val items = menu ?: return
+        menuFocus = (menuFocus + delta).coerceIn(0, items.lastIndex)
+        invalidate()
+    }
+
+    fun closeMenu() {
+        menu = null
+        invalidate()
+    }
+
     fun showMessage(text: String) {
+        menu = null
         passage = null
         message = text
         title = "Shabad"
@@ -116,11 +144,12 @@ class ShabadView(context: Context) : View(context) {
             message?.let { drawMessage(canvas, it, header) }
             return
         }
+        val banner = if (passage?.confident == false) BANNER_DP * density else 0f
         canvas.save()
-        canvas.clipRect(0f, header, width.toFloat(), height - footer)
+        canvas.clipRect(0f, header + banner, width.toFloat(), height - footer)
         val left = PAD_DP * density
         // The tuk before the focus shows above it, so the eye keeps its place.
-        var y = header + TOP_DP * density
+        var y = header + banner + TOP_DP * density
         if (focus > 0) {
             val previous = block(lines, focus - 1)
             y += minOf(previous.height.toFloat(), PREVIOUS_MAX_DP * density) + blockGap
@@ -142,8 +171,47 @@ class ShabadView(context: Context) : View(context) {
             index++
         }
         canvas.restore()
-        drawScroll(canvas, header, height - footer, lines.size)
+        drawScroll(canvas, header + banner, height - footer, lines.size)
         drawFooter(canvas, footer, lines[focus])
+        if (banner > 0f) drawBanner(canvas, header, banner)
+        menu?.let { drawMenu(canvas, it) }
+    }
+
+    /** Says plainly that this shabad is a guess, and how to settle it. */
+    private fun drawBanner(canvas: Canvas, top: Float, height: Float) {
+        val value = passage ?: return
+        fill.color = WARNING_FILL
+        canvas.drawRect(0f, top, width.toFloat(), top + height, fill)
+        val which = if (value.candidates.size > 1) " · suggestion ${value.candidate + 1} of ${value.candidates.size}" else ""
+        val text = "Not confirmed: may be the wrong shabad$which · Centre to check"
+        val shown = TextUtils.ellipsize(text, bannerPaint, width - 2 * PAD_DP * density, TextUtils.TruncateAt.END).toString()
+        canvas.drawText(shown, PAD_DP * density, top + height * .5f + bannerPaint.textSize * .35f, bannerPaint)
+    }
+
+    private fun drawMenu(canvas: Canvas, items: List<String>) {
+        fill.color = SCRIM
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fill)
+        val row = MENU_ROW_DP * density
+        val pad = 10f * density
+        val cardHeight = items.size * row + 2 * pad
+        val left = 24f * density
+        val right = width - 24f * density
+        val top = (height - cardHeight) / 2f
+        fill.color = BACKGROUND
+        rect.set(left, top, right, top + cardHeight)
+        canvas.drawRoundRect(rect, 16f * density, 16f * density, fill)
+        items.forEachIndexed { index, item ->
+            val y = top + pad + index * row
+            val focused = index == menuFocus
+            if (focused) {
+                fill.color = ACCENT
+                rect.set(left + pad, y, right - pad, y + row)
+                canvas.drawRoundRect(rect, 6f * density, 6f * density, fill)
+            }
+            val paint = if (focused) menuFocusPaint else menuPaint
+            val shown = TextUtils.ellipsize(item, paint, right - left - 4 * pad, TextUtils.TruncateAt.END).toString()
+            canvas.drawText(shown, left + 2 * pad, y + row * .5f + paint.textSize * .35f, paint)
+        }
     }
 
     private fun drawHeader(canvas: Canvas, header: Float) {
@@ -249,6 +317,12 @@ class ShabadView(context: Context) : View(context) {
         private const val TOP_DP = 14f
         private const val PREVIOUS_MAX_DP = 54f
         private const val BLOCK_CACHE = 48
+        private const val BANNER_DP = 26f
+        private const val MENU_ROW_DP = 44f
+        private const val WARNING_FILL = 0xFFFBF1DC.toInt()
+        private const val WARNING_INK = 0xFF8A5A00.toInt()
+        private const val ACCENT = 0xFF0A64D6.toInt()
+        private const val SCRIM = 0x66000000
 
         private const val BACKGROUND = 0xFFFFFFFF.toInt()
         private const val INK = 0xFF111114.toInt()
