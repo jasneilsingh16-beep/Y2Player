@@ -194,15 +194,22 @@ object AudiobookIdentity {
         "talks", "talk", "podcast", "podcasts", "katha", "kathas", "audiobook", "audiobooks",
         "lecture", "lectures", "sermons", "nde", "ndes", "vichar"
     )
-    private val ROOT_PHRASES = listOf("plum village", "near death", "near-death")
+    private val ROOT_PHRASES = listOf("plum village", "near death", "near-death") + SEHAJ_PAATH_PHRASES
 
     /** Genre tags that mark a single file as spoken word, matched whole and without case. */
     private val SPOKEN_GENRES = setOf(
         "podcast", "podcasts", "katha", "talk", "talks", "lecture", "lectures", "speech",
-        "spoken", "spoken word", "audiobook", "audiobooks", "audio book", "sermon", "vichar"
+        "spoken", "spoken word", "audiobook", "audiobooks", "audio book", "sermon", "vichar",
+        "sehaj paath", "sahaj paath", "sehaj path", "paath"
     )
 
+    /** Sehaj Paath is read straight through, part after part, so it is kept like a podcast. */
+    fun isSehajPaath(segment: String): Boolean = segment.trim().lowercase().let { name ->
+        SEHAJ_PAATH_PHRASES.any { it in name }
+    }
+
     private const val KEY_SEPARATOR = '|'
+    private val SEHAJ_PAATH_PHRASES get() = listOf("sehaj paath", "sahaj paath", "sehaj path", "sahaj path")
 
     fun isRootSegment(segment: String): Boolean {
         val name = segment.trim().lowercase()

@@ -37,6 +37,10 @@ internal object TalksContent {
         val segments = AudiobookIdentity.pathOf(folderKey).split('/')
         var index = segments.indexOfFirst(AudiobookIdentity::isRootSegment)
         if (index < 0) return null
+        // Every reader's Sehaj Paath sits together under one Sehaj Paath row.
+        if (AudiobookIdentity.isSehajPaath(segments[index]) && index < segments.lastIndex) {
+            return AudiobookIdentity.volumeOf(folderKey) + "|" + segments.subList(0, index + 1).joinToString("/")
+        }
         while (index + 1 < segments.lastIndex && AudiobookIdentity.isRootSegment(segments[index + 1])) index += 1
         val group = index + 1
         if (group >= segments.lastIndex) return null
@@ -84,7 +88,8 @@ internal object TalksContent {
     private fun folderRow(folder: Folder): ScreenRow.Action {
         val count = folder.podcasts.size
         val active = folder.inProgressCount
-        val detail = if (active == 0) "$count podcasts" else "$count podcasts · $active in progress"
+        val noun = if (AudiobookIdentity.isSehajPaath(folder.name)) "readers" else "podcasts"
+        val detail = if (active == 0) "$count $noun" else "$count $noun · $active in progress"
         val first = folder.podcasts.firstOrNull { it.inProgress } ?: folder.podcasts.first()
         return ScreenRow.Action(
             folder.name, detail, COLLECTION_KEY + folder.path,
