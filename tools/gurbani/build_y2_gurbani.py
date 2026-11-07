@@ -29,6 +29,7 @@ player says so plainly and lets it be confirmed or changed while it plays.
 import csv
 import difflib
 import json
+import math
 import os
 import re
 import sqlite3
@@ -42,6 +43,8 @@ CHECK_SCORE = .62
 SHORT_SCORE = .90
 # However high the score, one title word that fits nothing means another line.
 WORD_FLOOR = .3
+# The plain-spelling reading of the title must also like the line this much.
+STRICT_SCORE = .80
 AUDIO = {".mp3", ".m4a", ".flac", ".ogg", ".opus", ".m4b", ".wav", ".aac"}
 
 AUTHORS = {
@@ -65,9 +68,25 @@ BANIS = {
     "sohila": ("EJU3", None, False),        # to the next bani heading (Sri Raag)
     "sukhmani": ("WEC7", None, False),
     "anand": ("LTKA", None, False),
+    "asavaar": ("6WX1", "1233", False),     # Asa di Vaar: ang 462 to the end of ang 475
 }
 BANI_NAMES = [("japji", "japji"), ("jap ji", "japji"), ("sohila", "sohila"),
-              ("sukhmani", "sukhmani"), ("anand sahib", "anand")]
+              ("sukhmani", "sukhmani"), ("anand sahib", "anand"),
+              ("asa di vaar", "asavaar"), ("asa ki vaar", "asavaar")]
+# A recording titled as a whole bani, anywhere on the card, as folded words. What may
+# follow the name is only a note: "Sahib", "Path", a raag, a taal, a year. Anything
+# else ("... Katha And Anand Sahib") means the title is something other than the bani.
+BANI_TITLES = [   # the name as sung, then the bani; matched on folded words (see bani_of)
+    (("japji", "jap ji"), "japji"),
+    (("sohila",), "sohila"),
+    (("sukhmani",), "sukhmani"),
+    (("anand sahib",), "anand"),
+    (("asa di var", "asa ki var", "asa ke var", "asa de var", "aasa di vaar", "asa di vaar", "asa ki vaar"), "asavaar"),
+]
+BANI_NOTES = "sahib ji path paath full complete v version live new old raag rag".split()
+# Kirtan of a bani is sung to a taal; the singer is then usually on its opening, not on all of it.
+TAALS = {"ektaal", "tintaal", "teentaal", "jhaptaal", "chautaal", "keharwa", "kaharwa", "dadra", "rupak",
+         "deepchandi", "chartaal", "ektal", "tintal"}
 
 
 # ---------------------------------------------------------------- romanisation
@@ -118,17 +137,50 @@ def roman_word(word):
     return text[:-1] if len(text) > 2 and text.endswith("a") and text[-2] not in "aeiou" else text
 
 
-def fold(text):
-    """Makes the many spellings of one sung word compare equal."""
+def fold(text, strict=False):
+    """Makes the many spellings of one sung word compare equal. [strict] leaves the
+    last-sound and vowel-run allowances out: it is the second opinion on a match."""
     t = text.lower()
     t = re.sub(r"[^a-z ]", " ", t)
     t = t.replace("w", "v").replace("z", "j").replace("q", "k").replace("f", "p")
-    t = re.sub(r"(?<=[aeiou])y(?=[aeiou]|\b)", "i", t)
-    t = re.sub(r"([kgcjtdpbs])h", r"\1", t)
+    t = t.replace("y", "i")
+    t = re.sub(r"([kgcjtdpbs])h+", r"\1", t)
+    # Long and short vowels are one sound in a title ("Aukhi" and ਅਉਖੀ), so they are
+    # joined before doubled letters are, or "ee" becomes "e" and never meets "i".
+    t = t.replace("aa", "a").replace("ee", "i").replace("oo", "u").replace("ai", "e").replace("au", "o")
     t = re.sub(r"(.)\1+", r"\1", t)
-    t = t.replace("ee", "i").replace("oo", "u").replace("aa", "a").replace("ai", "e").replace("au", "o")
-    t = re.sub(r"(.)\1+", r"\1", t)
-    return " ".join(t.split())
+    # "Piaria" and "piareya": a run of vowels in a title is a guess, so only its last counts.
+    if strict:
+        return " ".join(t.split())
+    t = re.sub("[aeiou]{2,}", lambda m: m.group()[-1], t)
+    return " ".join(_ending(w) for w in t.split())
+
+
+def _ending(word):
+    """A word's last sound is the least reliable: ਧਾਰਹੁ is sung "dharo", "dharu" or "dharahu"
+    and a title may spell any of them. An 'h' after a vowel and then the final vowel are left off."""
+    if len(word) > 2 and word.endswith("h") and word[-2] in "aeiou":
+        word = word[:-1]
+    if len(word) > 2 and word[-1] in "aeiou" and word[-2] not in "aeiou":
+        word = word[:-1]
+    return word
+
+
+def skeleton(folded):
+    """The consonants of a folded word. Titles drop and add short vowels freely
+    ("Bandgi" for ਬੰਦਗੀ); the consonants are what they keep. ਛ, ਚ and ਸ਼ are spelt
+    interchangeably with ਸ."""
+    return re.sub(r"[aeiou]", "", folded).replace("c", "s").replace("j", "s")
+
+
+def similarity(a, b):
+    """How alike two folded strings are: by spelling, or by consonants alone."""
+    full = difflib.SequenceMatcher(None, a, b).ratio()
+    sa, sb = skeleton(a), skeleton(b)
+    # Consonants only vouch for a pair that already looks something alike.
+    if full < .5 or len(sa.replace(" ", "")) < 2 or len(sb.replace(" ", "")) < 2:
+        return full
+    return max(full, difflib.SequenceMatcher(None, sa, sb).ratio() - .10)
 
 
 def gurmukhi_words(line):
@@ -191,6 +243,25 @@ def bani_ranges(rows):
 TITLE_CACHE = {}
 
 
+def bani_of(title):
+    """('anand', kirtan?) when [title] names a whole bani and nothing else, or None."""
+    words = fold(re.sub(r"\(.*?\)|\[.*?\]", " ", title)).split()
+    text = " ".join(words)
+    for names, key in BANI_TITLES:
+        hit = next((n for n in map(fold, names) if text == n or text.startswith(n + " ")), None)
+        if hit is None:
+            continue
+        rest = text[len(hit):].split()
+        taal = any(w in {fold(t) for t in TAALS} for w in rest)
+        # "Part 2" is a piece of a bani: the text would not line up with the recording.
+        if any(w in ("part", "pt", "prt", "pauri", "paurhi", "ashtpadi") for w in rest):
+            return None
+        known = {fold(w) for w in BANI_NOTES} | EXTRAS_FOLDED | {fold(t) for t in TAALS}
+        if all(w in known or w.isdigit() for w in rest):
+            return key, taal
+    return None
+
+
 def title_of(path):
     stat = os.stat(path)
     key = f"{path}|{stat.st_size}|{int(stat.st_mtime)}"
@@ -239,6 +310,19 @@ EXTRAS_FOLDED = {fold(w) for w in TITLE_EXTRAS}
 SUNG_FILLERS = {fold(w) for w in "re mere mera meri man mana ji jio jiu he hai o".split()}
 
 
+MAX_OFFSET = 4          # a title may begin up to this many words into a line
+
+
+def tokens_of(word):
+    """A word as it is spelt, and as its consonants alone (a title drops short vowels)."""
+    sk = skeleton(word)
+    if len(sk) < 2:
+        return (word,)
+    # Without nasals too: ਅੰਮ੍ਰਿਤ is "anmrit" here and "amrit" in a title.
+    bare = sk.replace("n", "").replace("m", "")
+    return (word, "~" + sk, "^" + bare) if len(bare) >= 2 else (word, "~" + sk)
+
+
 class Matcher:
     def __init__(self, rows, units):
         self.rows = rows
@@ -247,7 +331,7 @@ class Matcher:
             for s in range(a, b + 1):
                 self.unit_of[s] = number
         self.lines = []
-        self.by_start = defaultdict(list)
+        self.index = defaultdict(list)
         self.opening = set()
         self.words_at = {}
         for a, b in units:
@@ -264,15 +348,34 @@ class Matcher:
             index = len(self.lines)
             self.lines.append((r["seq"], words))
             self.words_at[r["seq"]] = words
-            self.by_start[(words[0][:1], words[1][:1])].append(index)
+            # Lines are found by the words they share with a title, not by how they begin:
+            # a title may start inside a line ("Khair deejai bandagi" is the middle of
+            # "Sekh Faridai khair deejai bandagi"), and a singer's spelling may be off in
+            # the very first word ("Kar" for ਹਰਿ).
+            for token in {t for w in words[:MAX_OFFSET + 5] for t in tokens_of(w)}:
+                self.index[token].append(index)
+        total = max(len(self.lines), 1)
+        self.idf = {t: math.log(total / len(v)) for t, v in self.index.items()}
 
-    def candidates(self, title_words):
-        key = (title_words[0][:1], title_words[1][:1])
-        seen = set(self.by_start.get(key, []))
-        # A title can start one word in, after a sung "Re" or "Mere".
-        if len(title_words) > 3 and title_words[0] in SUNG_FILLERS:
-            seen |= set(self.by_start.get((title_words[1][:1], title_words[2][:1]), []))
-        return seen
+    def candidates(self, title_words, limit=250):
+        """The lines sharing at least two of the title's words (or their consonants), best first."""
+        hits = defaultdict(set)
+        weight = defaultdict(float)
+        for n, word in enumerate(title_words):
+            found = {}
+            for token in tokens_of(word):
+                # A word on a third of all lines ("na") narrows nothing and costs a lot.
+                if self.idf.get(token, 0.0) < 1.5:
+                    continue
+                for i in self.index.get(token, ()):
+                    found[i] = max(found.get(i, 0.0), self.idf.get(token, 0.0))
+            for i, w in found.items():
+                hits[i].add(n)
+                weight[i] += w
+        need = 1   # one word is often spelt too far off to match; the rest still find the line
+        pool = [(weight[i], i) for i, got in hits.items() if len(got) >= need]
+        pool.sort(reverse=True)
+        return {i for _, i in pool[:limit]}
 
     def score(self, title_words, index):
         seq, words = self.lines[index]
@@ -285,11 +388,15 @@ class Matcher:
             t = title_words[skip:]
             if len(t) < 2:
                 continue
-            line = " ".join(words[:len(t)])
-            ratio = difflib.SequenceMatcher(None, " ".join(t), line).ratio()
-            # Words the singer added, and words the title left out, cost a little.
-            ratio -= .04 * skip
-            best = max(best, ratio)
+            joined = " ".join(t)
+            # Beginning inside the line is only believable for a title of three words or more.
+            for k in range(0, (MAX_OFFSET if len(t) >= 3 else 0) + 1):
+                window = words[k:k + len(t)]
+                if len(window) < max(2, len(t) - 1):
+                    break
+                # Words the singer added, and words the title left out, cost a little.
+                ratio = similarity(joined, " ".join(window)) - .04 * skip - .05 * k
+                best = max(best, ratio)
         return best
 
     def word_floor(self, title_words, seq):
@@ -298,13 +405,18 @@ class Matcher:
         A title word may stand for two line words run together ("kachhathon" for
         ਕਿਛੁ ਹਥਹੁ), or two title words for one. One word that fits nothing
         ("heera" over ਹਰਹਟ) is what a near miss looks like."""
-        line = self.words_at.get(seq, [])
-        if len(title_words) > len(line) and seq + 1 in self.words_at:
-            line = line + self.words_at[seq + 1]
+        whole = self.words_at.get(seq, [])
+        if len(title_words) > len(whole) and seq + 1 in self.words_at:
+            whole = whole + self.words_at[seq + 1]
+        return max((self._floor(title_words, whole[k:]) for k in range(0, MAX_OFFSET + 1) if whole[k:]),
+                   default=0.0)
+
+    @staticmethod
+    def _floor(title_words, line):
         n, m = len(title_words), len(line)
         if not m:
             return 0.0
-        sim = lambda a, b: difflib.SequenceMatcher(None, a, b).ratio()   # noqa: E731
+        sim = similarity
         inf = float("-inf")
         # best[i][j]: the best (sum, floor) laying title[:i] over line[:j]
         best = [[(inf, 0.0)] * (m + 1) for _ in range(n + 1)]
@@ -328,24 +440,69 @@ class Matcher:
         # The title may stop before the line does.
         return max((best[n][j][1] for j in range(m + 1) if best[n][j][0] != inf), default=0.0)
 
-    def match(self, title):
-        text = " ".join(roman_word(w) for w in gurmukhi_words(title)) if GURMUKHI.search(title) else title
+    def strict_score(self, text, seq):
+        """How well the title reads as the line by plain spelling, without the loose
+        allowances that find lines. Loose finding, strict agreeing: both must like a line."""
+        twords = [w for w in fold(self._notes_off(text), strict=True).split() if w]
+        line = self.strict_words(seq)
+        if len(twords) < 2 or not line:
+            return 0.0
+        if len(twords) > len(line) and seq + 1 in self.words_at:
+            line = line + self.strict_words(seq + 1)
+        joined, best = " ".join(twords), 0.0
+        for k in range(0, (MAX_OFFSET if len(twords) >= 3 else 0) + 1):
+            window = line[k:k + len(twords)]
+            if len(window) < max(2, len(twords) - 1):
+                break
+            best = max(best, difflib.SequenceMatcher(None, joined, " ".join(window)).ratio() - .05 * k)
+        return best
+
+    def strict_words(self, seq):
+        if not hasattr(self, "_strict"):
+            self._strict = {}
+        if seq not in self._strict:
+            row = self.rows[seq]
+            self._strict[seq] = [w for w in (fold(roman_word(x), strict=True) for x in gurmukhi_words(row["gurmukhi"])) if w]
+        return self._strict[seq]
+
+    @staticmethod
+    def _notes_off(text):
         text = re.sub(r"\(.*?\)|\[.*?\]", " ", text)
-        text = re.sub(r"\b(part|pt|live|kirtan|shabad|bhai|sahib|ji)\b.*$", " ", text, flags=re.I) \
-            if re.search(r"\bpart\s*\d", text, re.I) else text
+        if re.search(r"\bpart\s*\d", text, re.I):
+            text = re.sub(r"\b(part|pt|live|kirtan|shabad|bhai|sahib|ji)\b.*$", " ", text, flags=re.I)
+        words = text.split()
+        return " ".join(words[:3] + [w for w in words[3:] if fold(w) not in EXTRAS_FOLDED and not w.isdigit()])
+
+    def title_words(self, text):
+        text = re.sub(r"\(.*?\)|\[.*?\]", " ", text)
+        if re.search(r"\bpart\s*\d", text, re.I):
+            text = re.sub(r"\b(part|pt|live|kirtan|shabad|bhai|sahib|ji)\b.*$", " ", text, flags=re.I)
         words = [w for w in fold(text).split() if w]
         # Keep the first three words whatever they are; past them, drop raag, taal and notes.
-        words = words[:3] + [w for w in words[3:] if fold(w) not in EXTRAS_FOLDED and not w.isdigit()]
-        if len(words) < 3:
-            return None, []
-        scored = sorted(((self.score(words, i), i) for i in self.candidates(words)), reverse=True)
-        best_by_unit = {}
-        for s, i in scored:
-            unit = self.unit_of[self.lines[i][0]]
-            if unit not in best_by_unit:
-                best_by_unit[unit] = (s, i)
-        ranked = sorted(best_by_unit.values(), reverse=True)[:3]
-        return words, [(s, self.lines[i][0]) for s, i in ranked]
+        return words[:3] + [w for w in words[3:] if fold(w) not in EXTRAS_FOLDED and not w.isdigit()]
+
+    def match(self, title):
+        text = " ".join(roman_word(w) for w in gurmukhi_words(title)) if GURMUKHI.search(title) else title
+        # "Shaad" is often how ਛਾਡਿ is spelt, and "Shekh" how ਸੇਖ is: try both readings.
+        spellings = [text]
+        if re.search(r"sh", text, re.I):
+            spellings.append(re.sub(r"sh", "ch", text, flags=re.I))
+        best_words, best_ranked = None, []
+        self.last_texts = spellings
+        for spelling in spellings:
+            words = self.title_words(spelling)
+            if len(words) < 2:
+                continue
+            scored = sorted(((self.score(words, i), i) for i in self.candidates(words)), reverse=True)
+            best_by_unit = {}
+            for s, i in scored:
+                unit = self.unit_of[self.lines[i][0]]
+                if unit not in best_by_unit:
+                    best_by_unit[unit] = (s, i)
+            ranked = [(s, self.lines[i][0]) for s, i in sorted(best_by_unit.values(), reverse=True)[:3]]
+            if best_words is None or (ranked and (not best_ranked or ranked[0][0] > best_ranked[0][0])):
+                best_words, best_ranked = words, ranked
+        return best_words, best_ranked
 
 
 # ---------------------------------------------------------------- output
@@ -448,7 +605,29 @@ def main():
                 counts["bani"] += 1
             continue
         title = title_of(path)
+        # A whole bani by name, wherever it is filed ("Anand Sahib", "Asa Di Vaar").
+        named = bani_of(title) or bani_of(os.path.splitext(os.path.basename(path))[0].split(" - ")[0])
+        if named:
+            key, kirtan = named
+            a, b = banis[key]
+            if kirtan and key == "anand":
+                # Kirtan of Anand Sahib is sung on its opening pauris, not read through.
+                seq = next(q for q in range(a, b + 1) if rows[q]["kind"] in "TR")
+                ua, ub = units[unit_of[seq]]
+                tracks.append((rel, "shabad", ua, ub, seq, None, 0))
+                counts["bani kirtan (to check)"] += 1
+            else:
+                tracks.append((rel, "bani", a, b, None, None, 1))
+                counts["bani by title"] += 1
+            continue
         words, ranked = matcher.match(title)
+        strict = 0.0
+        if ranked:
+            # Lines are found loosely and confirmed strictly: re-rank on both opinions.
+            both = sorted(((.6 * sc + .4 * max(matcher.strict_score(t, q) for t in matcher.last_texts), q,
+                            max(matcher.strict_score(t, q) for t in matcher.last_texts)) for sc, q in ranked), reverse=True)
+            ranked = [(c, q) for c, q, _ in both]
+            strict = both[0][2]
         if not ranked:
             counts["no match"] += 1
             continue
@@ -464,13 +643,13 @@ def main():
             floor = matcher.word_floor(words, seq)
             counts["rahao tie-break"] += 1
         # Three words leave too much room for chance: they must be all but exact.
-        needed = SHORT_SCORE if len(words) <= 3 else SURE_SCORE
-        sure = best >= needed and margin >= SURE_MARGIN and floor >= WORD_FLOOR
+        needed = 2.0 if len(words) < 3 else SHORT_SCORE if len(words) == 3 else SURE_SCORE
+        sure = best >= needed and margin >= SURE_MARGIN and floor >= WORD_FLOOR and strict >= STRICT_SCORE
         if sure:
             a, b = units[unit_of[seq]]
             tracks.append((rel, "shabad", a, b, seq, None, 1))
             counts["matched"] += 1
-        elif best >= CHECK_SCORE:
+        elif best >= (CHECK_SCORE if len(words) > 2 else .85):
             check.append([rel, title] + [f"{rows[s]['id']} · {score:.2f} · Ang {rows[s]['ang']} · {rows[s]['gurmukhi']}"
                                          for score, s in ranked])
             # Shown, but marked as not confirmed, with the other candidates to try on the player.
