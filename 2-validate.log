@@ -1,0 +1,20 @@
+
+=== Validating system-image environment ===
+      found python3
+      found debugfs
+      found e2fsck
+      found dumpe2fs
+      found sha256sum
+      system.img format: Android sparse
+      base system.img: 499930676 bytes
+      APK install path: /system/priv-app/Y2Player.apk
+      native install path: /system/lib/liby2audio.so
+      patched HAL path: /system/lib/libaudio.primary.default.so
+      patched keypad path: /system/usr/keylayout/mtk-kpd.kl
+      package profile: conservative Y2Player appliance
+      optional packages pruned: 35
+      critical package guards: 26
+      boot.img: not used and not emitted
+
+=== Validation complete (no artifacts produced) ===
+Full-package inputs are valid. No artifacts were produced.
