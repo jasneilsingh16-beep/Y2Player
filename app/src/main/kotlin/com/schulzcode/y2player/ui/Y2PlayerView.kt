@@ -2560,13 +2560,14 @@ class Y2PlayerView(
             }
             else -> {
                 // Where you are in what is playing: "Favourites · 4 of 121", or "Track 4 of 23".
-                val queue = state.playback.queue
-                val position = queue.indexOfFirst { it.id == state.playback.currentQueueEntryId } + 1
+                // Counted over the whole queue: the visible queue starts at the current track.
+                val position = state.playback.queuePosition
+                val size = state.playback.queueSize
                 val source = state.playSource
                 when {
-                    position <= 0 || queue.size < 2 -> source.orEmpty()
-                    source.isNullOrBlank() -> "Track $position of ${queue.size}"
-                    else -> "$source · $position of ${queue.size}"
+                    position <= 0 || size < 2 -> source.orEmpty()
+                    source.isNullOrBlank() -> "Track $position of $size"
+                    else -> "$source · $position of $size"
                 }
             }
         }

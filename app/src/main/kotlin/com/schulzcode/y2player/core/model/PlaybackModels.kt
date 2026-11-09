@@ -133,6 +133,10 @@ data class PlaybackSnapshot(
     /** Current entry followed by the exact upcoming playback order; history is intentionally hidden. */
     val queue: List<QueueEntry> = emptyList(),
     val currentQueueEntryId: Long? = null,
+    /** Where the current entry sits in the whole queue, played entries included (1-based; 0 when nothing is current). */
+    val queuePosition: Int = 0,
+    /** How many entries the whole queue holds, played entries included. */
+    val queueSize: Int = 0,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val shuffleEnabled: Boolean = false,
     val pauseReason: PauseReason = PauseReason.NONE,

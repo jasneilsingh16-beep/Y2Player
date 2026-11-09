@@ -93,6 +93,7 @@ class MainActivity : Activity() {
     /** The card's automatic backup: kept up to date as the player is used, offered back once after an install. */
     private val cardMirror by lazy { getSharedPreferences("card_mirror", Context.MODE_PRIVATE) }
     private var restoreCheckRunning = false
+    private var clockCheckDone = false
     private var lastAutoBackupAt = Long.MIN_VALUE / 2
     /** Unbinding happens before a backup started on the way out has read the history. */
     @Volatile private var lastPlaybackBinder: PlaybackService.LocalBinder? = null
@@ -191,7 +192,10 @@ class MainActivity : Activity() {
 
     private val libraryListener = LibraryRepository.Listener { state ->
         store.dispatch(AppAction.LibraryChanged(state))
-        if (!state.isScanning && state.lastScanAt != null) offerCardRestore()
+        if (!state.isScanning && state.lastScanAt != null) {
+            restoreClockFromCard()
+            offerCardRestore()
+        }
         if (restoreAfterScan && !state.isScanning) {
             restoreAfterScan = false
             handleEffect(AppEffect.ImportBackup)
@@ -638,7 +642,7 @@ class MainActivity : Activity() {
                 hapticController.setLevel(value.hapticLevel)
                 showMessage(
                     if (value.hapticLevel == HapticLevel.OFF) "Haptics off"
-                    else "Haptics ${value.hapticLevel.label.lowercase()} · ${value.hapticLevel.durationMs} ms pulse (API 19 has no amplitude control)"
+                    else "Haptics ${value.hapticLevel.label.lowercase()}"
                 )
             }
             AppEffect.ToggleWrapLists -> applyPlaybackPreferences(preferences.toggleWrapLists())
@@ -1048,6 +1052,30 @@ class MainActivity : Activity() {
                 restoreTimeZone(preview.document.settings[UserDataBackupManager.TIME_ZONE_KEY])
                 pendingBackupPreview = preview
                 handleEffect(AppEffect.ImportBackup)
+            }
+        }
+    }
+
+    /**
+     * The Y2 keeps no time through a reflash: it comes back years behind. The card's
+     * automatic backup is refreshed every few minutes of use and carries the moment it
+     * was written, so a clock earlier than that is wrong, and that moment is far closer
+     * to now. Once per start, after the card is read; the listener is asked to check.
+     */
+    private fun restoreClockFromCard() {
+        if (clockCheckDone) return
+        clockCheckDone = true
+        backgroundExecutor.execute {
+            val saved = backupManager.newestPreview().getOrNull()?.document?.createdAtUtcMs ?: return@execute
+            if (System.currentTimeMillis() >= saved) return@execute
+            mainHandler.post {
+                if (destroyed) return@post
+                runCatching { (getSystemService(Context.ALARM_SERVICE) as AlarmManager).setTime(saved) }
+                    .onFailure { logger.warn("Clock", "restore time failed: ${it.javaClass.simpleName}") }
+                val applied = clockNear(saved)
+                logger.info("Clock", "restored from card backup applied=$applied")
+                publishClock()
+                if (applied) showMessage("Clock set from the card's last save: check the time in Settings")
             }
         }
     }

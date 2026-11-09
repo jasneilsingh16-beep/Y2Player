@@ -1458,8 +1458,11 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
         val requestId = activeRequestId
         if (requestId == 0L || requestId == lastReleasedRequestId) return
         lastReleasedRequestId = requestId
-        val positionMs = currentPosition()
         val durationMs = currentDuration()
+        // A track that played out reports 0:00 once the engine has let it go; it was
+        // heard to the end, so a Sehaj Paath part or a talk is marked played, not left
+        // at the last position saved a few minutes before.
+        val positionMs = if (reason == PlaybackExitReason.COMPLETED && durationMs > 0) durationMs else currentPosition()
         eventLog.debug(
             Sub.PLAYBACK, Ev.TRACK_RELEASED,
             "request" to requestId,
@@ -2245,6 +2248,8 @@ class PlaybackService : Service(), PlaybackEngine.Listener, AudioFocusController
             durationMs = durationMs.coerceAtLeast(0),
             queue = queueState.visibleEntries,
             currentQueueEntryId = queueState.currentEntryId,
+            queuePosition = queueState.entries.indexOfFirst { it.id == queueState.currentEntryId } + 1,
+            queueSize = queueState.entries.size,
             repeatMode = queueState.repeatMode,
             shuffleEnabled = queueState.shuffleEnabled,
             pauseReason = pauseReason,
